@@ -2,17 +2,23 @@
 """
 Created on Thu Feb 29 11:49:17 2024
 
-@author: Caghan (work)
-life is temporary. code is eternal
+@author: Caghan Uenlueer
+6C 69 66 65 20 69 73 20 74 65 6D 70 6F 72 61 72 79 2E 20 63 6F 64 65 20 69 73 20 65 74 65 72 6E 61 6C
 """
 import toml
 import uuid
 import json
+import subprocess
+import time
+import os
+import shutil
+import hashlib
 
 # Node-objects are basically all objects that are represented in the treeview in nanoscribeX's GUI
 # properties, geometry and marker have to be passed as dicts! I have implemented it in Node differently for
 # marker. However, that is rather arbitrary and probably not neccessary. I can fix that later on but first
-# testing in mandatory before proceeding with adjustemnts for the code.
+# testing in mandatory before proceeding with adjustments for the code.
+# UPDATE20240326: Tests were successful!
 
 class Node:
     def __init__(self, node_type, name, marker=None, properties=None, geometry=None, **kwargs):
@@ -147,7 +153,7 @@ class Resource:
         self.id = str(uuid.uuid4())
         self.type = resource_type
         self.name = name
-        self.path = path
+        self.path = 'resources/'+path
         if resource_type == 'mesh_file':
             self.translation = kwargs.get('translation', [0, 0, 0])
             self.auto_center = kwargs.get('auto_center', False)
@@ -207,7 +213,35 @@ class Resource:
 
 
 
-
+def copy_files_to_resource_directory(source_directory, target_directory="./resources"):
+    # Quick breakdown of this function:
+    # Skip directories
+    # Calculate MD5 hash
+    # Create a sub-directory for the hash if it doesn't exist
+    # Copy the file to the new directory
+    # NOTE: This function is only of interest if you want to adapt to NanoScribe's fail-safe naming convention!
+    # NOTE: Sticking to this way of naming/sorting might make things a bit more complicated.
+    if not os.path.exists(target_directory):
+        os.makedirs(target_directory)
+    
+    for filename in os.listdir(source_directory):
+        file_path = os.path.join(source_directory, filename)
+        
+        
+        if os.path.isdir(file_path):
+            continue
+        
+        
+        with open(file_path, 'rb') as f:
+            file_hash = hashlib.md5(f.read()).hexdigest()
+        
+        
+        hash_directory = os.path.join(target_directory, file_hash)
+        if not os.path.exists(hash_directory):
+            os.makedirs(hash_directory)
+        
+        
+        shutil.copy(file_path, os.path.join(hash_directory, filename))
 
     
 
@@ -225,22 +259,20 @@ def save_to_toml(presets, resources, nodes, filename="__main__.toml"):
 def project_info(project_info_json, file_name="project_info.json"):
     with open(file_name, 'w') as file:
         json.dump(project_info_json, file)
-"""
-# Example usage
-node = Node(
-    node_type="interface_alignment",
-    name="Interface aligner 1",
-    grid_point_count=[4.0, 4.0],
-    grid_size=[200, 200],
-    action_upon_failure="abort"
-    # Other unique attributes can be added here as needed
-)
 
-node.add_alignment_anchor("marker 1", [-130.0, -30.0], [10.0, 10.0])
-# Add more alignment anchors as needed
-
-# Convert to dict for serialization (e.g., to TOML)
-node_dict = node.to_dict()
-
-# You can then serialize node_dict to a TOML file using a TOML library
-"""
+def nano_file_gen(project_name, path = './', output_7z = False):
+    print('nanoAPI: Attempting to create .nano-file...')
+    time.sleep(3)
+    cmd = ['7z', 'a', '-tzip', '-mx0',
+           f'{path}{project_name}.nano',  
+           f'{path}__main__.toml',       
+           f'{path}project_info.json',   
+           f'{path}resources']
+    
+    process = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    print('nanoAPI: .nano-file created.')
+    output = process.stdout.decode()
+    error = process.stderr.decode()
+    if output_7z == True:
+        print(output, error)
+    return process

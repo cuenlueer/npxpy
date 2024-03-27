@@ -38,11 +38,11 @@ preset = n.Preset("25x_IP-n162_anchorage_FuSi_clone", **edit_presets)
 
 resource_mesh = n.Resource(resource_type = "mesh_file",
                            name = "structure",
-                           path = "resources/5416ba193f0bacf1e37be08d5c249914/combined_file.stl")
+                           path = "5416ba193f0bacf1e37be08d5c249914/combined_file.stl")
 
 resource_image = n.Resource(resource_type = "image_file",
                             name = "markers_1",
-                            path = "resources/78eab7abd2cd201630ba30ed5a7ef4fc/markers.png")
+                            path = "78eab7abd2cd201630ba30ed5a7ef4fc/markers.png")
 
 
 
@@ -229,3 +229,5 @@ n.save_to_toml([preset],
                         structure1])
 
 n.project_info(project_info_json)
+
+n.nano_file_gen('project_example')
