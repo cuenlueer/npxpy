@@ -29,8 +29,8 @@ Working with the GUI is straightforward and user friendly: You have your three t
 pretty much straightforward from there. You import your resources, i.e., images (.png)  and meshs (.stl), set your presets and then get started with
 structuring your project by inserting your children-nodes to your main project-node and set your node settings on the fly (see Fig. 1).
 
-The way of how *nanoAPI* handles things is quite similiar with the exception being that you can also define your nodes and set the node settings <ins>before<ins> 
-you assign them as parents or children (see Fig. 2). Breaking the workflow structure up like this not only gives the user the ability to have a more customized project workflow
+The way of how *nanoAPI* handles things is quite similiar with the exception being that you can also define your nodes and set the node settings <ins>before<ins> you
+assign them as parents or children (see Fig. 2). Breaking the workflow structure up like this not only gives the user the ability to have a more customized project workflow
 but also to keep their code more readable by, as for instance, implementing the node allocation in a seperated code block.
 The presets and resources, however, should always be defined from the outset in order to allocate them while setting up marker-aligner-nodes and/or
 structure-nodes. Although syntactically inconvenient, there is propably no issue doing it otherwise. However, it is strongly suggested to define them always first for semantic reasons.
