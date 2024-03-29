@@ -31,7 +31,7 @@ edit_presets = {"writing_speed" : 250000.0,
                 "hatching_back_n_forth" : True,
                 "mesh_z_offset" : 0.0}
 
-preset = n.Preset("25x_IP-n162_anchorage_FuSi_clone", **edit_presets)
+preset = n.Preset(name = "25x_IP-n162_anchorage_FuSi_clone", **edit_presets)
 
 
 
