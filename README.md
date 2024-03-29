@@ -29,7 +29,7 @@ Working with the GUI is straightforward and user friendly: You have your three t
 pretty much straightforward from there. You import your resources, i.e., images (.png)  and meshs (.stl), set your presets and then get started with
 structuring your project by inserting your children-nodes to your main project-node and set your node settings on the fly (see Fig. 1).
 
-The way of how *nanoAPI* handles things is quite similiar with the exception being that you can also define your nodes and set the node settings <ins>before<ins> you
+The way of how *nanoAPI* handles things is quite similiar with the exception being that you can also define your nodes and set the node settings <ins>before</ins> you
 assign them as parents or children (see Fig. 2). Breaking the workflow structure up like this not only gives the user the ability to have a more customized project workflow
 but also to keep their code more readable by, as for instance, implementing the node allocation in a seperated code block.
 The presets and resources, however, should always be defined from the outset in order to allocate them while setting up marker-aligner-nodes and/or
@@ -44,7 +44,7 @@ The last step is always the same, where all objects are collected according to t
 ## Example Project
 First, we need to import all neccessary packages to our project.py and define a dictionary that contains some meta data about our project. 
 
-```
+```python
 import nanoAPI as n
 from datetime import datetime
 import os
@@ -60,7 +60,7 @@ project_info_json = {
 
 ```
 text
-```
+```python
 edit_presets = {"writing_speed" : 250000.0,
                 "writing_power" : 50.0,
                 "slicing_spacing" : 0.8,
@@ -87,7 +87,7 @@ resource_image = n.Resource(resource_type = "image_file",
 
 ```
 text
-```
+```python
 #Tree view_________________________________________________________
 
 project = n.Node(node_type='project',
@@ -99,7 +99,7 @@ project = n.Node(node_type='project',
 #-----------------------------------------------
 ```
 text
-```
+```python
 coarse_aligner1 = n.Node(node_type = 'coarse_alignment',
                         name = "Coarse aligner 1",
                         residual_threshold = 10.0,
@@ -121,7 +121,7 @@ for label, position in zip(labels,positions):
 #-----------------------------------------------
 ```
 test
-```
+```python
 scene1 = n.Node('scene',
                 "Scene 1",
                 writing_direction_upward = True)
@@ -134,7 +134,7 @@ array1 = n.Node('array',
 #-----------------------------------------------
 ```
 text
-```
+```python
 interface_aligner1 = n.Node(node_type = 'interface_alignment',
                             name = 'Interface aligner 1',
                             action_upon_failure = "abort",
@@ -181,7 +181,7 @@ for label, position, scan_area_size in zip(labels,positions,scan_area_sizes):
 #-----------------------------------------------
 ```
 text
-```
+```python
 marker_aligner_defualt = {
     "scan_area_res_factors" : [2,2],
     "laser_power" : 0.5,
@@ -225,7 +225,7 @@ for label, position, rotation in zip(labels,positions,rotations):
     marker_aligner1.add_marker_anchor(label, position, rotation)
 ```
 text
-```
+```python
 structure1 = n.Node(node_type = "structure",
                     name = "test",
                     preset = preset.id,
@@ -240,7 +240,7 @@ structure1 = n.Node(node_type = "structure",
 
 ```
 text
-```
+```python
 project.add_child(coarse_aligner1)
 coarse_aligner1.add_child(scene1)
 scene1.add_child(group1)
@@ -251,7 +251,7 @@ marker_aligner1.add_child(structure1)
 
 ```
 text
-```
+```python
 
 n.save_to_toml([preset],
                     [resource_mesh,
