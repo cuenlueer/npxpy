@@ -42,6 +42,23 @@ The last step is always the same, where all objects are collected according to t
 
 
 ## Example Project
+
+### Preparing your project
+Before you start coding your project.py, you should prepare you project folder. This step is rather easy but there are some caveats that should be discussed.
+Your project folder just needs to contain an additional folder named `resources` which contains your images (.png) and meshes (.stl). It should be clear that
+the naming of those files should be unique because otherwise the QX would run into problems. *NanoPrintX* uses the MD5-hashes of the respective files and creates sub-folders
+inside the `resources`-folder and inserts those files then into them. This way you end up with uniquely named folders that each stores the single respective file, serving
+as labels. I have implemented a function called `copy_files_to_resource_directory(source_directory = 'my/resources/are/here')` which does this for you if you want to adapt
+to this convention applied by *NanoPrintX*. However, as long as you have unique naming conventions, you can skip this extra step.
+
+Thats already it! If you have these two things (and maybe also the nanoAPI.py as well, if you want to make things easy) you are good to go and start with the actual script!
+
+### Code
+**ATTENTION:** *It is extremely useful if you know how classes work in Python. We will not go into those details here since fundamental properties of classes are always the same.*
+*It is recommended to check out some documentations in order to be able to fully exploit the functionalities provided when coding your routines!*
+
+*If you want to know ahead what the output is going to look like, just run the `example_project.py` inside the `example`-folder and take a look at the `example_project.nano` via the GUI.*
+
 First, we need to import all neccessary packages to our project.py and define a dictionary that contains some meta data about our project. 
 
 ```python
@@ -59,9 +76,14 @@ project_info_json = {
 
 
 ```
-text
+This structure is the basis header and every project should contain this header. Just don't forget to adjust the dictionary (dict) according to your project demands.
+If you should wonder why this dict exists, do not. It is just something that the `.nano`-file will need to function properly. Just treat it like some sort of header/label
+and do not think too much about it.
+
+The next step is to take care of your presets and resources. Name your preset and provide the neccessary parameters as shown below by passing them as a dict.
 ```python
-edit_presets = {"writing_speed" : 250000.0,
+edit_presets = {
+                "writing_speed" : 250000.0,
                 "writing_power" : 50.0,
                 "slicing_spacing" : 0.8,
                 "hatching_spacing" : 0.3,
@@ -70,11 +92,16 @@ edit_presets = {"writing_speed" : 250000.0,
                 "hatching_offset" : 0.0,
                 "hatching_offset_increment" : 0.0,
                 "hatching_back_n_forth" : True,
-                "mesh_z_offset" : 0.0}
+                "mesh_z_offset" : 0.0
+               }
 
 preset = n.Preset(name = "25x_IP-n162_anchorage_FuSi_clone", **edit_presets)
 
+```
+The parameters are the same you would also encounter when you open the respective menu in the GUI.
 
+We now proceed with allocation of our resources: namely our mesh structure and marker image.
+```
 
 
 resource_mesh = n.Resource(resource_type = "mesh_file",
@@ -86,7 +113,10 @@ resource_image = n.Resource(resource_type = "image_file",
                             path = "78eab7abd2cd201630ba30ed5a7ef4fc/markers.png")
 
 ```
-text
+There are no other resource types other then these two. The names you choose as you wish. The path is the location inside of the `resources`-folder and as you can see
+here, the (very esthetically pleasing) MD5-hash-convention, as used by *NanoPrintX*, was (demonstratively) used.
+
+Now we get to the allocation of nodes. As always, we start by setting up the project node.
 ```python
 #Tree view_________________________________________________________
 
@@ -96,15 +126,17 @@ project = n.Node(node_type='project',
                  resin = project_info_json['resist'],
                  substrate = project_info_json['substrate'])
 
-#-----------------------------------------------
+
 ```
-text
+Here, the most important options were fetched from `project_info_json`-dict above. This way, you can technically treat this node also as a 'reusable' header element.
+
+Now proceed with setting up your coarse aligner.
 ```python
 coarse_aligner1 = n.Node(node_type = 'coarse_alignment',
                         name = "Coarse aligner 1",
                         residual_threshold = 10.0,
-                        orthonormalize = True # here-to-stay value
-                        ) 
+                        orthonormalize = True # here-to-stay value: This means that I just do not know if you can leave this out or not since
+                        )                     # it appears in the 'source code' but not the GUI as an adjustable setting. Just mess around (i.e., leave it out) and find out!
 labels = ['anchor 0',
           'anchor 1',
           'anchor 2',
@@ -120,32 +152,31 @@ for label, position in zip(labels,positions):
     
 #-----------------------------------------------
 ```
-test
+The node's type gets allocated as a coarse aligner with some arbitrary name. All default options as provided by *NanoPrintX* are already passed if not declared otherwise.
+In the next lines the labels and positions for the coarse aligner's anchors need to be set. You pass those by utilizing the `Node`-classes method `.add_coarse_anchor(label, position)`.
+
+Demonstratively we add nodes of types scene, group and array.
 ```python
-scene1 = n.Node('scene',
-                "Scene 1",
+scene1 = n.Node(node_type = 'scene',
+                name = 'Scene 1',
                 writing_direction_upward = True)
 #-----------------------------------------------
-group1 = n.Node('group',
-                'Group 1')
+group1 = n.Node(node_type = 'group',
+                name = 'Group 1')
 #-----------------------------------------------
-array1 = n.Node('array',
-                'Array 1')
+array1 = n.Node(node_type = 'array',
+                name = 'Array 1')
 #-----------------------------------------------
 ```
-text
+All of them, if not specified otherwise, will maintain their default arguments as they would if you would just add them in the GUI.
+
+Now for the node allocated as an interface aligner, we see something syntactically important.
 ```python
 interface_aligner1 = n.Node(node_type = 'interface_alignment',
                             name = 'Interface aligner 1',
                             action_upon_failure = "abort",
-                            #scan_area_res_factors = [1.0,1.0], # here-to-stay value
-                            #laser_power = 0.5, #hts value
-                            #scan_area_size = [10.0,10.0], #hts value
-                            #scan_z_sample_distance = 0.1, #hts value
-                            #scan_z_sample_count = 51, #hts value
                             properties = {"signal_type": "fluorescence"},
                             pattern = "Custom",
-                            #area_measurement = False, # here-to-stay
                             measure_tilt = True) 
 
 labels = ['marker 0',
@@ -175,26 +206,30 @@ scan_area_sizes = [[10.0,10.0],
                    [10.0,10.0],
                    [10.0,10.0]]
 
-for label, position, scan_area_size in zip(labels,positions,scan_area_sizes):
-    interface_aligner1.add_interface_anchor(label, position,scan_area_size)
+for label, position, scan_area_size in zip(labels, positions, scan_area_sizes):
+    interface_aligner1.add_interface_anchor(label, position, scan_area_size)
 
 #-----------------------------------------------
 ```
-text
+There is this argument called `properties` that is <ins>always</ins> a dict! So any arguments that are part of the properties-section inside the GUI have to be passed as 
+a dict! The same is true for two more arguments: `marker` and `geometry`. The anchors are here once again assigned via a method (`.add_interface_anchor(label, position, scan_area_size)`) 
+as before in the case with the coarse alignment.
+
+We now arrive at the marker aligner, which is 
 ```python
-marker_aligner_defualt = {
-    "scan_area_res_factors" : [2,2],
-    "laser_power" : 0.5,
-    "detection_margin" : 5.0,
-    "correlation_threshold" : 60.0,
-    "residual_threshold" : 0.5,
-    "max_outliers" : 0,
-    "orthonormalize" : True,
-    "z_scan_sample_count" : 1,
-    "z_scan_sample_distance" : 0.5,
-    "z_scan_optimization_mode" : "correlation",
-    "measure_z" : False,
-    }
+marker_aligner_default = {
+                          "scan_area_res_factors" : [2,2],
+                          "laser_power" : 0.5,
+                          "detection_margin" : 5.0,
+                          "correlation_threshold" : 60.0,
+                          "residual_threshold" : 0.5,
+                          "max_outliers" : 0,
+                          "orthonormalize" : True,
+                          "z_scan_sample_count" : 1,
+                          "z_scan_sample_distance" : 0.5,
+                          "z_scan_optimization_mode" : "correlation",
+                          "measure_z" : False,
+                         }
 
 marker_dict = {
     "image": resource_image.id,
@@ -204,7 +239,7 @@ marker_dict = {
 marker_aligner1 = n.Node(node_type = "marker_alignment",
                          name = "Marker aligner 1",
                          marker = marker_dict,
-                         **marker_aligner_defualt)
+                         **marker_aligner_default)
 
 labels = ['marker 0',
           'marker 1',
@@ -253,24 +288,32 @@ marker_aligner1.add_child(structure1)
 text
 ```python
 
-n.save_to_toml([preset],
-                    [resource_mesh,
-                    resource_image],
-                        [project,
-                        coarse_aligner1,
-                        scene1, group1,
-                        array1,
-                        interface_aligner1,
-                        marker_aligner1,
-                        structure1])
+presets_list = [preset]
+resources_list = [resource_mesh,
+                  resource_image]
+nodes_list = [project,
+              coarse_aligner1,
+              scene1, group1,
+              array1,
+              interface_aligner1,
+              marker_aligner1,
+              structure1]
+
+
+n.save_to_toml(presets_list,
+               resources_list,
+               nodes_list)
 
 n.project_info(project_info_json)
 
-n.nano_file_gen('project_example')
+n.nano_file_gen(project_name = 'project_example')
 
 
 ```
 
+It is obvious that this little introduction cannot replace a fully fletched documentation. However, something like that would take much more time and will therefore be provided
+in the future bit by bit. Hopefully, this example will for now be somewhat sufficient to give you a starting point. If there should be still any confusion or problems, please
+do not hesitate to contact me and I will help!
 
 ## Setup
 - Make sure you have all neccessary Python packages installed mentioned above.
@@ -280,8 +323,12 @@ n.nano_file_gen('project_example')
 
 ## Misc
 *This section contains things like remarks or pro tips, which might be useful to know but not neccessarily mandatory for understanding how to use nanoAPI.*
--pandas
--validate via nanoprintx and save if u want to feel safe
--However, as of yet there is no way of telling what parameters are mandatory for the .nano-files to work. Therefore, in the following example
-the parameters which do appear but seem to be redundant are going to be commented with `#here-to-stay value` or `#hts value`. The user is
-therefore hereby encouraged to just experiment with leaving out some of those parameters and check if the project files still work.
+- You might have seen that there are a lot of lists, dicts, lists in lists and so on, that are used to store information about settings, markers, and so on. It is therefore 
+convenient to store all that info in a `.csv`- or `xlsx`-format that makes them easily adjustable and readable for humans. An extremely useful package to load and manage
+such files in an python-environment is the package `pandas`. Familirizing yourself with it and utilizing it will definetively be a valuable contribution to your workflow!
+- You will not be able to tell if your `.nano`-file gets executed in the QX or not by just compiling your project. As of yet, *nanoAPI* does not output any errors if there is 
+something wrong with your project. Therefore, it makes sense to check if *NanoPrintX* loads the project properly. If it does, it means that your project will be accepted by the QX. 
+If you want to be on the safe side, you can also save (pun unintended) your file after opening it in *NanoPrintX*.
+- As of yet, there is no way of telling what parameters are mandatory for the `.nano`-files to work. Some parameters do appear to be redundant 
+inside the `.nano`-files and are going to be commented with `#here-to-stay value` or `#hts value` inside the `example_project.py`. Those are never assigned in the  GUI but appear anyway. 
+The user is therefore hereby encouraged to just experiment with leaving out some of those parameters and check if the project files still work.
