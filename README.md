@@ -6,6 +6,13 @@
 - Python-packages: `toml, uuid, json, subprocess, time, datetime, os, shutil, hashlib`
 - [7-Zip](https://7-zip.org/)
 
+
+## Setup
+- Make sure you have all neccessary Python packages installed mentioned above.
+- Install 7-Zip as provided by their official website (Linux-users might already have it by default).
+- Windows only: Add the 7-Zip-directory in your environment variables settings to PATH.
+- Download nanoAPI.py from the repository and make sure your project.py-files can import it.
+
 ## Introduction
 The here provided custom API *nanoAPI* for the **NanoScribe QX** attempts to emulate the logic of its out-of-the-box
 GUI-software *NanoPrintX* by means of plain-text-manipulation and open-source-tools only. Just three classes are implemented to accomplish this
@@ -101,7 +108,7 @@ preset = n.Preset(name = "25x_IP-n162_anchorage_FuSi_clone", **edit_presets)
 The parameters are the same you would also encounter when you open the respective menu in the GUI.
 
 We now proceed with allocation of our resources: namely our mesh structure and marker image.
-```
+```python
 
 
 resource_mesh = n.Resource(resource_type = "mesh_file",
@@ -149,8 +156,6 @@ positions = [[-60.0, -528.0, 0.0],
 
 for label, position in zip(labels,positions):
     coarse_aligner1.add_coarse_anchor(label, position)
-    
-#-----------------------------------------------
 ```
 The node's type gets allocated as a coarse aligner with some arbitrary name. All default options as provided by *NanoPrintX* are already passed if not declared otherwise.
 In the next lines the labels and positions for the coarse aligner's anchors need to be set. You pass those by utilizing the `Node`-classes method `.add_coarse_anchor(label, position)`.
@@ -209,13 +214,12 @@ scan_area_sizes = [[10.0,10.0],
 for label, position, scan_area_size in zip(labels, positions, scan_area_sizes):
     interface_aligner1.add_interface_anchor(label, position, scan_area_size)
 
-#-----------------------------------------------
 ```
 There is this argument called `properties` that is <ins>always</ins> a dict! So any arguments that are part of the properties-section inside the GUI have to be passed as 
 a dict! The same is true for two more arguments: `marker` and `geometry`. The anchors are here once again assigned via a method (`.add_interface_anchor(label, position, scan_area_size)`) 
 as before in the case with the coarse alignment.
 
-We now arrive at the marker aligner, which is 
+We now arrive at the marker aligner, which is the first node that needs an external resource assigned.
 ```python
 marker_aligner_default = {
                           "scan_area_res_factors" : [2,2],
@@ -256,11 +260,25 @@ rotations = [0.0,
              0.0,
              0.0]
 
-for label, position, rotation in zip(labels,positions,rotations):
+for label, position, rotation in zip(labels, positions, rotations):
     marker_aligner1.add_marker_anchor(label, position, rotation)
 ```
-text
+The dict `marker_aligner_default` once again contains the known settings from the GUI as well as the dict `marker_dict` does. However, the latter one gets passed to the node as a dict 
+(i.e., is not unpacked by `**`) to the `marker`-argument and it contains information about what marker, i.e., `Resource`-object, is going to be used and its desired size. 
+It is also important to note how the assignment works: The `Resource`-object does not get allocated itself but rather its attribute `Resource.id`. All the introduced classes 
+get an ID assigned automatically when instantiated. The ID has no meaning to you as a user but serves as a unique identifier so that assignment of nodes is independent from their manual 
+labeling/naming. In the case of the here discussed node `marker_aligner1` the corresponding marker is now allocated to it via the marker's ID in `marker_dict`, passed as the `marker`-argument. 
+Furthermore, the allocation of marker anchors is analogous to the former cases of interface and coarse aligners via a method (here `.add_marker_anchor(label, position, rotation)`-method).
+
+Last but not least, we arrive at the last node in our project, namely a `structure`-node. Here, we encounter the third dict-type argument called `geometry` that is quite similar to what we saw 
+earlier in the case of the `marker`-argument. It should also be clear by now that these dict-arguments correspond in the GUI to the 'seperate windows' in the respective setting sections.
 ```python
+geometry_dict = {
+     "type" : "mesh",
+     "resource" : resource_mesh.id,
+     "scale" : [1.0,1.0,1.0]
+    }
+
 structure1 = n.Node(node_type = "structure",
                     name = "test",
                     preset = preset.id,
@@ -268,13 +286,14 @@ structure1 = n.Node(node_type = "structure",
                     slicing_offset = 0.0,
                     priority = 0,
                     expose_individually = False,
-                    geometry = {"type" : "mesh",
-                                "resource" : resource_mesh.id,
-                                "scale" : [1.0,1.0,1.0]})
+                    geometry = geometry_dict)
 
 
 ```
-text
+Besides the ID allocated in the `geometry_dict`, the preset allocation for `structure1` is also done by passing the `preset`-node's ID. All other specifications are as always deduciable from 
+the GUI. All in all, the way of how nodes are set up follows a fixed scheme that is similiar for all.
+
+So far, we just did node preparation without specifying the parent-child-allocation.
 ```python
 project.add_child(coarse_aligner1)
 coarse_aligner1.add_child(scene1)
@@ -285,7 +304,9 @@ interface_aligner1.add_child(marker_aligner1)
 marker_aligner1.add_child(structure1)
 
 ```
-text
+As you can see, the parent-child-allocation is straightforwardly done by using the `.add_child(child_node)`-method. The parent-child-relation information will be stored in the class attribute `children`.
+
+At last, all the presets, resources and nodes need to be compiled and wrapped into the `.nano`-file.
 ```python
 
 presets_list = [preset]
@@ -308,18 +329,18 @@ n.project_info(project_info_json)
 
 n.nano_file_gen(project_name = 'project_example')
 
-
 ```
+This procedure is always the same. At the end you will get your `.nano`-file generated in you project folder and you will be good to go: 
+1. Sort all class objects according to their types (`Preset`,`Resource`,`Node`) into lists as above.
+2. Pass those lists as arguments to `save_to_toml(presets, resources, nodes)`.
+3. Pass the dict `project_info_json` to `project_info(project_info_json)`.
+4. Pass your projects (file-)name as a string to `nano_file_gen(project_name)`.
+Technically, the third step could be done right at the begining after defining `project_info_json`. However, this was not done here due to semantic reasons that are supposed to emphasize the importance 
+of that very dict for the `.nano`-file generation.
 
 It is obvious that this little introduction cannot replace a fully fletched documentation. However, something like that would take much more time and will therefore be provided
 in the future bit by bit. Hopefully, this example will for now be somewhat sufficient to give you a starting point. If there should be still any confusion or problems, please
 do not hesitate to contact me and I will help!
-
-## Setup
-- Make sure you have all neccessary Python packages installed mentioned above.
-- Install 7-Zip as provided by their official website (Linux-users might already have it by default).
-- Windows only: Add the 7-Zip-directory in your environment variables settings to PATH.
-- Download nanoAPI.py from the repository and make sure your project.py-files can import it.
 
 ## Misc
 *This section contains things like remarks or pro tips, which might be useful to know but not neccessarily mandatory for understanding how to use nanoAPI.*

@@ -7,3 +7,4 @@
 ## README.md
 - create/insert pics: preperation
 - create/insert pics: schematic outline
+- proof reading
