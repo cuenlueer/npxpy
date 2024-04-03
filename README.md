@@ -8,10 +8,10 @@
 
 
 ## Setup
-- Make sure you have all neccessary Python packages installed mentioned above.
+- Make sure you have all neccessary Python packages mentioned above installed.
 - Install 7-Zip as provided by their official website (Linux-users might already have it by default).
 - Windows only: Add the 7-Zip-directory in your environment variables settings to PATH.
-- Download nanoAPI.py from the repository and make sure your project.py-files can import it.
+- Download `nanoAPI.py` from the repository and make sure your `project.py`-files can import it.
 
 ## Introduction
 The here provided custom API *nanoAPI* for the **NanoScribe QX** attempts to emulate the logic of its out-of-the-box
@@ -32,9 +32,13 @@ guide of the API's logic can help understanding the order of implementation befo
 **ATTENTION:** *It is assumed that the reader has already familiarized themselves with the NanoPrintX-GUI's workflow before proceeding with the following doc!*
 *No additional introduction will be given for the GUI beforehand.*
 
+![Figure 1](images/fig1.png)
+
 Working with the GUI is straightforward and user friendly: You have your three tabs designated as 'Treeview', 'Presets', 'Resources' and the rest is
-pretty much straightforward from there. You import your resources, i.e., images (.png)  and meshs (.stl), set your presets and then get started with
+pretty much straightforward from there. You import your resources, i.e., images (`.png`)  and meshs (`.stl`), set your presets and then get started with
 structuring your project by inserting your children-nodes to your main project-node and set your node settings on the fly (see Fig. 1).
+
+![Figure 2](images/fig2.png)
 
 The way of how *nanoAPI* handles things is quite similiar with the exception being that you can also define your nodes and set the node settings <ins>before</ins> you
 assign them as parents or children (see Fig. 2). Breaking the workflow structure up like this not only gives the user the ability to have a more customized project workflow
@@ -45,20 +49,26 @@ structure-nodes. Although syntactically inconvenient, there is propably no issue
 After having set up all nodes, one can start allocating them in their respective parent-child-order (see Fig. 3; Once again: It is possible to do this the
 other way around here as well but it is probably easier in most situations to keep track of your code by sticking to the described structure here).
 
+![Figure 3](images/fig3.png)
+
 The last step is always the same, where all objects are collected according to their classed, preprocessed and wrapped up into the .nano-format (see Fig. 4). 
 
+![Figure 4](images/fig4.png)
 
 ## Example Project
 
 ### Preparing your project
-Before you start coding your project.py, you should prepare you project folder. This step is rather easy but there are some caveats that should be discussed.
-Your project folder just needs to contain an additional folder named `resources` which contains your images (.png) and meshes (.stl). It should be clear that
-the naming of those files should be unique because otherwise the QX would run into problems. *NanoPrintX* uses the MD5-hashes of the respective files and creates sub-folders
+Before you start coding your `project.py`, you should prepare you project folder. This step is rather easy but there are some caveats that should be discussed.
+Your project folder just needs to contain an additional folder named `resources` which contains your images (`.png`) and meshes (`.stl`). It should be clear that
+the naming of those files should be unique because otherwise the **QX** would run into problems. *NanoPrintX* uses the MD5-hashes (see Fig. a/b) of the respective files and creates sub-folders
 inside the `resources`-folder and inserts those files then into them. This way you end up with uniquely named folders that each stores the single respective file, serving
 as labels. I have implemented a function called `copy_files_to_resource_directory(source_directory = 'my/resources/are/here')` which does this for you if you want to adapt
 to this convention applied by *NanoPrintX*. However, as long as you have unique naming conventions, you can skip this extra step.
 
-Thats already it! If you have these two things (and maybe also the nanoAPI.py as well, if you want to make things easy) you are good to go and start with the actual script!
+![Figure a](images/resources1.png)
+![Figure b](images/resources2.png)
+
+Thats already it! If you have these two things (and maybe also the `nanoAPI.py` as well, if you want to make things easy) you are good to go and start with the actual script!
 
 ### Code
 **ATTENTION:** *It is extremely useful if you know how classes work in Python. We will not go into those details here since fundamental properties of classes are always the same.*
@@ -66,7 +76,7 @@ Thats already it! If you have these two things (and maybe also the nanoAPI.py as
 
 *If you want to know ahead what the output is going to look like, just run the `example_project.py` inside the `example`-folder and take a look at the `example_project.nano` via the GUI.*
 
-First, we need to import all neccessary packages to our project.py and define a dictionary that contains some meta data about our project. 
+First, we need to import all neccessary packages to our `project.py` and define a dictionary that contains some meta data about our project. 
 
 ```python
 import nanoAPI as n
@@ -74,7 +84,7 @@ from datetime import datetime
 import os
 
 project_info_json = {
-                      "author": "Caghan (work)",
+                      "author": "cuenlueer",
                       "objective": "25x",
                       "resist": "IP-n162",
                       "substrate": "FuSi",
@@ -125,7 +135,6 @@ here, the (very esthetically pleasing) MD5-hash-convention, as used by *NanoPrin
 
 Now we get to the allocation of nodes. As always, we start by setting up the project node.
 ```python
-#Tree view_________________________________________________________
 
 project = n.Node(node_type='project',
                  name = 'Project 1',
@@ -347,8 +356,8 @@ do not hesitate to contact me and I will help!
 - You might have seen that there are a lot of lists, dicts, lists in lists and so on, that are used to store information about settings, markers, and so on. It is therefore 
 convenient to store all that info in a `.csv`- or `xlsx`-format that makes them easily adjustable and readable for humans. An extremely useful package to load and manage
 such files in an python-environment is the package `pandas`. Familirizing yourself with it and utilizing it will definetively be a valuable contribution to your workflow!
-- You will not be able to tell if your `.nano`-file gets executed in the QX or not by just compiling your project. As of yet, *nanoAPI* does not output any errors if there is 
-something wrong with your project. Therefore, it makes sense to check if *NanoPrintX* loads the project properly. If it does, it means that your project will be accepted by the QX. 
+- You will not be able to tell if your `.nano`-file gets executed in the **QX** or not by just compiling your project. As of yet, *nanoAPI* does not output any errors if there is 
+something wrong with your project. Therefore, it makes sense to check if *NanoPrintX* loads the project properly. If it does, it means that your project will be accepted by the **QX**. 
 If you want to be on the safe side, you can also save (pun unintended) your file after opening it in *NanoPrintX*.
 - As of yet, there is no way of telling what parameters are mandatory for the `.nano`-files to work. Some parameters do appear to be redundant 
 inside the `.nano`-files and are going to be commented with `#here-to-stay value` or `#hts value` inside the `example_project.py`. Those are never assigned in the  GUI but appear anyway. 

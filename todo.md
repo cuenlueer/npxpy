@@ -5,6 +5,4 @@
 - Fix marker-dict so that it is the same as with the properties- and geometry-dict
 
 ## README.md
-- create/insert pics: preperation
-- create/insert pics: schematic outline
 - proof reading
