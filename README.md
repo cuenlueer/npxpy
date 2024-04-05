@@ -15,7 +15,7 @@
 
 ## Introduction
 The here provided custom API *nanoAPI* for the **NanoScribe QX** attempts to emulate the logic of its out-of-the-box
-GUI-software *NanoPrintX* by means of plain-text-manipulation and open-source-tools only. Just three classes are implemented to accomplish this
+GUI-software *nanoPrintX* by means of plain-text-manipulation and open-source-tools only. Just three classes are implemented to accomplish this
 in a concise manner:
 
 1. Presets: `nanoAPI.Preset()`
@@ -29,7 +29,7 @@ implementation of the intuitively clear and accessible GUI will inevitably have 
 guide of the API's logic can help understanding the order of implementation before diving into the actual code for the .nano-generation. 
 
 ## Schematic Outline
-**ATTENTION:** *It is assumed that the reader has already familiarized themselves with the NanoPrintX-GUI's workflow before proceeding with the following doc!*
+**ATTENTION:** *It is assumed that the reader has already familiarized themselves with the nanoPrintX-GUI's workflow before proceeding with the following doc!*
 *No additional introduction will be given for the GUI beforehand.*
 
 ![Figure 1](images/fig1.png)
@@ -60,10 +60,10 @@ The last step is always the same, where all objects are collected according to t
 ### Preparing your project
 Before you start coding your `project.py`, you should prepare you project folder. This step is rather easy but there are some caveats that should be discussed.
 Your project folder just needs to contain an additional folder named `resources` which contains your images (`.png`) and meshes (`.stl`). It should be clear that
-the naming of those files should be unique because otherwise the **QX** would run into problems. *NanoPrintX* uses the MD5-hashes (see Fig. a/b) of the respective files and creates sub-folders
+the naming of those files should be unique because otherwise the **QX** would run into problems. *nanoPrintX* uses the MD5-hashes (see Fig. a/b) of the respective files and creates sub-folders
 inside the `resources`-folder and inserts those files then into them. This way you end up with uniquely named folders that each stores the single respective file, serving
 as labels. I have implemented a function called `copy_files_to_resource_directory(source_directory = 'my/resources/are/here')` which does this for you if you want to adapt
-to this convention applied by *NanoPrintX*. However, as long as you have unique naming conventions, you can skip this extra step.
+to this convention applied by *nanoPrintX*. However, as long as you have unique naming conventions, you can skip this extra step.
 
 ![Figure a](images/resources1.png)
 ![Figure b](images/resources2.png)
@@ -131,7 +131,7 @@ resource_image = n.Resource(resource_type = "image_file",
 
 ```
 There are no other resource types other then these two. The names you choose as you wish. The path is the location inside of the `resources`-folder and as you can see
-here, the (very esthetically pleasing) MD5-hash-convention, as used by *NanoPrintX*, was (demonstratively) used.
+here, the (very esthetically pleasing) MD5-hash-convention, as used by *nanoPrintX*, was (demonstratively) used.
 
 Now we get to the allocation of nodes. As always, we start by setting up the project node.
 ```python
@@ -166,7 +166,7 @@ positions = [[-60.0, -528.0, 0.0],
 for label, position in zip(labels,positions):
     coarse_aligner1.add_coarse_anchor(label, position)
 ```
-The node's type gets allocated as a coarse aligner with some arbitrary name. All default options as provided by *NanoPrintX* are already passed if not declared otherwise.
+The node's type gets allocated as a coarse aligner with some arbitrary name. All default options as provided by *nanoPrintX* are already passed if not declared otherwise.
 In the next lines the labels and positions for the coarse aligner's anchors need to be set. You pass those by utilizing the `Node`-classes method `.add_coarse_anchor(label, position)`.
 
 Demonstratively we add nodes of types scene, group and array.
@@ -357,8 +357,8 @@ do not hesitate to contact me and I will help!
 convenient to store all that info in a `.csv`- or `xlsx`-format that makes them easily adjustable and readable for humans. An extremely useful package to load and manage
 such files in an python-environment is the package `pandas`. Familirizing yourself with it and utilizing it will definetively be a valuable contribution to your workflow!
 - You will not be able to tell if your `.nano`-file gets executed in the **QX** or not by just compiling your project. As of yet, *nanoAPI* does not output any errors if there is 
-something wrong with your project. Therefore, it makes sense to check if *NanoPrintX* loads the project properly. If it does, it means that your project will be accepted by the **QX**. 
-If you want to be on the safe side, you can also save (pun unintended) your file after opening it in *NanoPrintX*.
+something wrong with your project. Therefore, it makes sense to check if *nanoPrintX* loads the project properly. If it does, it means that your project will be accepted by the **QX**. 
+If you want to be on the safe side, you can also save (pun unintended) your file after opening it in *nanoPrintX*.
 - As of yet, there is no way of telling what parameters are mandatory for the `.nano`-files to work. Some parameters do appear to be redundant 
 inside the `.nano`-files and are going to be commented with `#here-to-stay value` or `#hts value` inside the `example_project.py`. Those are never assigned in the  GUI but appear anyway. 
 The user is therefore hereby encouraged to just experiment with leaving out some of those parameters and check if the project files still work.
