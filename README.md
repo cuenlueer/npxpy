@@ -14,7 +14,7 @@
 - Download `nanoAPI.py` from the repository and make sure your `project.py`-files can import it.
 
 ## Introduction
-The here provided custom API *nanoAPI* for the **NanoScribe QX** attempts to emulate the logic of its out-of-the-box
+The here provided custom API *nanoAPI* for the **Nanoscribe QX** attempts to emulate the logic of its out-of-the-box
 GUI-software *nanoPrintX* by means of plain-text-manipulation and open-source-tools only. Just three classes are implemented to accomplish this
 in a concise manner:
 
