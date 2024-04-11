@@ -2,7 +2,10 @@
 """
 Created on Thu Feb 29 12:20:59 2024
 
-@author: Caghan (work)
+@author: Caghan Uenlueer
+
+This file is part of nanoAPI, which is licensed under the GNU Lesser General Public License v3.0.
+You can find a copy of this license at https://www.gnu.org/licenses/lgpl-3.0.html
 """
 
 import nanoAPI as n
