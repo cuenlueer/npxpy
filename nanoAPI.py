@@ -6,6 +6,9 @@ Created on Thu Feb 29 11:49:17 2024
 
 @author: Caghan Uenlueer
 6C 69 66 65 20 69 73 20 74 65 6D 70 6F 72 61 72 79 2E 20 63 6F 64 65 20 69 73 20 65 74 65 72 6E 61 6C
+
+This file is part of nanoAPI, which is licensed under the GNU Lesser General Public License v3.0.
+You can find a copy of this license at https://www.gnu.org/licenses/lgpl-3.0.html
 """
 import toml
 import uuid
