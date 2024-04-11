@@ -362,3 +362,18 @@ If you want to be on the safe side, you can also save (pun unintended) your file
 - As of yet, there is no way of telling what parameters are mandatory for the `.nano`-files to work. Some parameters do appear to be redundant 
 inside the `.nano`-files and are going to be commented with `#here-to-stay value` or `#hts value` inside the `example_project.py`. Those are never assigned in the  GUI but appear anyway. 
 The user is therefore hereby encouraged to just experiment with leaving out some of those parameters and check if the project files still work.
+
+## License
+
+This project is licensed under the GNU Lesser General Public License v3.0 (LGPL-3.0) - see the [LICENSE](https://github.com/cuenlueer/nanoAPI/blob/main/LICENSE) file for details.
+### What This Means for Users and Contributors
+
+- **Freedom to Use:** You are free to use this software in your projects, commercial or otherwise, as long as you comply with the LGPL-3.0 terms.
+
+- **Modifying the Library:** If you modify this library, you must distribute your modifications under the same LGPL-3.0 license. Your modifications must be documented, and the modified library must be available for users to access, use, and link against.
+
+- **Linking to Proprietary Code:** You can link this library with proprietary code, forming a combined work. The proprietary code will not be subject to the terms of LGPL, provided the LGPL library is not modified and is used as a dynamically linked module.
+
+- **Contribution and Distribution:** If you contribute to this project, your contributions will be under the same LGPL-3.0 license. If you distribute this library, either in original or modified form, you must do so under the LGPL-3.0, ensuring that recipients have access to the source code of the library and the rights to modify it.
+
+For more details on your rights and responsibilities under this license, please review the [LICENSE](https://github.com/cuenlueer/nanoAPI/blob/main/LICENSE) file.
