@@ -267,7 +267,7 @@ def project_info(project_info_json, file_name="project_info.json"):
 
 def nano_file_gen(project_name, path = './', output_7z = False):
     print('nanoAPI: Attempting to create .nano-file...')
-    time.sleep(1)
+    #time.sleep(1)
     cmd = ['7z', 'a', '-tzip', '-mx0',
            f'{path}{project_name}.nano',  
            f'{path}__main__.toml',       
@@ -277,7 +277,7 @@ def nano_file_gen(project_name, path = './', output_7z = False):
     process = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     print('nanoAPI: .nano-file created.')
     #This part is just for cleaning up the 'mess'
-    time.sleep(1)
+    #time.sleep(1)
     os.remove('__main__.toml')
     os.remove('project_info.json')
     #optional 7z output if necessary
