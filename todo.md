@@ -1,10 +1,13 @@
 # To-Do-List
 
-## nanoAPI
+## npxpy
+- create proper resource import
+- create a versatile copy method
+- create possibility to add_to_parent via method
 - Partition the Node-class so that for set type the passed default values correspond to the default values assigned by NanoPrintX (npx).
 - Fix marker-dict so that it is the same as with the properties- and geometry-dict
 - insert tooltips into all classes
-- delete all the redundant garbage from the folder after .nano-file creation
+
 
 ## README.md
 - proof reading
