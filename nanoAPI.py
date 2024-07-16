@@ -18,6 +18,7 @@ import time
 import os
 import shutil
 import hashlib
+import copy
 
 # Node-objects are basically all objects that are represented in the treeview in nanoscribeX's GUI
 # properties, geometry and marker have to be passed as dicts! I have implemented it in Node differently for
@@ -33,6 +34,7 @@ class Node:
         self.position = kwargs.get('position', [0, 0, 0])
         self.rotation = kwargs.get('rotation', [0.0, 0.0, 0.0])
         self.children = kwargs.get('children', [])
+        self.children_nodes = []
         # Initialize properties with a default value if none provided
         self.properties = properties if properties is not None else None
         self.geometry = geometry if geometry is not None else None
@@ -46,9 +48,10 @@ class Node:
 
         
     def add_child(self, child_node):
-        self.children.append(child_node.id)
+        self.children_nodes.append(child_node)
 
 
+    #--------demoliton zone
     def add_coarse_anchor(self, label, position):
         self.alignment_anchors.append({
             "label": label,
@@ -68,10 +71,66 @@ class Node:
             "position": position,
             "rotation": orientation
         })
+    #--------demoliton zone    
+    
+    
+    def tree(self, level=0, show_type=True, show_id=False):
+        indent = "  " * level
+        if show_type == True:
+            output = f"{indent}{self.name} ({self.type})"
+        else:
+            output = f"{indent}{self.name}"
+            
+        if show_id == True:
+            output = output + f" (ID: {self.id})"
+
+        print(output)
+        for child in self.children_nodes:
+            child.tree(level + 1, show_type, show_id)
+    
+    def deepcopy_node(self, copy_children=True):
+        if copy_children:
+            copied_node = copy.deepcopy(self)
+            self._reset_ids(copied_node)
+        else:
+            copied_node = copy.copy(self)
+            copied_node.id = str(uuid.uuid4())
+            copied_node.children_nodes = []
+        return copied_node
+    
+    def _reset_ids(self, node):
+        node.id = str(uuid.uuid4())
+        for child in node.children_nodes:
+            self._reset_ids(child)
+
+    
+    def grab_nodes(self, node_types_with_indices):
+        current_level_nodes = [self]
+        for node_type, index in node_types_with_indices:
+            next_level_nodes = []
+            for node in current_level_nodes:
+                filtered_nodes = [child for child in node.children_nodes if child.type == node_type]
+                if len(filtered_nodes) > index:
+                    next_level_nodes.append(filtered_nodes[index])
+            current_level_nodes = next_level_nodes
+        return current_level_nodes[0]
+    
+    #fuck this guy
+    def grab_all_nodes(self, node_type):
+        result = []
+        nodes_to_check = [self]
+        while nodes_to_check:
+            current_node = nodes_to_check.pop()
+            if current_node.type == node_type:
+                result.append(current_node)
+            nodes_to_check.extend(current_node.children_nodes)
+        return result
+
         
     def to_dict(self):
         # Convert node and its unique attributes to dictionary format, including alignment anchors
         # This is useful for insitu-readout but essential for generating the .toml later via save_nodes_to_toml!
+        self.children = [i.id for i in self.children_nodes]
         node_dict = {
             "type": self.type,
             "id": self.id,
@@ -90,7 +149,7 @@ class Node:
         return node_dict
 
 
-
+#class Project
 
 
 
@@ -286,3 +345,15 @@ def nano_file_gen(project_name, path = './', output_7z = False):
     if output_7z == True:
         print(output, error)
     return process
+
+
+
+
+
+
+
+
+
+
+
+

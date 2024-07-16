@@ -64,7 +64,6 @@ project = n.Node(node_type='project',
 coarse_aligner1 = n.Node(node_type = 'coarse_alignment',
                         name = "Coarse aligner 1",
                         residual_threshold = 10.0,
-                        orthonormalize = True # here-to-stay value
                         ) 
 labels = ['anchor 0',
           'anchor 1',
