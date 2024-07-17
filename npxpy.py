@@ -40,9 +40,7 @@ class Node:
         self.geometry = geometry if geometry is not None else None
         # Handle dynamic attributes specific to the node type
         self.unique_attributes = {key: value for key, value in kwargs.items() if key not in ['position', 'rotation', 'children']}
-        self.alignment_anchors = []
-        self.nodeproperties = []
-        
+        self.nodeproperties = [] #<------- Marked for demolishing
         
         self.all_descendants = self._generate_all_descendants()
         
@@ -57,12 +55,7 @@ class Node:
         
         
     #--------demoliton zoneBEGIN
-    def add_coarse_anchor(self, label, position):
-        self.alignment_anchors.append({
-            "label": label,
-            "position": position,
-        })
-    
+
     def add_interface_anchor(self, label, position, scan_area_size):
         self.alignment_anchors.append({
             "label": label,
@@ -160,8 +153,7 @@ class Node:
             "geometry": self.geometry,
             **self.unique_attributes
         }
-        if self.alignment_anchors:
-            node_dict["alignment_anchors"] = self.alignment_anchors
+
         if self.type == "marker_alignment":
             node_dict["marker"] = self.marker
         return node_dict
@@ -270,6 +262,7 @@ class coarse_aligner(Node):
         """
         super().__init__('coarse_alignment', name, residual_threshold)
         self.residual_threshold = residual_threshold
+        self.alignment_anchors = []
         
     def add_coarse_anchor(self, label, position):
         """
@@ -307,6 +300,7 @@ class coarse_aligner(Node):
     def to_dict(self):
         node_dict = super().to_dict()
         node_dict['residual_threshold'] = self.residual_threshold
+        node_dict['alignment_anchors'] = self.alignment_anchors
         return node_dict
 
 
