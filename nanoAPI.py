@@ -41,7 +41,7 @@ class Node:
         # Handle dynamic attributes specific to the node type
         self.unique_attributes = {key: value for key, value in kwargs.items() if key not in ['position', 'rotation', 'children']}
         self.alignment_anchors = []
-        self.nodeproperties = []
+        #self.nodeproperties = []
         
         
         self.all_descendants = self._generate_all_descendants()

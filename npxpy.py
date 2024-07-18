@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-npxpy
+npxpy (formerly nanoAPI)
 0.0.0-alpha
 Created on Thu Feb 29 11:49:17 2024
 
@@ -56,12 +56,6 @@ class Node:
         
     #--------demoliton zoneBEGIN
 
-    def add_interface_anchor(self, label, position, scan_area_size):
-        self.alignment_anchors.append({
-            "label": label,
-            "position": position,
-            "scan_area_size": scan_area_size
-        })
         
     def add_marker_anchor(self, label, position, orientation):
         self.alignment_anchors.append({
@@ -155,7 +149,7 @@ class Node:
         }
 
         if self.type == "marker_alignment":
-            node_dict["marker"] = self.marker
+            node_dict["marker"] = self.marker   #<------- Marked for demolishing
         return node_dict
 
 
@@ -184,10 +178,28 @@ class Project(Node):
                             }
             
     def load_resources(self, resources):
-        self.resources = resources
+        """
+        Adds resources to the resources list. The input can be either a list of resources
+        or a single resource element.
+
+        Args:
+            resources (list or any): A list of resources or a single resource element.
+        """
+        if not isinstance(resources, list):
+            resources = [resources]
+        self.resources.extend(resources)
     
-    def load_presets(self, presets = []):
-        self.presets = presets
+    def load_presets(self, presets):
+        """
+        Adds presets to the presets list. The input can be either a list of presets
+        or a single preset element.
+
+        Args:
+            presets (list or any): A list of presets or a single preset element.
+        """
+        if not isinstance(presets, list):
+            presets = [presets]
+        self.presets.extend(presets)
     
     
     def _save_to_toml(self, presets, resources, nodes, filename="__main__.toml"):
@@ -205,6 +217,26 @@ class Project(Node):
 
 
     def nano(self, project_name, path='./', output_7z=False):
+        """
+        Creates a .nano file for the project.
+
+        This method collects the current presets and resources, saves them into a .toml file, and packages them
+        along with project information into a .nano file (a .zip archive with a custom extension). Optionally,
+        it can output the details of the 7z process.
+
+        Args:
+            project_name (str): The name of the project, used as the base name for the .nano file.
+            path (str, optional): The directory path where the .nano file will be created. Defaults to './'.
+            output_7z (bool, optional): If True, prints the stdout and stderr of the 7z command. Defaults to False.
+
+        Returns:
+            subprocess.CompletedProcess: The result of the 7z command if successful.
+            subprocess.CalledProcessError: The error object if the 7z command fails.
+
+        Raises:
+            FileNotFoundError: If a file to be deleted during cleanup is not found.
+            Exception: For other exceptions during the cleanup process.
+        """
         print('npxpy: Attempting to create .nano-file...')
         
         # Ensure the path ends with a slash
@@ -252,16 +284,16 @@ class Project(Node):
 
 
 class coarse_aligner(Node):
-    def __init__(self, name = 'Coarse aligner', residual_threshold = 10.0):
+    def __init__(self, name = 'Coarse aligner',
+                 residual_threshold = 10.0):
         """
-        Initialize the CoarseAligner with a name and a residual threshold.
+        Initialize the coarse aligner with a name and a residual threshold.
         
         Parameters:
         name (str): The name of the coarse aligner node.
         residual_threshold (float): The residual threshold for alignment.
         """
-        super().__init__('coarse_alignment', name, residual_threshold)
-        self.residual_threshold = residual_threshold
+        super().__init__('coarse_alignment', name, residual_threshold = residual_threshold )
         self.alignment_anchors = []
         
     def add_coarse_anchor(self, label, position):
@@ -286,7 +318,7 @@ class coarse_aligner(Node):
         positions (list of list of float): List of positions for the anchors, each position is [x, y, z].
 
         Returns:
-        self: The instance of the CoarseAligner class.
+        self: The instance of the coarse_aligner class.
 
         Raises:
         ValueError: If the number of labels does not match the number of positions.
@@ -299,16 +331,16 @@ class coarse_aligner(Node):
         
     def to_dict(self):
         node_dict = super().to_dict()
-        node_dict['residual_threshold'] = self.residual_threshold
         node_dict['alignment_anchors'] = self.alignment_anchors
         return node_dict
 
 
 
+
 class scene(Node):
     def __init__(self, name = 'Scene', writing_direction_upward = True):
-        super().__init__('scene', name)
-        self.writing_direction_upward = writing_direction_upward
+        super().__init__('scene', name, 
+                         writing_direction_upward=writing_direction_upward)
     def position_at(self, position = [0,0,0], rotation = [0.0, 0.0, 0.0]):
         """
         Set the current position and rotation of the scene.
@@ -351,8 +383,208 @@ class scene(Node):
         
     def to_dict(self):
         node_dict = super().to_dict()
-        node_dict['writing_direction_upward'] = self.writing_direction_upward
         return node_dict
+    
+    
+
+
+class group(Node):
+    def __init__(self, name = 'Group'):
+        super().__init__('group', name)
+        
+    def position_at(self, position = [0,0,0], rotation = [0.0, 0.0, 0.0]):
+        """
+        Set the current position and rotation of the group.
+
+        Parameters:
+        position (list of float): List of position values [x, y, z].
+        rotation (list of float): List of rotation angles [psi, theta, phi].
+        
+        Returns:
+        self: The instance of the scene class.
+        """
+        self.position = position
+        self.rotation = rotation
+        return self
+    
+    
+    def translate(self, translation):
+        """
+        Translate the current position by the specified translation.
+
+        Parameters:
+        translation (list of float): List of translation values [dx, dy, dz].
+        """
+        self.position = [pos + trans for pos, trans in zip(self.position, translation)]
+
+
+    def rotate(self, rotation):
+        """
+        Rotate the given angles by the specified rotation and confine them between 0 and 359 degrees.
+        
+        Parameters:
+        angles (list of float): List of angles [psi, theta, phi].
+        rotation (list of float): List of rotation angles to apply [d_psi, d_theta, d_phi].
+        
+        Returns:
+        list of float: List of rotated and confined angles.
+        """
+        rotated_angles = [(angle + rot) % 360 for angle, rot in zip(self.rotation, rotation)]
+        self.rotation = rotated_angles
+        
+
+
+
+class interface_aligner(Node):
+    """
+    Interface aligner class.
+
+    Attributes:
+        alignment_anchors (list): Stores the measurement locations (or interface anchors) for interface alignment.
+        count (list of int): The number of grid points in [x, y] direction.
+        size (list of int): The size of the grid in [width, height].
+    
+    Methods:
+        __init__(self, name='Interface aligner', signal_type='auto', detector_type='auto',
+                 pattern='Origin', measure_tilt=False, area_measurement=False,
+                 center_stage=True, action_upon_failure='abort', laser_power=0.5,
+                 scan_area_res_factors=[1.0,1.0], scan_z_sample_distance=0.1,
+                 scan_z_sample_count=51):
+            Initializes the interface aligner with specified parameters.
+        
+        make_grid(self, count=[5, 5], size=[200, 200]):
+            Sets the grid point count and grid size.
+        
+        add_interface_anchor(self, label, position, scan_area_size=None):
+            Adds an interface anchor with a given label, position, and scan area size.
+        
+        make_interface_anchors_at(self, labels, positions, scan_area_sizes=None):
+            Creates multiple measurement locations at specified positions.
+
+        to_dict(self):
+            Converts the current state of the object into a dictionary representation.
+    """
+    def __init__(self, name='Interface aligner', signal_type='auto', detector_type='auto',
+                 pattern='Origin', measure_tilt=False, area_measurement=False,
+                 center_stage=True, action_upon_failure='abort', laser_power=0.5,
+                 scan_area_res_factors=[1.0,1.0], scan_z_sample_distance=0.1,
+                 scan_z_sample_count=51):
+
+        """
+        Initializes the interface aligner with specified parameters.
+
+        Parameters:
+            name (str): Name of the interface aligner.
+            signal_type (str): Type of signal, can be 'auto', 'fluorescence', or 'reflection'.
+            detector_type (str): Type of detector, can be 'auto', 'confocal', 'camera', or 'camera_legacy'.
+            pattern (str): Pattern for alignment, can be 'Origin', 'Grid', or 'Custom'.
+            measure_tilt (bool): Whether to measure tilt.
+            area_measurement (bool): Whether to measure the area.
+            center_stage (bool): Whether to center the stage.
+            action_upon_failure (str): Action upon failure, can be 'abort' or 'ignore'.
+            laser_power (float): Power of the laser.
+            scan_area_res_factors (list of float): Resolution factors for the scan area.
+            scan_z_sample_distance (float): Distance between samples in the z-direction.
+            scan_z_sample_count (int): Number of samples in the z-direction.
+        """
+        
+        super().__init__('interface_alignment', name,
+                         action_upon_failure=action_upon_failure,
+                         pattern=pattern,
+                         measure_tilt=measure_tilt,
+                         area_measurement=area_measurement,
+                         properties={'signal_type': signal_type,
+                                     'detector_type': detector_type},
+                         center_stage=center_stage,
+                         laser_power=laser_power,
+                         scan_area_res_factors=scan_area_res_factors,
+                         scan_z_sample_distance=scan_z_sample_distance,
+                         scan_z_sample_count=scan_z_sample_count)
+        
+        self.alignment_anchors = []
+        self.count = [5, 5]
+        self.size = [200, 200]
+        
+    def make_grid(self, count=[5, 5], size=[200, 200]):
+        """
+        Sets the grid point count and grid size.
+
+        Parameters:
+            count (list of int): Number of grid points in [x, y] direction.
+            size (list of int): Size of the grid in [width, height].
+
+        Returns:
+            self: The instance of the interface_aligner class.
+        """
+        self.count = count
+        self.size = size
+        return self
+        
+    def add_interface_anchor(self, label, position, scan_area_size=None):
+        """
+        Adds an interface anchor with a given label, position, and scan area size.
+        This method only makes sense if pattern = 'Custom'. Otherwise it will be ignored.
+        
+        Parameters:
+            label (str): The label for the anchor.
+            position (list of float): The position of the anchor [x, y].
+            scan_area_size (list of float or None): The scan area size [width, height]. 
+                                                    If None, defaults to [10.0, 10.0]. This parameter is
+                                                    only relevant for signal_type = 'reflection' and
+                                                    detector_type = 'confocal' with area_measurement = True.
+        """
+        if scan_area_size is None:
+            scan_area_size = [10.0, 10.0]
+        
+        self.alignment_anchors.append({
+            "label": label,
+            "position": position,
+            "scan_area_size": scan_area_size
+        })
+        
+    def make_interface_anchors_at(self, labels, positions, scan_area_sizes=None):
+        """
+        Creates multiple measurement locations at specified positions.
+        This method only makes sense if pattern = 'Custom'. Otherwise it will be ignored.
+
+        Parameters:
+            labels (list of str): List of labels for the measurement locations.
+            positions (list of list of float): List of positions for the measurement locations, each position is [x, y].
+            scan_area_sizes (list of list of float or None): List of scan area sizes for the measurement locations, 
+                                                             each scan area size is [width, height]. If None, 
+                                                             defaults to [10.0, 10.0] for each anchor. This parameter is
+                                                             only relevant for signal_type = 'reflection' and
+                                                             detector_type = 'confocal' with area_measurement = True.
+
+        Returns:
+            self: The instance of the interface_aligner class.
+
+        Raises:
+            ValueError: If the number of labels does not match the number of positions.
+        """
+        if len(labels) != len(positions):
+            raise ValueError("The number of labels must match the number of positions.")
+
+        if scan_area_sizes is None:
+            scan_area_sizes = [None] * len(labels)
+
+        for label, position, scan_area_size in zip(labels, positions, scan_area_sizes):
+            self.add_interface_anchor(label, position, scan_area_size)
+        return self
+        
+    def to_dict(self):
+        """
+        Converts the current state of the object into a dictionary representation.
+
+        Returns:
+            dict: Dictionary representation of the current state of the object.
+        """
+        node_dict = super().to_dict()
+        node_dict['alignment_anchors'] = self.alignment_anchors
+        node_dict['grid_point_count'] = self.count
+        node_dict['grid_size'] = self.size
+        return node_dict
+
 
 
 
