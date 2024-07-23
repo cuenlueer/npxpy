@@ -19,6 +19,7 @@ import os
 import shutil
 import hashlib
 import copy
+from typing import Dict, Any, List
 
 # Node-objects are basically all objects that are represented in the treeview in nanoscribeX's GUI
 # properties, geometry and marker have to be passed as dicts! I have implemented it in Node differently for
@@ -133,8 +134,6 @@ class Node:
 
         
     def to_dict(self):
-        # Convert node and its unique attributes to dictionary format, including alignment anchors
-        # This is useful for insitu-readout but essential for generating the .toml later via save_nodes_to_toml!
         self.children = [i.id for i in self.children_nodes]
         node_dict = {
             "type": self.type,
@@ -151,7 +150,6 @@ class Node:
         if self.type == "marker_alignment":
             node_dict["marker"] = self.marker   #<------- Marked for demolishing
         return node_dict
-
 
 
 
@@ -433,8 +431,67 @@ class group(Node):
         self.rotation = rotated_angles
         
 
+class structure(Node):
+    def __init__(self, preset, geometry,
+                 name = 'Structure',
+                 slicing_origin = 'scene_bottom',
+                 slicing_offset = 0.0,
+                 priority = 0,
+                 expose_individually = False,
+                 ):
+        super().__init__('structure', name, 
+                         preset=preset.id,
+                         slicing_origin_reference=slicing_origin,
+                         slicing_offset=slicing_offset,
+                         priority=priority,
+                         expose_individually=expose_individually,
+                         geometry=geometry)
+        
+    def position_at(self, position = [0,0,0], rotation = [0.0, 0.0, 0.0]):
+        """
+        Set the current position and rotation of the object.
+
+        Parameters:
+        position (list of float): List of position values [x, y, z].
+        rotation (list of float): List of rotation angles [psi, theta, phi].
+        
+        Returns:
+        self: The instance of the structure class.
+        """
+        self.position = position
+        self.rotation = rotation
+        return self
+    
+    
+    def translate(self, translation):
+        """
+        Translate the current position by the specified translation.
+
+        Parameters:
+        translation (list of float): List of translation values [dx, dy, dz].
+        """
+        self.position = [pos + trans for pos, trans in zip(self.position, translation)]
 
 
+    def rotate(self, rotation):
+        """
+        Rotate the given angles by the specified rotation and confine them between 0 and 359 degrees.
+        
+        Parameters:
+        angles (list of float): List of angles [psi, theta, phi].
+        rotation (list of float): List of rotation angles to apply [d_psi, d_theta, d_phi].
+        
+        Returns:
+        list of float: List of rotated and confined angles.
+        """
+        rotated_angles = [(angle + rot) % 360 for angle, rot in zip(self.rotation, rotation)]
+        self.rotation = rotated_angles
+        
+    def to_dict(self):
+        node_dict = super().to_dict()
+        return node_dict
+    
+#Todo: make some classmethods here to make...
 class interface_aligner(Node):
     """
     Interface aligner class.
@@ -593,37 +650,167 @@ class interface_aligner(Node):
 
 
 class Preset:
-    def __init__(self, name, properties=None, **kwargs):
+    def __init__(self, 
+                 name: str = '25x_IP-n162',
+                 valid_objectives: str = "25x",
+                 valid_resins: str = "IP-n162",
+                 valid_substrates: str = "*",
+                 writing_speed: float = 250000.0,
+                 writing_power: float = 50.0,
+                 slicing_spacing: float = 0.8,
+                 hatching_spacing: float = 0.3,
+                 hatching_angle: float = 0.0,
+                 hatching_angle_increment: float = 0.0,
+                 hatching_offset: float = 0.0,
+                 hatching_offset_increment: float = 0.0,
+                 hatching_back_n_forth: bool = True,
+                 mesh_z_offset: float = 0.0,
+                 grayscale_multilayer_enabled: bool = False,
+                 grayscale_layer_profile_nr_layers: int = 6,
+                 grayscale_writing_power_minimum: float = 0.0,
+                 grayscale_exponent: float = 1.0,
+                 **kwargs: Any):
+        """
+        Initialize a Preset instance with various parameters related to writing and hatching settings.
+        
+        Parameters:
+            name (str): Name of the preset.
+            valid_objectives (str): Valid objectives for the preset.
+            valid_resins (str): Valid resins for the preset.
+            valid_substrates (str): Valid substrates for the preset.
+            writing_speed (float): Writing speed.
+            writing_power (float): Writing power.
+            slicing_spacing (float): Slicing spacing.
+            hatching_spacing (float): Hatching spacing.
+            hatching_angle (float): Hatching angle.
+            hatching_angle_increment (float): Hatching angle increment.
+            hatching_offset (float): Hatching offset.
+            hatching_offset_increment (float): Hatching offset increment.
+            hatching_back_n_forth (bool): Whether hatching is back and forth.
+            mesh_z_offset (float): Mesh Z offset.
+            grayscale_multilayer_enabled (bool): Whether grayscale multilayer is enabled.
+            grayscale_layer_profile_nr_layers (int): Number of layers for grayscale layer profile.
+            grayscale_writing_power_minimum (float): Minimum writing power for grayscale.
+            grayscale_exponent (float): Grayscale exponent.
+            **kwargs (Any): Additional dynamic attributes.
+        """
         self.id = str(uuid.uuid4())
         self.name = name
-        self.valid_objectives = kwargs.get('valid_objectives', [name.split("_")[0]])
-        self.valid_resins = kwargs.get('valid_resins', [name.split("_")[1]])
-        self.valid_substrates = kwargs.get('valid_substrates', ["*"])
-        # Initialize properties with a default value if none provided
-        # This thing is not like the other gals! it is a sub-structure in the nodes, i.e., [node.properties]
-        self.properties = properties if properties is not None else None
-        # Handle dynamic attributes specific to the node type
-        # Since not all params are the same for every note dynamic handling is paramount!
-        # Some of the params are the same though and those are above (position, rotation, etc.)
-        self.unique_attributes = {key: value for key, value in kwargs.items() if key not in ['position', 'rotation', 'children']}
-        self.alignment_anchors = []
-        self.nodeproperties = []
         
-    def to_dict(self):
-        # Convert node and its unique attributes to dictionary format, including alignment anchors
-        # This is useful for insitu-readout but essential for generating the .toml later via save_nodes_to_toml!
-        preset_dict = {
-            "id": self.id,
-            "name": self.name,
-            "valid_objectives": self.valid_objectives,
-            "valid_resins": self.valid_resins,
-            "valid_substrates": self.valid_substrates,
-            "properties": self.properties,
-            **self.unique_attributes
-        }
+        self.valid_objectives = [valid_objectives]
+        self.valid_resins = [valid_resins]
+        self.valid_substrates = [valid_substrates]
+        
+        self.writing_speed = writing_speed
+        self.writing_power = writing_power
+        self.slicing_spacing = slicing_spacing
+        self.hatching_spacing = hatching_spacing
+        self.hatching_angle = hatching_angle
+        self.hatching_angle_increment = hatching_angle_increment
+        self.hatching_offset = hatching_offset
+        self.hatching_offset_increment = hatching_offset_increment
+        self.hatching_back_n_forth = hatching_back_n_forth
+        self.mesh_z_offset = mesh_z_offset
+        self.grayscale_multilayer_enabled = grayscale_multilayer_enabled
+        self.grayscale_layer_profile_nr_layers = grayscale_layer_profile_nr_layers
+        self.grayscale_writing_power_minimum = grayscale_writing_power_minimum
+        self.grayscale_exponent = grayscale_exponent
+        
+        self.unique_attributes = kwargs
 
+    def duplicate(self) -> 'Preset':
+        """
+        Create a duplicate of the current preset instance.
+        
+        Returns:
+            Preset: A duplicate of the current preset instance.
+        """
+        duplicate = copy.copy(self)
+        duplicate.id = str(uuid.uuid4())
+        return duplicate
+    
+    @classmethod
+    def load_single(cls, file_path: str, fresh_id: bool = True) -> 'Preset':
+        """
+        Load a single preset from a .toml file.
+
+        Parameters:
+            file_path (str): The path to the .toml file.
+
+        Returns:
+            Preset: The loaded preset instance.
+        """
+        with open(file_path, 'r') as toml_file:
+            data = toml.load(toml_file)
+
+        # Extract the file name without the extension
+        name = os.path.splitext(os.path.basename(file_path))[0]
+
+        # Ensure 'name' is not in the data dictionary to avoid conflicts
+        if 'name' in data:
+            del data['name']
+            
+        cls_instance = cls(name=name, **data)
+        
+        if fresh_id == False:
+            cls_instance.id = data['id']
+        
+        return cls_instance
+
+    @classmethod
+    def load_multiple(cls, directory_path: str, print_names: bool = False, fresh_id: bool = True) -> List['Preset']:
+        """
+        Load multiple presets from a directory containing .toml files.
+
+        Parameters:
+            directory_path (str): The path to the directory containing .toml files.
+            print_names (bool): If True, print the names of the files in the order they are loaded.
+
+        Returns:
+            List[Preset]: A list of loaded preset instances.
+        """
+        presets = []
+        for file_name in sorted(os.listdir(directory_path)):
+            if file_name.endswith('.toml'):
+                file_path = os.path.join(directory_path, file_name)
+                preset = cls.load_single(file_path, fresh_id)
+                presets.append(preset)
+                if print_names:
+                    print(file_name)
+        return presets
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        Convert the preset and its unique attributes to a dictionary format.
+        
+        Returns:
+            Dict[str, Any]: Dictionary representation of the preset.
+        """
+        # Create the base dictionary from __dict__, excluding unique_attributes
+        preset_dict = {k: v for k, v in self.__dict__.items() if k != 'unique_attributes'}
+        
+        # Merge unique_attributes into preset_dict
+        preset_dict.update(self.unique_attributes)
+        
         return preset_dict
 
+    def export(self, file_path: str = None) -> None:
+        """
+        Export the preset to a file that can be loaded by nanoPrintX and/or npxpy.
+        
+        Parameters:
+            file_path (str): The path to the .toml file to be created. If not provided, defaults to the current directory with the preset's name.
+        """
+        if file_path is None:
+            file_path = f"{self.name}.toml"
+        elif not file_path.endswith('.toml'):
+            file_path += '.toml'
+        
+        data = self.to_dict()
+        
+        # Write the data to a .toml file
+        with open(file_path, 'w') as toml_file:
+            toml.dump(data, toml_file)
 
 
 
@@ -654,19 +841,10 @@ class Resource:
             self.enhance_mesh = kwargs.get('enhance_mesh', True)
             self.simplify_mesh = kwargs.get('simplify_mesh', False)
             self.target_ratio = kwargs.get('target_ratio', 100.0)
-        # Initialize properties with a default value if none provided
-        # This thing is not like the other gals! it is a sub-structure in the nodes, i.e., [node.properties]
         self.properties = properties if properties is not None else None
-        # Handle dynamic attributes specific to the node type
-        # Since not all params are the same for every note dynamic handling is paramount!
-        # Some of the params are the same though and those are above (position, rotation, etc.)
         self.unique_attributes = {key: value for key, value in kwargs.items() if key not in ['position', 'rotation', 'children']}
-        self.alignment_anchors = []
-        self.nodeproperties = []
         
     def to_dict(self):
-        # Convert node and its unique attributes to dictionary format, including alignment anchors
-        # This is useful for insitu-readout but essential for generating the .toml later via save_nodes_to_toml!
         if self.type == 'mesh_file':
           resource_dict = {
               "type": self.type,

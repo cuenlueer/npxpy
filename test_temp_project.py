@@ -17,7 +17,7 @@ project_info_json = {
                     }
 
 
-edit_presets = {"writing_speed" : 250000.0,
+edit_presets = {"writing_speed" : 220000.0,
                 "writing_power" : 50.0,
                 "slicing_spacing" : 0.8,
                 "hatching_spacing" : 0.3,
@@ -44,6 +44,7 @@ resource_image = n.Resource(resource_type = "image_file",
 project = n.Project(objective = project_info_json['objective'],
                     resin = project_info_json['resin'],
                     substrate = project_info_json['substrate'])
+
 project.load_presets([preset])
 project.load_resources([resource_mesh])
 project.load_resources([resource_image])
