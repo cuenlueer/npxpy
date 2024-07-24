@@ -7,7 +7,7 @@ Created on Thu Feb 29 11:49:17 2024
 @author: Caghan Uenlueer
 6C 69 66 65 20 69 73 20 74 65 6D 70 6F 72 61 72 79 2E 20 63 6F 64 65 20 69 73 20 65 74 65 72 6E 61 6C
 
-This file is part of npxpy, which is licensed under the GNU Lesser General Public License v3.0.
+This file is part of npxpy (formerly nanoAPI), which is licensed under the GNU Lesser General Public License v3.0.
 You can find a copy of this license at https://www.gnu.org/licenses/lgpl-3.0.html
 """
 import toml
@@ -20,12 +20,7 @@ import shutil
 import hashlib
 import copy
 from typing import Dict, Any, List
-
-# Node-objects are basically all objects that are represented in the treeview in nanoscribeX's GUI
-# properties, geometry and marker have to be passed as dicts! I have implemented it in Node differently for
-# marker. However, that is rather arbitrary and probably not neccessary. I can fix that later on but first
-# testing in mandatory before proceeding with adjustments for the code.
-# UPDATE20240326: Tests were successful!
+import zipfile
 
 class Node:
     def __init__(self, node_type, name, marker=None, properties=None, geometry=None, **kwargs):
@@ -162,19 +157,19 @@ class Node:
 
 class Project(Node):
     def __init__(self, objective, resin, substrate):
-        super().__init__(node_type = 'project', name = 'Project',
-                         objective = objective, resin = resin, substrate = substrate)
+        super().__init__(node_type='project', name='Project',
+                         objective=objective, resin=resin, substrate=substrate)
 
         self.presets = []
         self.resources = []
         self.project_info = {
-                            "author": os.getlogin(),
-                            "objective": objective,
-                            "resin": resin,
-                            "substrate": substrate,
-                            "creation_date": datetime.now().replace(microsecond=0).isoformat()
-                            }
-            
+            "author": os.getlogin(),
+            "objective": objective,
+            "resin": resin,
+            "substrate": substrate,
+            "creation_date": datetime.now().replace(microsecond=0).isoformat()
+        }
+
     def load_resources(self, resources):
         """
         Adds resources to the resources list. The input can be either a list of resources
@@ -186,7 +181,7 @@ class Project(Node):
         if not isinstance(resources, list):
             resources = [resources]
         self.resources.extend(resources)
-    
+
     def load_presets(self, presets):
         """
         Adds presets to the presets list. The input can be either a list of presets
@@ -198,84 +193,62 @@ class Project(Node):
         if not isinstance(presets, list):
             presets = [presets]
         self.presets.extend(presets)
-    
-    
-    def _save_to_toml(self, presets, resources, nodes, filename="__main__.toml"):
+
+    def _create_toml_data(self, presets, resources, nodes):
         data = {
             "presets": [preset.to_dict() for preset in presets],
             "resources": [resource.to_dict() for resource in resources],
             "nodes": [node.to_dict() for node in nodes]
-            }
-        with open(filename, 'w') as toml_file:
-            toml.dump(data, toml_file)
+        }
+        return toml.dumps(data)
 
-    def _create_project_info(self, project_info_json, file_name="project_info.json"):
-        with open(file_name, 'w') as file:
-            json.dump(project_info_json, file)
+    def _create_project_info(self, project_info_json):
+        return json.dumps(project_info_json, indent=4)
 
+    def _add_file_to_zip(self, zip_file, file_path, arcname):
+        with open(file_path, 'rb') as f:
+            zip_file.writestr(arcname, f.read())
 
     def nano(self, project_name, path='./', output_7z=False):
         """
         Creates a .nano file for the project.
 
         This method collects the current presets and resources, saves them into a .toml file, and packages them
-        along with project information into a .nano file (a .zip archive with a custom extension). Optionally,
-        it can output the details of the 7z process.
+        along with project information into a .nano file (a .zip archive with a custom extension).
 
         Args:
             project_name (str): The name of the project, used as the base name for the .nano file.
             path (str, optional): The directory path where the .nano file will be created. Defaults to './'.
             output_7z (bool, optional): If True, prints the stdout and stderr of the 7z command. Defaults to False.
-
-        Returns:
-            subprocess.CompletedProcess: The result of the 7z command if successful.
-            subprocess.CalledProcessError: The error object if the 7z command fails.
-
-        Raises:
-            FileNotFoundError: If a file to be deleted during cleanup is not found.
-            Exception: For other exceptions during the cleanup process.
         """
         print('npxpy: Attempting to create .nano-file...')
-        
+
         # Ensure the path ends with a slash
         if not path.endswith('/'):
             path += '/'
-        
-        self._save_to_toml(presets = self.presets, resources = self.resources, nodes = [self]+self.all_descendants)
-        self._create_project_info(project_info_json = self.project_info)
-        
-        
-        # Define the command
-        cmd = ['7z', 'a', '-tzip', '-mx0',
-               os.path.join(path, f'{project_name}.nano'),  
-               os.path.join(path, '__main__.toml'),       
-               os.path.join(path, 'project_info.json'),   
-               os.path.join(path, 'resources')]
-        
-        try:
-            # Run the command
-            process = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
-            print('npxpy: .nano-file created.')
+
+        # Prepare paths and data
+        nano_file_path = os.path.join(path, f'{project_name}.nano')
+        toml_data = self._create_toml_data(self.presets, self.resources, [self] + self.all_descendants)
+        project_info_data = self._create_project_info(self.project_info)
+
+        with zipfile.ZipFile(nano_file_path, 'w', zipfile.ZIP_DEFLATED) as nano_zip:
+            # Add the __main__.toml to the zip file
+            nano_zip.writestr('__main__.toml', toml_data)
             
-            # Clean up the files
-            try:
-                os.remove(os.path.join(path, '__main__.toml'))
-                os.remove(os.path.join(path, 'project_info.json'))
-            except FileNotFoundError as e:
-                print(f'File not found: {e.filename}')
-            except Exception as e:
-                print(f'An error occurred during cleanup: {e}')
-            
-            # Optional 7z output
-            if output_7z:
-                output = process.stdout.decode()
-                error = process.stderr.decode()
-                print(output, error)
-            
-            return process
-        except subprocess.CalledProcessError as e:
-            print(f'An error occurred during the creation of the .nano-file: {e.stderr.decode()}')
-            return e    
+            # Add the project_info.json to the zip file
+            nano_zip.writestr('project_info.json', project_info_data)
+
+            # Add the resources to the zip file
+            for resource in self.resources:
+                src_path = resource.fetch_from
+                arcname = resource.path
+                if os.path.isfile(src_path):
+                    self._add_file_to_zip(nano_zip, src_path, arcname)
+                else:
+                    print(f'File not found: {src_path}')
+
+        print('npxpy: .nano-file created successfully.')
 
    
     
@@ -828,49 +801,68 @@ class Preset:
 
 
 class Resource:
-    def __init__(self, resource_type, name, path, properties=None, **kwargs):
+    def __init__(self, resource_type, name, path, **kwargs):
         self.id = str(uuid.uuid4())
         self.type = resource_type
         self.name = name
-        self.path = 'resources/'+path
-        if resource_type == 'mesh_file':
-            self.translation = kwargs.get('translation', [0, 0, 0])
-            self.auto_center = kwargs.get('auto_center', False)
-            self.rotation = kwargs.get('rotation', [0.0, 0.0, 0.0])
-            self.scale = kwargs.get('scale', [1.0, 1.0, 1.0])
-            self.enhance_mesh = kwargs.get('enhance_mesh', True)
-            self.simplify_mesh = kwargs.get('simplify_mesh', False)
-            self.target_ratio = kwargs.get('target_ratio', 100.0)
-        self.properties = properties if properties is not None else None
-        self.unique_attributes = {key: value for key, value in kwargs.items() if key not in ['position', 'rotation', 'children']}
+        self.path = self.generate_path(path)
+        self.unique_attributes = kwargs
+        
+        self.fetch_from = path
+        
+    def generate_path(self, file_path):
+        # Compute MD5 hash of the file content
+        md5_hash = hashlib.md5()
+        with open(file_path, 'rb') as file:
+            for chunk in iter(lambda: file.read(4096), b""):
+                md5_hash.update(chunk)
+        
+        file_hash = md5_hash.hexdigest()
+        # Construct the new path
+        target_path = f'resources/{file_hash}/{file_path.split("/")[-1]}'
+        return target_path
         
     def to_dict(self):
-        if self.type == 'mesh_file':
-          resource_dict = {
-              "type": self.type,
-              "id": self.id,
-              "name": self.name,
-              "path": self.path,
-              "translation": self.translation,
-              "auto_center": self.auto_center,
-              "rotation": self.rotation,
-              "scale": self.scale,
-              "enhance_mesh": self.enhance_mesh,
-              "simplify_mesh": self.simplify_mesh,
-              "target_ratio": self.target_ratio,
-              "properties": self.properties,
-              **self.unique_attributes
-          }
-        else:
-          resource_dict = {
-              "type": self.type,
-              "id": self.id,
-              "name": self.name,
-              "path": self.path,
-              "properties": self.properties,
-              **self.unique_attributes
-          }
+        resource_dict = {
+            "type": self.type,
+            "id": self.id,
+            "name": self.name,
+            "path": self.path,
+            **self.unique_attributes
+        }
         return resource_dict
+    
+    
+class image(Resource):
+    def __init__(self, path,
+                 name='image'):
+        super().__init__(resource_type = 'image_file',
+                         name=name,
+                         path=path)
+
+
+class mesh(Resource):
+    def __init__(self, path,
+                 name='mesh',
+                 translation=[0, 0, 0],
+                 auto_center=False,
+                 rotation=[0.0, 0.0, 0.0],
+                 scale=[1.0, 1.0, 1.0],
+                 enhance_mesh=True,
+                 simplify_mesh=False,
+                 target_ratio=100.0):
+        super().__init__(resource_type='mesh_file',
+                         name=name,
+                         path=path,
+                         translation=translation,
+                         auto_center=auto_center,
+                         rotation=rotation,
+                         scale=scale,
+                         enhance_mesh=enhance_mesh,
+                         simplify_mesh=simplify_mesh,
+                         target_ratio=target_ratio)
+
+        
 
 
 
@@ -879,9 +871,8 @@ class Resource:
 
 
 
-
-
-#misc. functions mainly for use if Node is used for project creation instead of the subclasses
+#misc. functions mainly for use if Node is used for project creation instead of the subclasses.
+# In general those can be considered obsolete by most users.
 
 def copy_files_to_resource_directory(source_directory, target_directory="./resources"):
     # Quick breakdown of this function:
@@ -950,14 +941,3 @@ def nano_file_gen(project_name, path = './', output_7z = False):
     if output_7z == True:
         print(output, error)
     return process
-
-
-
-
-
-
-
-
-
-
-

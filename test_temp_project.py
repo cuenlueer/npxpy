@@ -9,11 +9,9 @@ import npxpy as n
 from datetime import datetime
 
 project_info_json = {
-                      "author": "Caghan (work)",
                       "objective": "25x",
                       "resin": "IP-n162",
                       "substrate": "FuSi",
-                      "creation_date": datetime.now().replace(microsecond=0).isoformat()
                     }
 
 
@@ -31,23 +29,17 @@ edit_presets = {"writing_speed" : 220000.0,
 preset = n.Preset(name = "25x_IP-n162_anchorage_FuSi_clone", **edit_presets)
 
 
+resource_mesh = n.mesh(path = "thisisnotresources/combined_file.stl")
+resource_image = n.image(path = "thisisnotresources/markers.png")
 
-
-resource_mesh = n.Resource(resource_type = "mesh_file",
-                           name = "structure",
-                           path = "5416ba193f0bacf1e37be08d5c249914/combined_file.stl")
-
-resource_image = n.Resource(resource_type = "image_file",
-                            name = "markers_1",
-                            path = "78eab7abd2cd201630ba30ed5a7ef4fc/markers.png")
 
 project = n.Project(objective = project_info_json['objective'],
                     resin = project_info_json['resin'],
                     substrate = project_info_json['substrate'])
 
 project.load_presets([preset])
-project.load_resources([resource_mesh])
-project.load_resources([resource_image])
+project.load_resources(resource_mesh)
+project.load_resources(resource_image)
 
 
 
