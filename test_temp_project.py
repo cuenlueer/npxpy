@@ -6,7 +6,7 @@ Created on Wed Jul 17 11:50:44 2024
 """
 
 import npxpy as n
-from datetime import datetime
+
 
 project_info_json = {
                       "objective": "25x",
@@ -108,6 +108,9 @@ scene1.add_child(group1)
 group1.add_child(interface_aligner1)
 group1.add_child(interface_aligner2)
 
+structure = n.structure(resource_mesh)
+
+interface_aligner1.add_child(structure)
 
 project.add_child(coarse_aligner1)
 project.nano('testmeplease')

@@ -21,6 +21,7 @@ import hashlib
 import copy
 from typing import Dict, Any, List
 import zipfile
+from stl import mesh as stl_mesh
 
 class Node:
     def __init__(self, node_type, name, marker=None, properties=None, geometry=None, **kwargs):
@@ -403,9 +404,12 @@ class group(Node):
         rotated_angles = [(angle + rot) % 360 for angle, rot in zip(self.rotation, rotation)]
         self.rotation = rotated_angles
         
-
+# - method for a routine that automatically adds used meshes (resources in general) to a
+#   dedicated target_project without the need to allocating them as resource_objects manually.
+#   One should be able to turn it on and off. Implement this idealy as a classmethod.
 class structure(Node):
-    def __init__(self, preset, geometry,
+    def __init__(self, preset, mesh,
+                 size = [100, 100, 100],
                  name = 'Structure',
                  slicing_origin = 'scene_bottom',
                  slicing_offset = 0.0,
@@ -418,7 +422,9 @@ class structure(Node):
                          slicing_offset=slicing_offset,
                          priority=priority,
                          expose_individually=expose_individually,
-                         geometry=geometry)
+                         geometry={'type':'mesh',
+                                   'resource' : mesh.id,
+                                   'scale' : [size[0]/100,size[1]/100,size[2]/100]})
         
     def position_at(self, position = [0,0,0], rotation = [0.0, 0.0, 0.0]):
         """
@@ -463,6 +469,8 @@ class structure(Node):
     def to_dict(self):
         node_dict = super().to_dict()
         return node_dict
+    
+    
     
 #Todo: make some classmethods here to make...
 class interface_aligner(Node):
@@ -863,7 +871,20 @@ class mesh(Resource):
                          target_ratio=target_ratio)
 
         
+        self.original_triangle_count = self._get_triangle_count(path)
 
+    def _get_triangle_count(self, path):
+        try:
+            mesh_data = stl_mesh.Mesh.from_file(path)
+            return len(mesh_data.vectors)
+        except Exception as e:
+            print(f"Error reading STL file: {e}")
+            return 0
+
+    def to_dict(self):
+        resource_dict = super().to_dict()
+        resource_dict['properties'] = {'original_triangle_count': self.original_triangle_count}
+        return resource_dict
 
 
 
