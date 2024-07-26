@@ -19,9 +19,10 @@ import os
 import shutil
 import hashlib
 import copy
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 import zipfile
 from stl import mesh as stl_mesh
+
 
 class Node:
     def __init__(self, node_type, name, marker=None, properties=None, geometry=None, **kwargs):
@@ -37,7 +38,7 @@ class Node:
         self.geometry = geometry if geometry is not None else None
         # Handle dynamic attributes specific to the node type
         self.unique_attributes = {key: value for key, value in kwargs.items() if key not in ['position', 'rotation', 'children']}
-        self.nodeproperties = [] #<------- Marked for demolishing
+        #self.nodeproperties = [] #<------- Marked for demolishing
         
         self.all_descendants = self._generate_all_descendants()
         
@@ -106,7 +107,8 @@ class Node:
             current_level_nodes = next_level_nodes
         return current_level_nodes[0]
 
-
+    
+    
     def _generate_all_descendants(self):
         descendants = []
         nodes_to_check = [self]
@@ -115,7 +117,7 @@ class Node:
             descendants.extend(current_node.children_nodes)
             nodes_to_check.extend(current_node.children_nodes)
         return descendants
-
+    
 
     def grab_all_nodes_bfs(self, node_type):
         result = []
@@ -250,12 +252,21 @@ class Project(Node):
                     print(f'File not found: {src_path}')
 
         print('npxpy: .nano-file created successfully.')
-
-   
+    '''
+    @contextmanager
+    def auto_load(cls, project):
+        cls._auto_load = True
+        cls._target_project = project
+        try:
+            yield
+        finally:
+            cls._auto_load = False
+            cls._target_project = None
+    '''
     
 
 
-class coarse_aligner(Node):
+class CoarseAligner(Node):
     def __init__(self, name = 'Coarse aligner',
                  residual_threshold = 10.0):
         """
@@ -309,7 +320,7 @@ class coarse_aligner(Node):
 
 
 
-class scene(Node):
+class Scene(Node):
     def __init__(self, name = 'Scene', writing_direction_upward = True):
         super().__init__('scene', name, 
                          writing_direction_upward=writing_direction_upward)
@@ -360,7 +371,7 @@ class scene(Node):
     
 
 
-class group(Node):
+class Group(Node):
     def __init__(self, name = 'Group'):
         super().__init__('group', name)
         
@@ -404,76 +415,120 @@ class group(Node):
         rotated_angles = [(angle + rot) % 360 for angle, rot in zip(self.rotation, rotation)]
         self.rotation = rotated_angles
         
-# - method for a routine that automatically adds used meshes (resources in general) to a
-#   dedicated target_project without the need to allocating them as resource_objects manually.
-#   One should be able to turn it on and off. Implement this idealy as a classmethod.
-class structure(Node):
-    def __init__(self, preset, mesh,
-                 size = [100, 100, 100],
-                 name = 'Structure',
-                 slicing_origin = 'scene_bottom',
-                 slicing_offset = 0.0,
-                 priority = 0,
-                 expose_individually = False,
-                 ):
-        super().__init__('structure', name, 
-                         preset=preset.id,
-                         slicing_origin_reference=slicing_origin,
-                         slicing_offset=slicing_offset,
-                         priority=priority,
-                         expose_individually=expose_individually,
-                         geometry={'type':'mesh',
-                                   'resource' : mesh.id,
-                                   'scale' : [size[0]/100,size[1]/100,size[2]/100]})
+
+
+
+class Structure(Node):
+    def __init__(self, 
+                 preset, 
+                 mesh,
+                 project: Optional[Node] = None,
+                 auto_load_presets: bool = False,
+                 auto_load_resources: bool = False,
+                 size: List[int] = [100, 100, 100],
+                 name: str = 'Structure',
+                 slicing_origin: str = 'scene_bottom',
+                 slicing_offset: float = 0.0, 
+                 priority: int = 0, 
+                 expose_individually: bool = False):
+        """
+        Initialize a Structure node.
+
+        Parameters:
+        preset (Resource): The preset associated with the structure.
+        mesh (Resource): The mesh object to be used for the structure.
+        project (Optional[Node]): The project context, if any, necessary for auto-loading resources.
+        auto_load_presets (bool): Flag to auto-load presets.
+        auto_load_resources (bool): Flag to auto-load resources.
+        size (List[int]): The size (scaling) of the structure in micrometers [x, y, z].
+        name (str): The name of the structure.
+        slicing_origin (str): The origin for slicing. Must be one of 'structure_center', 'zero', 
+                              'scene_top', 'scene_bottom', 'structure_top', 'structure_bottom', 'scene_center'.
+        slicing_offset (float): The offset for slicing.
+        priority (int): The priority of the structure. Must be >= 0.
+        expose_individually (bool): Flag to expose the structure individually.
+        """
+        if priority < 0:
+            raise ValueError("Priority must be greater than or equal to 0.")
         
-    def position_at(self, position = [0,0,0], rotation = [0.0, 0.0, 0.0]):
+        valid_slicing_origins = {'structure_center', 'zero', 'scene_top', 
+                                 'scene_bottom', 'structure_top', 
+                                 'structure_bottom', 'scene_center'}
+        if slicing_origin not in valid_slicing_origins:
+            raise ValueError(f"slicing_origin must be one of {valid_slicing_origins}")
+        
+        super().__init__('structure', name, preset=preset.id, slicing_origin_reference=slicing_origin,
+                         slicing_offset=slicing_offset, priority=priority, expose_individually=expose_individually,
+                         geometry={'type': 'mesh', 'resource': mesh.id,
+                                   'scale': [size[0]/100, size[1]/100, size[2]/100]})
+        self.mesh = mesh
+        self.preset = preset
+        self.project = project
+        self.auto_load_presets = auto_load_presets
+        self.auto_load_resources = auto_load_resources
+        
+        if (auto_load_presets or auto_load_resources) and project:
+            self._load_resources()
+
+    def _load_resources(self) -> None:
+        """Load presets and resources if the respective flags are set."""
+        if self.auto_load_presets:
+            self.project.load_presets(self.preset)
+            
+        if self.auto_load_resources:
+            if self.mesh.type != 'mesh_file':
+                raise TypeError("Images are supposed to be used for MarkerAligner() class only.")
+            self.project.load_resources(self.mesh)
+
+    def position_at(self, position: List[float] = [0, 0, 0], rotation: List[float] = [0.0, 0.0, 0.0]) -> 'Structure':
         """
         Set the current position and rotation of the object.
 
         Parameters:
-        position (list of float): List of position values [x, y, z].
-        rotation (list of float): List of rotation angles [psi, theta, phi].
+        position (List[float]): List of position values [x, y, z].
+        rotation (List[float]): List of rotation angles [psi, theta, phi].
         
         Returns:
-        self: The instance of the structure class.
+        Structure: The instance of the Structure class.
         """
         self.position = position
         self.rotation = rotation
         return self
-    
-    
-    def translate(self, translation):
+
+    def translate(self, translation: List[float]) -> None:
         """
         Translate the current position by the specified translation.
 
         Parameters:
-        translation (list of float): List of translation values [dx, dy, dz].
+        translation (List[float]): List of translation values [dx, dy, dz].
         """
         self.position = [pos + trans for pos, trans in zip(self.position, translation)]
 
-
-    def rotate(self, rotation):
+    def rotate(self, rotation: List[float]) -> None:
         """
-        Rotate the given angles by the specified rotation and confine them between 0 and 359 degrees.
+        Rotate the current angles by the specified rotation and confine them between 0 and 359 degrees.
         
         Parameters:
-        angles (list of float): List of angles [psi, theta, phi].
-        rotation (list of float): List of rotation angles to apply [d_psi, d_theta, d_phi].
-        
-        Returns:
-        list of float: List of rotated and confined angles.
+        rotation (List[float]): List of rotation angles to apply [d_psi, d_theta, d_phi].
         """
         rotated_angles = [(angle + rot) % 360 for angle, rot in zip(self.rotation, rotation)]
         self.rotation = rotated_angles
-        
-    def to_dict(self):
+
+    def to_dict(self) -> dict:
+        """
+        Convert the structure to a dictionary representation.
+
+        Returns:
+        dict: The dictionary representation of the structure.
+        """
         node_dict = super().to_dict()
         return node_dict
+
     
     
     
 #Todo: make some classmethods here to make...
-class interface_aligner(Node):
+class InterfaceAligner(Node):
     """
     Interface aligner class.
 
@@ -841,7 +896,7 @@ class Resource:
         return resource_dict
     
     
-class image(Resource):
+class Image(Resource):
     def __init__(self, path,
                  name='image'):
         super().__init__(resource_type = 'image_file',
@@ -849,7 +904,7 @@ class image(Resource):
                          path=path)
 
 
-class mesh(Resource):
+class Mesh(Resource):
     def __init__(self, path,
                  name='mesh',
                  translation=[0, 0, 0],
