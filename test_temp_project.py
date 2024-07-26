@@ -29,16 +29,15 @@ edit_presets = {"writing_speed" : 220000.0,
 preset = n.Preset(name = "25x_IP-n162_anchorage_FuSi_clone", **edit_presets)
 
 
-resource_mesh = n.mesh(path = "thisisnotresources/combined_file.stl")
-resource_image = n.image(path = "thisisnotresources/markers.png")
+resource_mesh = n.Mesh(path = "resources/5416ba193f0bacf1e37be08d5c249914/combined_file.stl")
+resource_image = n.Image(path = "resources/78eab7abd2cd201630ba30ed5a7ef4fc/markers.png")
 
 
 project = n.Project(objective = project_info_json['objective'],
                     resin = project_info_json['resin'],
                     substrate = project_info_json['substrate'])
 
-project.load_presets([preset])
-project.load_resources(resource_mesh)
+
 project.load_resources(resource_image)
 
 
@@ -55,9 +54,9 @@ positions = [[-60.0, -528.0, 0.0],
              [-130.0, 20.0, 0.0]]
 
 
-coarse_aligner1 = n.coarse_aligner(residual_threshold = 8).make_coarse_anchors_at(labels, positions)
-scene1 = n.scene(writing_direction_upward=False).position_at([10,10,10],[45,45,45])
-group1 = n.group().position_at([-10,-10,-10],[30,30,30])
+coarse_aligner1 = n.CoarseAligner(residual_threshold = 8).make_coarse_anchors_at(labels, positions)
+scene1 = n.Scene(writing_direction_upward=False).position_at([10,10,10],[45,45,45])
+group1 = n.Group().position_at([-10,-10,-10],[30,30,30])
 
 
 labels = ['marker 0',
@@ -87,11 +86,11 @@ scan_area_sizes = [[11.0,11.0],
                    [11.0,11.0],
                    [11.0,11.0]]
 
-interface_aligner1 = n.interface_aligner(pattern = 'Custom', area_measurement=False,
+interface_aligner1 = n.InterfaceAligner(pattern = 'Custom', area_measurement=False,
                                          signal_type = 'reflection', detector_type = 'confocal'
                                          ).make_grid([8,8], [133,133])
 
-interface_aligner2 = n.interface_aligner(name = 'myaligner',
+interface_aligner2 = n.InterfaceAligner(name = 'myaligner',
              signal_type = 'reflection', detector_type = 'confocal',
              pattern = 'Custom',
              measure_tilt = True,
@@ -108,8 +107,12 @@ scene1.add_child(group1)
 group1.add_child(interface_aligner1)
 group1.add_child(interface_aligner2)
 
-structure = n.structure(resource_mesh)
 
+#structure = n.Structure(preset, resource_mesh, project, auto_load_presets=True, auto_load_resources=True)
+
+#project.load_presets([preset])
+#project.load_resources(resource_mesh)
+structure = n.Structure(preset, resource_mesh)
 interface_aligner1.add_child(structure)
 
 project.add_child(coarse_aligner1)
