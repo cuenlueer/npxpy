@@ -86,13 +86,12 @@ scan_area_sizes = [[11.0,11.0],
                    [11.0,11.0],
                    [11.0,11.0]]
 
-interface_aligner1 = n.InterfaceAligner(pattern = 'Custom', area_measurement=False,
+interface_aligner1 = n.InterfaceAligner(name = 'nameless', area_measurement=False,
                                          signal_type = 'reflection', detector_type = 'confocal'
                                          ).make_grid([8,8], [133,133])
 
 interface_aligner2 = n.InterfaceAligner(name = 'myaligner',
              signal_type = 'reflection', detector_type = 'confocal',
-             pattern = 'Custom',
              measure_tilt = True,
              area_measurement = True,
              center_stage = True,
@@ -108,12 +107,16 @@ group1.add_child(interface_aligner1)
 group1.add_child(interface_aligner2)
 
 
-#structure = n.Structure(preset, resource_mesh, project, auto_load_presets=True, auto_load_resources=True)
 
-#project.load_presets([preset])
-#project.load_resources(resource_mesh)
-structure = n.Structure(preset, resource_mesh)
-interface_aligner1.add_child(structure)
+
+marker_aligner1 = n.MarkerAligner(image = resource_image, marker_size=[8,8])
+#marker_aligner1.add_marker('label', 0, [0,0,0])
+interface_aligner1.add_child(marker_aligner1)
+
+
+structure = n.Structure(preset, resource_mesh, project, auto_load_presets=True, auto_load_resources=True)
+marker_aligner1.add_child(structure)
+
 
 project.add_child(coarse_aligner1)
 project.nano('testmeplease')
