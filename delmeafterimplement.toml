@@ -164,6 +164,7 @@ rotation = [
     0.0,
 ]
 children = [
+    "62bf54d0-14fb-4d43-adda-c14ebce217d7",
     "2f66b713-1649-4c0e-8dcd-583fce0096f6",
     "a60610af-47d5-4b32-ba4f-076bd76cde41",
 ]
@@ -252,17 +253,21 @@ preset = "b31c1b02-c480-4646-a012-5027af4431b4"
 slicing_origin_reference = "scene_bottom"
 slicing_offset = 0.0
 priority = 0
-expose_individually = false
+expose_individually = true
 children = []
 
 [nodes.properties]
+polynomial_factors_y_last_applied_values = [
+    1.0,
+    2.0,
+]
 
 [nodes.geometry]
 type = "lens"
 radius = 100.0
 height = 50.0
-crop_base = false
-asymmetric = false
+crop_base = true
+asymmetric = true
 curvature = 0.01
 conic_constant = -1.0
 curvature_y = 0.01
@@ -270,10 +275,16 @@ conic_constant_y = -1.0
 polynomial_type = "Normalized"
 polynomial_factors = [
     3.0,
-    0.0,
-    0.0,
+    2.0,
+    1.0,
+    2.0,
+    3.0,
+    4.0,
 ]
-polynomial_factors_y = []
+polynomial_factors_y = [
+    1.0,
+    2.0,
+]
 surface_compensation_factors = []
 surface_compensation_factors_y = []
 nr_radial_segments = 500
@@ -343,6 +354,38 @@ wait_time = 1.0
 [nodes.properties]
 
 [[nodes]]
+type = "structure"
+id = "62bf54d0-14fb-4d43-adda-c14ebce217d7"
+name = "Structure 1"
+position = [
+    0,
+    0,
+    0,
+]
+rotation = [
+    0.0,
+    0.0,
+    0.0,
+]
+preset = "b31c1b02-c480-4646-a012-5027af4431b4"
+slicing_origin_reference = "scene_bottom"
+slicing_offset = 0.0
+priority = 0
+expose_individually = false
+children = []
+
+[nodes.properties]
+
+[nodes.geometry]
+type = "mesh"
+resource = "3db402b9-11bd-4c3a-b308-31652ce44cdf"
+scale = [
+    1.0,
+    1.0,
+    1.0,
+]
+
+[[nodes]]
 type = "project"
 id = "96721ed5-8331-4331-a6e4-806b4a1efe88"
 name = "Project"
@@ -365,14 +408,14 @@ children = [
     "c231928d-fa4e-48f4-916a-cb538bcc94c5",
     "aa2017c6-5937-4267-abe5-a916817f5070",
 ]
-version = 4
+version = 7
 objective = "25x"
 resin = "IP-n162"
 substrate = "FuSi"
 
 [nodes.properties]
 expanded = true
-selection = "96721ed5-8331-4331-a6e4-806b4a1efe88"
+selection = "aa2017c6-5937-4267-abe5-a916817f5070"
 
 [nodes.meta]
 author = ""
@@ -426,7 +469,7 @@ position_local_cos = [
     0,
     0,
 ]
-z_rotation_local_cos = 0.0
+z_rotation_local_cos = 1000.0
 size = [
     200.0,
     100.0,

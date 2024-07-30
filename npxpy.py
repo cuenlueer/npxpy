@@ -74,6 +74,8 @@ class Node:
         """
         self.children_nodes.append(child_node)
         self.all_descendants = self._generate_all_descendants()  # Update descendants list
+        
+        return self
 
     def tree(self, level: int = 0, show_type: bool = True, show_id: bool = False, is_last: bool = True, prefix: str = ''):
         """
@@ -352,7 +354,7 @@ class Project(Node):
         with open(file_path, 'rb') as f:
             zip_file.writestr(arcname, f.read())
 
-    def nano(self, project_name: str, path: str = './', output_7z: bool = False):
+    def nano(self, project_name: str, path: str = './'):
         """
         Creates a .nano file for the project.
 
@@ -362,7 +364,6 @@ class Project(Node):
         Args:
             project_name (str): The name of the project, used as the base name for the .nano file.
             path (str, optional): The directory path where the .nano file will be created. Defaults to './'.
-            output_7z (bool, optional): If True, prints the stdout and stderr of the 7z command. Defaults to False.
         """
         print('npxpy: Attempting to create .nano-file...')
 
@@ -375,7 +376,7 @@ class Project(Node):
         toml_data = self._create_toml_data(self.presets, self.resources, [self] + self.all_descendants)
         project_info_data = self._create_project_info(self.project_info)
 
-        with zipfile.ZipFile(nano_file_path, 'w', zipfile.ZIP_DEFLATED) as nano_zip:
+        with zipfile.ZipFile(nano_file_path, 'w', zipfile.ZIP_STORED) as nano_zip:
             # Add the __main__.toml to the zip file
             nano_zip.writestr('__main__.toml', toml_data)
             
@@ -692,7 +693,7 @@ class CoarseAligner(Node):
             "position": position,
         })
         
-    def make_coarse_anchors_at(self, labels: List[str], positions: List[List[float]]):
+    def set_coarse_anchors_at(self, labels: List[str], positions: List[List[float]]):
         """
         Create multiple coarse anchors at specified positions.
 
@@ -741,13 +742,13 @@ class InterfaceAligner(Node):
                  scan_z_sample_count=51):
             Initializes the interface aligner with specified parameters.
         
-        make_grid(self, count=[5, 5], size=[200, 200]):
+        set_grid(self, count=[5, 5], size=[200, 200]):
             Sets the grid point count and grid size.
         
         add_interface_anchor(self, label, position, scan_area_size=None):
             Adds an interface anchor with a given label, position, and scan area size.
         
-        make_interface_anchors_at(self, labels, positions, scan_area_sizes=None):
+        set_interface_anchors_at(self, labels, positions, scan_area_sizes=None):
             Creates multiple measurement locations at specified positions.
 
         to_dict(self):
@@ -810,7 +811,7 @@ class InterfaceAligner(Node):
         self.size = [200, 200]
         self.pattern = 'Origin'
         
-    def make_grid(self, count: List[int] = [5, 5], size: List[int] = [200, 200]):
+    def set_grid(self, count: List[int] = [5, 5], size: List[int] = [200, 200]):
         """
         Sets the grid point count and grid size.
 
@@ -860,7 +861,7 @@ class InterfaceAligner(Node):
             "scan_area_size": scan_area_size
         })
         
-    def make_interface_anchors_at(self, labels: List[str], positions: List[List[float]], scan_area_sizes: List[List[float]] = None):
+    def set_interface_anchors_at(self, labels: List[str], positions: List[List[float]], scan_area_sizes: List[List[float]] = None):
         """
         Creates multiple measurement locations at specified positions.
         This method only works if pattern = 'Custom'. Otherwise user input will be overridden.
@@ -1000,7 +1001,7 @@ class MarkerAligner(Node):
             "rotation": orientation
         })
         
-    def make_markers_at(self, labels: List[str], orientations: List[float], positions: List[List[float]]):
+    def set_markers_at(self, labels: List[str], orientations: List[float], positions: List[List[float]]):
         """
         Creates multiple markers at specified positions with given orientations.
 
@@ -1035,37 +1036,214 @@ class MarkerAligner(Node):
 
 
 
+class EdgeAligner(Node):
+    """
+    A class to represent an edge aligner with various attributes and methods for managing edge alignment.
 
+    Attributes:
+        alignment_anchors (List[Dict[str, Any]]): List of alignment anchors.
+    """
+    def __init__(self, 
+                 node_type: str = 'edge_alignment',
+                 name: str = 'Edge aligner',
+                 edge_location: List[float] = [0.0, 0.0],  # in micrometers
+                 edge_orientation: float = 0.0,  # in degrees
+                 center_stage: bool = True,
+                 action_upon_failure: str = 'abort',  # can be 'abort' or 'ignore'
+                 laser_power: float = 0.5,  # must be >= 0
+                 scan_area_res_factors: List[float] = [1.0, 1.0],  # must be greater than zero
+                 scan_z_sample_distance: float = 0.1,
+                 scan_z_sample_count: int = 51,  # must be greater than zero
+                 outlier_threshold: float = 10.0):  # value must be in percent (0 <= 100)
+        """
+        Initialize the edge aligner with the specified parameters.
 
+        Parameters:
+            node_type (str): Type of the node.
+            name (str): Name of the edge aligner.
+            edge_location (List[float]): Location of the edge [x, y] in micrometers.
+            edge_orientation (float): Orientation of the edge in degrees.
+            center_stage (bool): Whether to center the stage.
+            action_upon_failure (str): Action upon failure, can be 'abort' or 'ignore'.
+            laser_power (float): Power of the laser, must be >= 0.
+            scan_area_res_factors (List[float]): Resolution factors for the scan area, must be greater than zero.
+            scan_z_sample_distance (float): Distance between samples in the z-direction.
+            scan_z_sample_count (int): Number of samples in the z-direction, must be greater than zero.
+            outlier_threshold (float): Outlier threshold in percent (0 <= 100).
+
+        Raises:
+            ValueError: If scan_z_sample_count is less than 1.
+        """
+        super().__init__(node_type=node_type,
+                         name=name,
+                         properties={'xy_position_local_cos': edge_location,
+                                     'z_rotation_local_cos': edge_orientation,
+                                     'center_stage': center_stage,
+                                     'action_upon_failure': action_upon_failure,
+                                     'laser_power': laser_power,
+                                     'scan_area_res_factors': scan_area_res_factors,
+                                     'scan_z_sample_distance': scan_z_sample_distance,
+                                     'scan_z_sample_count': scan_z_sample_count,
+                                     'outlier_threshold': outlier_threshold})
+        
+        self.alignment_anchors = []
+        
+        if scan_z_sample_count < 1:
+            raise ValueError("scan_z_sample_count must be at least 1.")
+        if scan_z_sample_distance <= 0:
+            raise ValueError("scan_z_sample_distance must be greater 0.")
+        if laser_power < 0:
+            raise ValueError("laser_power must be greater than or equal to 0.")
+        if not all(factor > 0 for factor in scan_area_res_factors):
+            raise ValueError("All elements in scan_area_res_factors must be greater than 0.")
+        if not (0 <= outlier_threshold <= 100):
+            raise ValueError("outlier_threshold must be between 0 and 100.")
+
+    def add_measurement(self, label: str, offset: float, scan_area_size: List[float]):
+        """
+        Add a measurement with a label, offset, and scan area size.
+
+        Parameters:
+            label (str): The label for the measurement.
+            offset (float): The offset for the measurement.
+            scan_area_size (List[float]): The scan area size [width, height].
+
+        Raises:
+            ValueError: If scan_area_size does not contain exactly two elements or if X <= 0 or Y < 0.
+        """
+        if len(scan_area_size) != 2:
+            raise ValueError("scan_area_size must be a list of two elements.")
+        if scan_area_size[0] <= 0:
+            raise ValueError("The width (X) in scan_area_size must be greater than or equal to 0.")
+        if scan_area_size[1] < 0:
+            raise ValueError("The height (Y) in scan_area_size must be greater than 0.")
+        
+        self.alignment_anchors.append({
+            "label": label,
+            "offset": offset,
+            "scan_area_size": scan_area_size
+        })
+    
+    def set_measurements_at(self, labels: List[str], offsets: List[float], scan_area_sizes: List[List[float]]):
+        """
+        Set multiple measurements at specified positions.
+
+        Parameters:
+            labels (List[str]): List of labels for the measurements.
+            offsets (List[float]): List of offsets for the measurements.
+            scan_area_sizes (List[List[float]]): List of scan area sizes for the measurements.
+
+        Returns:
+            EdgeAligner: The instance of the EdgeAligner class.
+
+        Raises:
+            ValueError: If the lengths of labels, offsets, and scan_area_sizes do not match.
+        """
+        if len(labels) != len(scan_area_sizes) or len(labels) != len(offsets):
+            raise ValueError("The number of labels, offsets, and scan_area_sizes must match.")
+        
+        for label, offset, scan_area_size in zip(labels, offsets, scan_area_sizes):
+            self.add_measurement(label, offset, scan_area_size)
+        return self
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        Converts the current state of the object into a dictionary representation.
+
+        Returns:
+            Dict[str, Any]: Dictionary representation of the current state of the object.
+        """
+        node_dict = super().to_dict()
+        node_dict['alignment_anchors'] = self.alignment_anchors
+        return node_dict
 
 
 
 class DoseCompensation(Node):
-    def __init__(self, name = 'Dose compensation 1',
-                 edge_location = [0.0, 0.0, 0.0], #um
-                 edge_orientation = 0.0, #This is in deg
-                 domain_size = [200.0, 100.0, 100.0], #um
-                 gain_limit = 2.0):# has to be greaterequal 1
-        super().__init__(node_type = 'dose_compensation',
-                         name = name,
-                         position_local_cos = edge_location,
-                         z_rotation_local_cos = edge_orientation,
-                         size = domain_size,
-                         gain_limit = gain_limit)
+    """
+    A class to represent dose compensation with various attributes and methods for managing dose settings.
+
+    Attributes:
+        alignment_anchors (List[Dict[str, Any]]): List of alignment anchors.
+    """
+    def __init__(self, 
+                 name: str = 'Dose compensation 1',
+                 edge_location: List[float] = [0.0, 0.0, 0.0],  # in micrometers
+                 edge_orientation: float = 0.0,  # in degrees
+                 domain_size: List[float] = [200.0, 100.0, 100.0],  # in micrometers, must be > 0
+                 gain_limit: float = 2.0):  # must be >= 1
+        """
+        Initialize the dose compensation with the specified parameters.
+
+        Parameters:
+            name (str): Name of the dose compensation.
+            edge_location (List[float]): Location of the edge [x, y, z] in micrometers.
+            edge_orientation (float): Orientation of the edge in degrees.
+            domain_size (List[float]): Size of the domain [width, height, depth] in micrometers, must be > 0.
+            gain_limit (float): Gain limit, must be >= 1.
+
+        Raises:
+            ValueError: If domain_size contains non-positive values or if gain_limit is less than 1.
+        """
+        if any(size <= 0 for size in domain_size):
+            raise ValueError("All elements in domain_size must be greater than 0.")
+        if gain_limit < 1:
+            raise ValueError("gain_limit must be greater than or equal to 1.")
+        
+        super().__init__(node_type='dose_compensation',
+                         name=name,
+                         position_local_cos=edge_location,
+                         z_rotation_local_cos=edge_orientation,
+                         size=domain_size,
+                         gain_limit=gain_limit)
 
 
 class Capture(Node):
-    def __init__(self, name = 'Capture'):
-        super().__init__(node_type = 'capture',
-                         name = name)
+    """
+    A class to represent a capture node with attributes and methods for managing capture settings.
+
+    Attributes:
+        capture_type (str): The type of capture (e.g., 'Camera', 'Confocal').
+        laser_power (float): The laser power for the capture.
+        scan_area_size (List[float]): The size of the scan area [width, height].
+        scan_area_ref_factors (List[float]): The resolution factors for the scan area.
+    """
+    def __init__(self, name: str = 'Capture'):
+        """
+        Initialize the capture node with the specified parameters.
+
+        Parameters:
+            name (str): Name of the capture node.
+        """
+        super().__init__(node_type='capture', name=name)
         self.capture_type = 'Camera'
         self.laser_power = 0.5
         self.scan_area_size = [100, 100]
         self.scan_area_ref_factors = [1.0, 1.0]
         
-    def confocal(self, laser_power = 0.5,
-                 scan_area_size = [100, 100],
-                 scan_area_ref_factors = [1.0, 1.0]):
+    def confocal(self, laser_power: float = 0.5,  # greater or equal to 0
+                 scan_area_size: List[float] = [100, 100],  # greater or equal to 0
+                 scan_area_ref_factors: List[float] = [1.0, 1.0]):  # greater than 0
+        """
+        Configure the capture node for confocal capture.
+
+        Parameters:
+            laser_power (float): The laser power, must be greater or equal to 0.
+            scan_area_size (List[float]): The scan area size [width, height], must be greater or equal to 0.
+            scan_area_ref_factors (List[float]): The resolution factors for the scan area, must be greater than 0.
+
+        Returns:
+            Capture: The instance of the Capture class.
+
+        Raises:
+            ValueError: If any parameter value is not valid.
+        """
+        if laser_power < 0:
+            raise ValueError("laser_power must be greater or equal to 0.")
+        if any(size < 0 for size in scan_area_size):
+            raise ValueError("All elements in scan_area_size must be greater or equal to 0.")
+        if any(factor <= 0 for factor in scan_area_ref_factors):
+            raise ValueError("All elements in scan_area_ref_factors must be greater than 0.")
         
         self.laser_power = laser_power
         self.scan_area_size = scan_area_size
@@ -1074,27 +1252,75 @@ class Capture(Node):
         
         return self
     
-    def to_dict(self):
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        Converts the current state of the object into a dictionary representation.
+
+        Returns:
+            Dict[str, Any]: Dictionary representation of the current state of the object.
+        """
         node_dict = super().to_dict()
         node_dict['capture_type'] = self.capture_type
         node_dict['laser_power'] = self.laser_power
         node_dict['scan_area_size'] = self.scan_area_size
-        node_dict['scan_area_ref_factors'] = self.scan_area_ref_factors 
+        node_dict['scan_area_ref_factors'] = self.scan_area_ref_factors
         return node_dict
 
 
 class StageMove(Node):
-    def __init__(self, name = 'Stage move', stage_position = [0.0, 0.0, 0.0]):
-        super().__init__(node_type = 'stage_move',
-                         name = name,
-                         target_position = stage_position)
+    """
+    A class to represent a stage move node with a specified stage position.
+
+    Attributes:
+        target_position (List[float]): The target position of the stage [x, y, z].
+    """
+    def __init__(self, 
+                 name: str = 'Stage move', 
+                 stage_position: List[float] = [0.0, 0.0, 0.0]):
+        """
+        Initialize the stage move node with the specified parameters.
+
+        Parameters:
+            name (str): Name of the stage move node.
+            stage_position (List[float]): Target position of the stage [x, y, z].
+
+        Raises:
+            ValueError: If stage_position does not contain exactly three elements.
+        """
+        if len(stage_position) != 3:
+            raise ValueError("stage_position must be a list of three elements.")
+        
+        super().__init__(node_type='stage_move',
+                         name=name,
+                         target_position=stage_position)
 
 
 class Wait(Node):
-    def __init__(self, name = 'Wait', wait_time = 1.0): # Wait time in seconds has to be greater 0
-        super().__init__(node_type = 'wait', 
-                         name = name,
-                         wait_time = wait_time)
+    """
+    A class to represent a wait node with a specified wait time.
+
+    Attributes:
+        wait_time (float): The wait time in seconds.
+    """
+    def __init__(self, 
+                 name: str = 'Wait', 
+                 wait_time: float = 1.0):
+        """
+        Initialize the wait node with the specified parameters.
+
+        Parameters:
+            name (str): Name of the wait node.
+            wait_time (float): Wait time in seconds, must be greater than 0.
+
+        Raises:
+            ValueError: If wait_time is not greater than 0.
+        """
+        if wait_time <= 0:
+            raise ValueError("wait_time must be greater than 0.")
+        
+        super().__init__(node_type='wait', 
+                         name=name,
+                         wait_time=wait_time)
 
 
 

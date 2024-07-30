@@ -8,12 +8,9 @@ Created on Wed Jul 17 11:50:44 2024
 import npxpy as n
 
 
-project_info_json = {
-                      "objective": "25x",
-                      "resin": "IP-n162",
-                      "substrate": "FuSi",
-                    }
-
+project = n.Project(objective = "25x",
+                    resin = "IP-n162",
+                    substrate = "FuSi")
 
 edit_presets = {"writing_speed" : 220000.0,
                 "writing_power" : 50.0,
@@ -33,9 +30,7 @@ resource_mesh = n.Mesh(path = "resources/5416ba193f0bacf1e37be08d5c249914/combin
 resource_image = n.Image(path = "resources/78eab7abd2cd201630ba30ed5a7ef4fc/markers.png")
 
 
-project = n.Project(objective = project_info_json['objective'],
-                    resin = project_info_json['resin'],
-                    substrate = project_info_json['substrate'])
+
 
 
 project.load_resources(resource_image)
@@ -54,7 +49,7 @@ positions = [[-60.0, -528.0, 0.0],
              [-130.0, 20.0, 0.0]]
 
 
-coarse_aligner1 = n.CoarseAligner(residual_threshold = 8).make_coarse_anchors_at(labels, positions)
+coarse_aligner1 = n.CoarseAligner(residual_threshold = 8).set_coarse_anchors_at(labels, positions)
 scene1 = n.Scene(writing_direction_upward=False).position_at([10,10,10],[45,45,45])
 group1 = n.Group().position_at([-10,-10,-10],[30,30,30])
 
@@ -88,7 +83,7 @@ scan_area_sizes = [[11.0,11.0],
 
 interface_aligner1 = n.InterfaceAligner(name = 'nameless', area_measurement=False,
                                          signal_type = 'reflection', detector_type = 'confocal'
-                                         ).make_grid([8,8], [133,133])
+                                         ).set_grid([8,8], [133,133])
 
 interface_aligner2 = n.InterfaceAligner(name = 'myaligner',
              signal_type = 'reflection', detector_type = 'confocal',
@@ -99,7 +94,7 @@ interface_aligner2 = n.InterfaceAligner(name = 'myaligner',
              laser_power = 0.3,
              scan_area_res_factors = [0.9,0.9],
              scan_z_sample_distance = 0.3,
-             scan_z_sample_count = 29).make_interface_anchors_at(labels, positions, scan_area_sizes)
+             scan_z_sample_count = 29).set_interface_anchors_at(labels, positions, scan_area_sizes)
 
 coarse_aligner1.add_child(scene1)
 scene1.add_child(group1)
@@ -118,7 +113,7 @@ structure = n.Structure(preset, resource_mesh, project, auto_load_presets=True, 
 marker_aligner1.add_child(structure)
 
 
-project.add_child(coarse_aligner1)
+project.add_child(coarse_aligner1).add_child(n.DoseCompensation()).add_child(n.StageMove()).add_child(n.EdgeAligner())
 project.nano('testmeplease')
 
 
