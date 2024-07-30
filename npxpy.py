@@ -10,6 +10,7 @@ Created on Thu Feb 29 11:49:17 2024
 This file is part of npxpy (formerly nanoAPI), which is licensed under the GNU Lesser General Public License v3.0.
 You can find a copy of this license at https://www.gnu.org/licenses/lgpl-3.0.html
 """
+
 import toml
 import uuid
 import json
@@ -393,74 +394,6 @@ class Project(Node):
         print('npxpy: .nano-file created successfully.')
 
 
-class CoarseAligner(Node):
-    """
-    A class to manage coarse alignment nodes.
-
-    Attributes:
-        alignment_anchors (list): List of alignment anchors.
-    """
-    def __init__(self, name: str = 'Coarse aligner', residual_threshold: float = 10.0):
-        """
-        Initialize the coarse aligner with a name and a residual threshold.
-
-        Parameters:
-            name (str): The name of the coarse aligner node.
-            residual_threshold (float): The residual threshold for alignment.
-        """
-        super().__init__('coarse_alignment', name, residual_threshold=residual_threshold)
-        self.alignment_anchors = []
-        
-    def add_coarse_anchor(self, label: str, position: List[float]):
-        """
-        Add a single coarse anchor with a label and position.
-
-        Parameters:
-            label (str): The label for the anchor.
-            position (List[float]): The position [x, y, z] for the anchor.
-
-        Raises:
-            ValueError: If position does not contain exactly three elements.
-        """
-        if len(position) != 3:
-            raise ValueError("position must be a list of three elements.")
-        self.alignment_anchors.append({
-            "label": label,
-            "position": position,
-        })
-        
-    def make_coarse_anchors_at(self, labels: List[str], positions: List[List[float]]):
-        """
-        Create multiple coarse anchors at specified positions.
-
-        Parameters:
-            labels (List[str]): List of labels for the anchors.
-            positions (List[List[float]]): List of positions for the anchors, each position is [x, y, z].
-
-        Returns:
-            self: The instance of the CoarseAligner class.
-
-        Raises:
-            ValueError: If the number of labels does not match the number of positions.
-        """
-        if len(labels) != len(positions):
-            raise ValueError("The number of labels must match the number of positions.")
-        for label, position in zip(labels, positions):
-            self.add_coarse_anchor(label, position)
-        return self
-        
-    def to_dict(self) -> Dict:
-        """
-        Converts the current state of the object into a dictionary representation.
-
-        Returns:
-            dict: Dictionary representation of the current state of the object.
-        """
-        node_dict = super().to_dict()
-        node_dict['alignment_anchors'] = self.alignment_anchors
-        return node_dict
-
-
 class Scene(Node):
     """
     A class to manage scene nodes.
@@ -614,8 +547,6 @@ class Group(Node):
         """
         node_dict = super().to_dict()
         return node_dict
-        
-
 
 
 class Structure(Node):
@@ -724,8 +655,74 @@ class Structure(Node):
         node_dict = super().to_dict()
         return node_dict
 
-    
-    
+
+class CoarseAligner(Node):
+    """
+    A class to manage coarse alignment nodes.
+
+    Attributes:
+        alignment_anchors (list): List of alignment anchors.
+    """
+    def __init__(self, name: str = 'Coarse aligner', residual_threshold: float = 10.0):
+        """
+        Initialize the coarse aligner with a name and a residual threshold.
+
+        Parameters:
+            name (str): The name of the coarse aligner node.
+            residual_threshold (float): The residual threshold for alignment.
+        """
+        super().__init__('coarse_alignment', name, residual_threshold=residual_threshold)
+        self.alignment_anchors = []
+        
+    def add_coarse_anchor(self, label: str, position: List[float]):
+        """
+        Add a single coarse anchor with a label and position.
+
+        Parameters:
+            label (str): The label for the anchor.
+            position (List[float]): The position [x, y, z] for the anchor.
+
+        Raises:
+            ValueError: If position does not contain exactly three elements.
+        """
+        if len(position) != 3:
+            raise ValueError("position must be a list of three elements.")
+        self.alignment_anchors.append({
+            "label": label,
+            "position": position,
+        })
+        
+    def make_coarse_anchors_at(self, labels: List[str], positions: List[List[float]]):
+        """
+        Create multiple coarse anchors at specified positions.
+
+        Parameters:
+            labels (List[str]): List of labels for the anchors.
+            positions (List[List[float]]): List of positions for the anchors, each position is [x, y, z].
+
+        Returns:
+            self: The instance of the CoarseAligner class.
+
+        Raises:
+            ValueError: If the number of labels does not match the number of positions.
+        """
+        if len(labels) != len(positions):
+            raise ValueError("The number of labels must match the number of positions.")
+        for label, position in zip(labels, positions):
+            self.add_coarse_anchor(label, position)
+        return self
+        
+    def to_dict(self) -> Dict:
+        """
+        Converts the current state of the object into a dictionary representation.
+
+        Returns:
+            dict: Dictionary representation of the current state of the object.
+        """
+        node_dict = super().to_dict()
+        node_dict['alignment_anchors'] = self.alignment_anchors
+        return node_dict
+
     
 class InterfaceAligner(Node):
     """
@@ -908,7 +905,6 @@ class InterfaceAligner(Node):
         return node_dict
 
 
-
 class MarkerAligner(Node):
     """
     Marker aligner class
@@ -1037,6 +1033,68 @@ class MarkerAligner(Node):
         node_dict['alignment_anchors'] = self.alignment_anchors
         return node_dict
 
+
+
+
+
+
+
+
+class DoseCompensation(Node):
+    def __init__(self, name = 'Dose compensation 1',
+                 edge_location = [0.0, 0.0, 0.0], #um
+                 edge_orientation = 0.0, #This is in deg
+                 domain_size = [200.0, 100.0, 100.0], #um
+                 gain_limit = 2.0):# has to be greaterequal 1
+        super().__init__(node_type = 'dose_compensation',
+                         name = name,
+                         position_local_cos = edge_location,
+                         z_rotation_local_cos = edge_orientation,
+                         size = domain_size,
+                         gain_limit = gain_limit)
+
+
+class Capture(Node):
+    def __init__(self, name = 'Capture'):
+        super().__init__(node_type = 'capture',
+                         name = name)
+        self.capture_type = 'Camera'
+        self.laser_power = 0.5
+        self.scan_area_size = [100, 100]
+        self.scan_area_ref_factors = [1.0, 1.0]
+        
+    def confocal(self, laser_power = 0.5,
+                 scan_area_size = [100, 100],
+                 scan_area_ref_factors = [1.0, 1.0]):
+        
+        self.laser_power = laser_power
+        self.scan_area_size = scan_area_size
+        self.scan_area_ref_factors = scan_area_ref_factors
+        self.capture_type = 'Confocal'
+        
+        return self
+    
+    def to_dict(self):
+        node_dict = super().to_dict()
+        node_dict['capture_type'] = self.capture_type
+        node_dict['laser_power'] = self.laser_power
+        node_dict['scan_area_size'] = self.scan_area_size
+        node_dict['scan_area_ref_factors'] = self.scan_area_ref_factors 
+        return node_dict
+
+
+class StageMove(Node):
+    def __init__(self, name = 'Stage move', stage_position = [0.0, 0.0, 0.0]):
+        super().__init__(node_type = 'stage_move',
+                         name = name,
+                         target_position = stage_position)
+
+
+class Wait(Node):
+    def __init__(self, name = 'Wait', wait_time = 1.0): # Wait time in seconds has to be greater 0
+        super().__init__(node_type = 'wait', 
+                         name = name,
+                         wait_time = wait_time)
 
 
 
