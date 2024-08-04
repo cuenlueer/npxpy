@@ -1,33 +1,407 @@
 # -*- coding: utf-8 -*-
 """
 npxpy (formerly nanoAPI)
-0.0.1
+v0.0.3-alpha
 Created on Thu Feb 29 11:49:17 2024
 
 @author: Caghan Uenlueer
-6C 69 66 65 20 69 73 20 74 65 6D 70 6F 72 61 72 79 2E 20 63 6F 64 65 20 69 73 20 65 74 65 72 6E 61 6C
+Neuromorphic Quantumphotonics
+Heidelberg University
+E-Mail:	caghan.uenlueer@kip.uni-heidelberg.de
 
 This file is part of npxpy (formerly nanoAPI), which is licensed under the GNU Lesser General Public License v3.0.
 You can find a copy of this license at https://www.gnu.org/licenses/lgpl-3.0.html
 """
-
 import toml
 import uuid
 import json
-import subprocess
 from datetime import datetime
 import os
-import shutil
 import hashlib
 import copy
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any, List, Optional, Tuple, Union
 import zipfile
 from stl import mesh as stl_mesh
 
 
+
+
+class Preset:
+    """
+    A class to represent a preset with various parameters related to writing and hatching settings.
+
+    Attributes:
+        id (str): Unique identifier for the preset.
+        name (str): Name of the preset.
+        valid_objectives (List[str]): Valid objectives for the preset.
+        valid_resins (List[str]): Valid resins for the preset.
+        valid_substrates (List[str]): Valid substrates for the preset.
+        writing_speed (float): Writing speed.
+        writing_power (float): Writing power.
+        slicing_spacing (float): Slicing spacing.
+        hatching_spacing (float): Hatching spacing.
+        hatching_angle (float): Hatching angle.
+        hatching_angle_increment (float): Hatching angle increment.
+        hatching_offset (float): Hatching offset.
+        hatching_offset_increment (float): Hatching offset increment.
+        hatching_back_n_forth (bool): Whether hatching is back and forth.
+        mesh_z_offset (float): Mesh Z offset.
+        grayscale_multilayer_enabled (bool): Whether grayscale multilayer is enabled.
+        grayscale_layer_profile_nr_layers (int): Number of layers for grayscale layer profile.
+        grayscale_writing_power_minimum (float): Minimum writing power for grayscale.
+        grayscale_exponent (float): Grayscale exponent.
+        unique_attributes (Dict[str, Any]): Additional dynamic attributes.
+    """
+    def __init__(self, 
+                 name: str = '25x_IP-n162',
+                 valid_objectives: str = "25x", #can be '25x' or '63x' or '*'
+                 valid_resins: str = "IP-n162", #can be 'IP-PDMS', 'IPX-S', 'IP-L', 'IP-n162', 'IP-Dip2', 'IP-Dip', 'IP-S', 'IP-Vision', '*'
+                 valid_substrates: str = "*", # can be '*', 'FuSi', 'Si'
+                 writing_speed: float = 250000.0, #number greater 0 unit um/s
+                 writing_power: float = 50.0, #number greaterequal 0 unit mW
+                 slicing_spacing: float = 0.8, #number greater 0 um
+                 hatching_spacing: float = 0.3, #number greater 0 um
+                 hatching_angle: float = 0.0, #number deg (you do not need to ensure the value is between 0-359!)
+                 hatching_angle_increment: float = 0.0, #number deg
+                 hatching_offset: float = 0.0, #number um
+                 hatching_offset_increment: float = 0.0, #number um
+                 hatching_back_n_forth: bool = True, 
+                 mesh_z_offset: float = 0.0, #number um
+                 grayscale_multilayer_enabled: bool = False,
+                 grayscale_layer_profile_nr_layers: int = 6, #integer must be here! #number greaterequal 0
+                 grayscale_writing_power_minimum: float = 0.0, # #number greater equal 0
+                 grayscale_exponent: float = 1.0, #number greater 0
+                 **kwargs: Any):
+        """
+        Initialize a Preset instance with various parameters related to writing and hatching settings.
+        
+        Parameters:
+            name (str): Name of the preset.
+            valid_objectives (str): Valid objectives for the preset.
+            valid_resins (str): Valid resins for the preset.
+            valid_substrates (str): Valid substrates for the preset.
+            writing_speed (float): Writing speed.
+            writing_power (float): Writing power.
+            slicing_spacing (float): Slicing spacing.
+            hatching_spacing (float): Hatching spacing.
+            hatching_angle (float): Hatching angle.
+            hatching_angle_increment (float): Hatching angle increment.
+            hatching_offset (float): Hatching offset.
+            hatching_offset_increment (float): Hatching offset increment.
+            hatching_back_n_forth (bool): Whether hatching is back and forth.
+            mesh_z_offset (float): Mesh Z offset.
+            grayscale_multilayer_enabled (bool): Whether grayscale multilayer is enabled.
+            grayscale_layer_profile_nr_layers (int): Number of layers for grayscale layer profile.
+            grayscale_writing_power_minimum (float): Minimum writing power for grayscale.
+            grayscale_exponent (float): Grayscale exponent.
+            **kwargs (Any): Additional dynamic attributes.
+        """
+        self.id = str(uuid.uuid4())
+        self.name = name
+        
+        self.valid_objectives = [valid_objectives]
+        self.valid_resins = [valid_resins]
+        self.valid_substrates = [valid_substrates]
+        
+        self.writing_speed = writing_speed
+        self.writing_power = writing_power
+        self.slicing_spacing = slicing_spacing
+        self.hatching_spacing = hatching_spacing
+        self.hatching_angle = hatching_angle
+        self.hatching_angle_increment = hatching_angle_increment
+        self.hatching_offset = hatching_offset
+        self.hatching_offset_increment = hatching_offset_increment
+        self.hatching_back_n_forth = hatching_back_n_forth
+        self.mesh_z_offset = mesh_z_offset
+        self.grayscale_multilayer_enabled = grayscale_multilayer_enabled
+        self.grayscale_layer_profile_nr_layers = grayscale_layer_profile_nr_layers
+        self.grayscale_writing_power_minimum = grayscale_writing_power_minimum
+        self.grayscale_exponent = grayscale_exponent
+        
+        self.unique_attributes = kwargs
+
+    def duplicate(self) -> 'Preset':
+        """
+        Create a duplicate of the current preset instance.
+        
+        Returns:
+            Preset: A duplicate of the current preset instance.
+        """
+        duplicate = copy.copy(self)
+        duplicate.id = str(uuid.uuid4())
+        return duplicate
+    
+    @classmethod
+    def load_single(cls, file_path: str, fresh_id: bool = True) -> 'Preset':
+        """
+        Load a single preset from a .toml file.
+
+        Parameters:
+            file_path (str): The path to the .toml file.
+            fresh_id (bool): Whether to assign a fresh ID to the loaded preset.
+
+        Returns:
+            Preset: The loaded preset instance.
+
+        Raises:
+            FileNotFoundError: If the file at file_path does not exist.
+            toml.TomlDecodeError: If there is an error decoding the TOML file.
+        """
+        if not os.path.isfile(file_path):
+            raise FileNotFoundError(f"File not found: {file_path}")
+        
+        with open(file_path, 'r') as toml_file:
+            data = toml.load(toml_file)
+
+        # Extract the file name without the extension
+        name = os.path.splitext(os.path.basename(file_path))[0]
+
+        # Ensure 'name' is not in the data dictionary to avoid conflicts
+        if 'name' in data:
+            del data['name']
+            
+        cls_instance = cls(name=name, **data)
+        
+        if not fresh_id:
+            cls_instance.id = data.get('id', cls_instance.id)
+        
+        return cls_instance
+
+    @classmethod
+    def load_multiple(cls, directory_path: str, print_names: bool = False, fresh_id: bool = True) -> List['Preset']:
+        """
+        Load multiple presets from a directory containing .toml files.
+
+        Parameters:
+            directory_path (str): The path to the directory containing .toml files.
+            print_names (bool): If True, print the names of the files in the order they are loaded.
+            fresh_id (bool): Whether to assign fresh IDs to the loaded presets.
+
+        Returns:
+            List[Preset]: A list of loaded preset instances.
+
+        Raises:
+            FileNotFoundError: If the directory_path does not exist.
+        """
+        if not os.path.isdir(directory_path):
+            raise FileNotFoundError(f"Directory not found: {directory_path}")
+
+        presets = []
+        for file_name in sorted(os.listdir(directory_path)):
+            if file_name.endswith('.toml'):
+                file_path = os.path.join(directory_path, file_name)
+                preset = cls.load_single(file_path, fresh_id)
+                presets.append(preset)
+                if print_names:
+                    print(file_name)
+        return presets
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        Convert the preset and its unique attributes to a dictionary format.
+        
+        Returns:
+            Dict[str, Any]: Dictionary representation of the preset.
+        """
+        preset_dict = {k: v for k, v in self.__dict__.items() if k != 'unique_attributes'}
+        preset_dict.update(self.unique_attributes)
+        return preset_dict
+
+    def export(self, file_path: str = None) -> None:
+        """
+        Export the preset to a file that can be loaded by nanoPrintX and/or npxpy.
+        
+        Parameters:
+            file_path (str): The path to the .toml file to be created. If not provided, defaults to the current directory with the preset's name.
+        
+        Raises:
+            IOError: If there is an error writing to the file.
+        """
+        if file_path is None:
+            file_path = f"{self.name}.toml"
+        elif not file_path.endswith('.toml'):
+            file_path += '.toml'
+        
+        data = self.to_dict()
+        
+        with open(file_path, 'w') as toml_file:
+            toml.dump(data, toml_file)
+
+
+
+
+
+
+
+
+class Resource:
+    """
+    A class to represent a resource.
+
+    Attributes:
+        id (str): Unique identifier for the resource.
+        type (str): Type of the resource.
+        name (str): Name of the resource.
+        path (str): Path where the resource is loaded from.
+        unique_attributes (dict): Additional attributes specific to the resource type.
+        fetch_from (str): Original path from which the resource was fetched.
+    """
+    def __init__(self, resource_type: str, name: str, path: str, **kwargs):
+        """
+        Initialize the resource with the specified parameters.
+
+        Parameters:
+            resource_type (str): Type of the resource.
+            name (str): Name of the resource.
+            path (str): Path where the resource is loaded from.
+            **kwargs: Additional keyword arguments for unique attributes.
+        """
+        self.id = str(uuid.uuid4())
+        self._type = resource_type
+        self.name = name
+        self.path = self.generate_path(path)
+        self.unique_attributes = kwargs
+        self.fetch_from = path
+        
+    def generate_path(self, file_path: str) -> str:
+        """
+        Generate a path for the resource based on the MD5 hash of the file content.
+
+        Parameters:
+            file_path (str): Path to the file.
+
+        Returns:
+            str: Generated path for the resource.
+
+        Raises:
+            FileNotFoundError: If the file at file_path does not exist.
+        """
+        if not os.path.isfile(file_path):
+            raise FileNotFoundError(f"File not found: {file_path}")
+
+        md5_hash = hashlib.md5()
+        with open(file_path, 'rb') as file:
+            for chunk in iter(lambda: file.read(4096), b""):
+                md5_hash.update(chunk)
+        
+        file_hash = md5_hash.hexdigest()
+        target_path = f'resources/{file_hash}/{os.path.basename(file_path)}'
+        return target_path
+        
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        Converts the current state of the object into a dictionary representation.
+
+        Returns:
+            dict: Dictionary representation of the current state of the object.
+        """
+        resource_dict = {
+            "type": self._type,
+            "id": self.id,
+            "name": self.name,
+            "path": self.path,
+            **self.unique_attributes
+        }
+        return resource_dict
+    
+    
+class Image(Resource):
+    """
+    A class to represent an image resource.
+    """
+    def __init__(self, path: str, name: str = 'image'):
+        """
+        Initialize the image resource with the specified parameters.
+
+        Parameters:
+            path (str): Path where the image is stored.
+            name (str, optional): Name of the image resource. Defaults to 'image'.
+        """
+        super().__init__(resource_type='image_file', name=name, path=path)
+
+
+class Mesh(Resource):
+    """
+    A class to represent a mesh resource.
+
+    Attributes:
+        original_triangle_count (int): The original number of triangles in the mesh.
+    """
+    def __init__(self, path: str, name: str = 'mesh',
+                 translation: List[float] = [0, 0, 0], #number in um
+                 auto_center: bool = False,
+                 rotation: List[float] = [0.0, 0.0, 0.0], #number in deg
+                 scale: List[float] = [1.0, 1.0, 1.0], #scale number
+                 enhance_mesh: bool = True,
+                 simplify_mesh: bool = False,
+                 target_ratio: float = 100.0):
+        """
+        Initialize the mesh resource with the specified parameters.
+
+        Parameters:
+            path (str): Path where the mesh is stored.
+            name (str, optional): Name of the mesh resource. Defaults to 'mesh'.
+            translation (List[float], optional): Translation values [x, y, z]. Defaults to [0, 0, 0].
+            auto_center (bool, optional): Whether to auto-center the mesh. Defaults to False.
+            rotation (List[float], optional): Rotation values [psi, theta, phi]. Defaults to [0.0, 0.0, 0.0].
+            scale (List[float], optional): Scale values [x, y, z]. Defaults to [1.0, 1.0, 1.0].
+            enhance_mesh (bool, optional): Whether to enhance the mesh. Defaults to True.
+            simplify_mesh (bool, optional): Whether to simplify the mesh. Defaults to False.
+            target_ratio (float, optional): Target ratio for mesh simplification. Defaults to 100.0.
+
+        Raises:
+            ValueError: If target_ratio is not between 0 and 100.
+        """
+        if not (0 <= target_ratio <= 100):
+            raise ValueError("target_ratio must be between 0 and 100.")
+        
+        super().__init__(resource_type='mesh_file', name=name, path=path,
+                         translation=translation, auto_center=auto_center,
+                         rotation=rotation, scale=scale, enhance_mesh=enhance_mesh,
+                         simplify_mesh=simplify_mesh, target_ratio=target_ratio)
+
+        self.original_triangle_count = self._get_triangle_count(path)
+
+    def _get_triangle_count(self, path: str) -> int:
+        """
+        Get the number of triangles in the mesh.
+
+        Parameters:
+            path (str): Path to the mesh file.
+
+        Returns:
+            int: Number of triangles in the mesh.
+
+        Raises:
+            FileNotFoundError: If the mesh file does not exist.
+            Exception: If there is an error reading the STL file.
+        """
+        if not os.path.isfile(path):
+            raise FileNotFoundError(f"Mesh file not found: {path}")
+        
+        try:
+            mesh_data = stl_mesh.Mesh.from_file(path)
+            return len(mesh_data.vectors)
+        except Exception as e:
+            print(f"Error reading STL file: {e}")
+            return 0
+
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        Converts the current state of the object into a dictionary representation.
+
+        Returns:
+            dict: Dictionary representation of the current state of the object.
+        """
+        resource_dict = super().to_dict()
+        resource_dict['properties'] = {'original_triangle_count': self.original_triangle_count}
+        return resource_dict
+
+
+
 class Node:
     """
-    A class to represent a generic node with various attributes and methods for managing node hierarchy.
+    A class to represent a node object of nanoPrintX with various attributes and methods for managing node hierarchy.
 
     Attributes:
         id (str): Unique identifier for the node.
@@ -42,7 +416,8 @@ class Node:
         unique_attributes (Dict[str, Any]): Additional dynamic attributes.
         all_descendants (List[Node]): List of all descendant nodes.
     """
-    def __init__(self, node_type: str, name: str, properties: Any = None, geometry: Any = None, **kwargs: Any):
+    def __init__(self, node_type: str, name: str, #Everything needs to have a name!!!
+                 properties: Any = None, geometry: Any = None, **kwargs: Any):
         """
         Initialize a Node instance with the specified parameters.
 
@@ -54,7 +429,7 @@ class Node:
             **kwargs (Any): Additional dynamic attributes.
         """
         self.id = str(uuid.uuid4())
-        self.type = node_type
+        self._type = node_type
         self.name = name
         self.position = kwargs.get('position', [0, 0, 0])
         self.rotation = kwargs.get('rotation', [0.0, 0.0, 0.0])
@@ -64,7 +439,7 @@ class Node:
         self.geometry = geometry
         self.unique_attributes = {key: value for key, value in kwargs.items() if key not in ['position', 'rotation', 'children']}
         self.all_descendants = self._generate_all_descendants()
-
+        
     def add_child(self, child_node: 'Node'):
         """
         Add a child node to the current node.
@@ -72,6 +447,8 @@ class Node:
         Parameters:
             child_node (Node): The child node to add.
         """
+        if self._type == 'structure':
+            raise ValueError('Structure objects (including Text and Lens) are terminal nodes! They cannot have children!')
         self.children_nodes.append(child_node)
         self.all_descendants = self._generate_all_descendants()  # Update descendants list
         
@@ -89,7 +466,7 @@ class Node:
             prefix (str, optional): The prefix for the current level. Defaults to ''.
         """
         indent = '' if level == 0 else prefix + ('└' if is_last else '├') + '──'
-        output = f"{indent}{self.name} ({self.type})" if show_type else f"{indent}{self.name}"
+        output = f"{indent}{self.name} ({self._type})" if show_type else f"{indent}{self.name}"
         if show_id:
             output += f" (ID: {self.id})"
         print(output)
@@ -142,7 +519,7 @@ class Node:
         for node_type, index in node_types_with_indices:
             next_level_nodes = []
             for node in current_level_nodes:
-                filtered_nodes = [child for child in node.children_nodes if child.type == node_type]
+                filtered_nodes = [child for child in node.children_nodes if child._type == node_type]
                 if len(filtered_nodes) > index:
                     next_level_nodes.append(filtered_nodes[index])
             current_level_nodes = next_level_nodes
@@ -177,7 +554,7 @@ class Node:
         nodes_to_check = [self]
         while nodes_to_check:
             current_node = nodes_to_check.pop(0)  # Dequeue from the front
-            if current_node.type == node_type:
+            if current_node._type == node_type:
                 result.append(current_node)
             nodes_to_check.extend(current_node.children_nodes)  # Enqueue children
         return result
@@ -235,7 +612,7 @@ class Node:
         """
         self.children = [i.id for i in self.children_nodes]
         node_dict = {
-            "type": self.type,
+            "type": self._type,
             "id": self.id,
             "name": self.name,
             "position": self.position,
@@ -250,12 +627,6 @@ class Node:
 
 
 
-
-#Keep in mind that you can dynamically allocate any parameter (i.e., unique attribute)
-#inside the subclasses of Node (see below) by initializing with **kwargs!:
-#def __init__(self, **kwargs):
-#    super().__init__(node_type = 'project', name = 'Project', **kwargs)
-
 class Project(Node):
     """
     A class to manage project nodes.
@@ -265,7 +636,10 @@ class Project(Node):
         resources (list): List of resources for the project.
         project_info (dict): Information about the project including author, objective, resin, substrate, and creation date.
     """
-    def __init__(self, objective: str, resin: str, substrate: str):
+    def __init__(self, objective: str, # '25x' or '63x' or '*'
+                 resin: str, # can be 'IP-PDMS', 'IPX-S', 'IP-L', 'IP-n162', 'IP-Dip2', 'IP-Dip', 'IP-S', 'IP-Vision', '*'
+                 substrate: str # '*', 'Si' and 'FuSi'
+                 ):
         """
         Initialize the project with the specified parameters.
 
@@ -287,7 +661,7 @@ class Project(Node):
             "creation_date": datetime.now().replace(microsecond=0).isoformat()
         }
 
-    def load_resources(self, resources: Any):
+    def load_resources(self, resources: Any): # This has to be an object from the class Ressource (including inheriting classes)!
         """
         Adds resources to the resources list. The input can be either a list of resources
         or a single resource element.
@@ -299,7 +673,7 @@ class Project(Node):
             resources = [resources]
         self.resources.extend(resources)
 
-    def load_presets(self, presets: Any):
+    def load_presets(self, presets: Any): # This has to be an object from the class Preset!
         """
         Adds presets to the presets list. The input can be either a list of presets
         or a single preset element.
@@ -550,18 +924,108 @@ class Group(Node):
         return node_dict
 
 
+class Array(Node):
+    def __init__(self, name = 'Array', 
+                 count = [5,5], # this has to be an integer and greater zero!!
+                 spacing = [100.0,100.0], # Okay if integer is passed (i.e. no need to transform to float!). is in micrometers (or um)
+                 order = "Lexical", # Can only take 'Lexiacal' and 'Meander' as values
+                 shape = 'Rectangular', # can only take 'Rectangluar' and 'Round' as values
+                 ):
+        super().__init__('array', name=name,
+                         order = order,
+                         shape = shape,
+                         count = count,
+                         spacing = spacing)
+        
+    def set_grid(self, count: List[int] = [5, 5], spacing: List[float] = [200.0, 200.0]):
+        """
+        Sets the grid point count and spacing.
+
+        Parameters:
+            count (List[int]): Number of grid points in [x, y] direction.
+            spacing (List[float]): Spacing of the grid in [width, height].
+
+        Returns:
+            self: The instance of the Array class.
+        """
+        if len(count) != 2 or len(spacing) != 2:
+            raise ValueError("count and size must each be lists of two elements.")
+        
+        self.count = count
+        self.spacing = spacing
+        return self
+        
+    def position_at(self, position: List[float] = [0, 0, 0], rotation: List[float] = [0.0, 0.0, 0.0]):
+        """
+        Set the current position and rotation of the array.
+
+        Parameters:
+            position (List[float]): List of position values [x, y, z].
+            rotation (List[float]): List of rotation angles [psi, theta, phi].
+
+        Returns:
+            self: The instance of the array class.
+        """
+        if len(position) != 3:
+            raise ValueError("position must be a list of three elements.")
+        if len(rotation) != 3:
+            raise ValueError("rotation must be a list of three elements.")
+        self.position = position
+        self.rotation = rotation
+        return self
+    
+    def translate(self, translation: List[float]):
+        """
+        Translate the current position by the specified translation.
+
+        Parameters:
+            translation (List[float]): List of translation values [dx, dy, dz].
+
+        Raises:
+            ValueError: If translation does not contain exactly three elements.
+        """
+        if len(translation) != 3:
+            raise ValueError("translation must be a list of three elements.")
+        self.position = [pos + trans for pos, trans in zip(self.position, translation)]
+
+    def rotate(self, rotation: List[float]):
+        """
+        Rotate the array by the specified rotation angles.
+
+        Parameters:
+            rotation (List[float]): List of rotation angles to apply [d_psi, d_theta, d_phi].
+
+        Raises:
+            ValueError: If rotation does not contain exactly three elements.
+        """
+        if len(rotation) != 3:
+            raise ValueError("rotation must be a list of three elements.")
+        self.rotation = [(angle + rot) % 360 for angle, rot in zip(self.rotation, rotation)]
+    
+    def to_dict(self) -> Dict:
+        """
+        Converts the current state of the object into a dictionary representation.
+
+        Returns:
+            dict: Dictionary representation of the current state of the object.
+        """
+        node_dict = super().to_dict()
+        return node_dict
+
+
+
 class Structure(Node):
     def __init__(self, 
-                 preset, 
-                 mesh,
+                 preset, #only objects from class Preset are allowed!
+                 mesh, #only objects from class Mesh are allowed!
                  project: Optional[Node] = None,
                  auto_load_presets: bool = False,
                  auto_load_resources: bool = False,
-                 size: List[int] = [100, 100, 100],
+                 size: List[float] = [100.0, 100.0, 100.0], # okay if int
                  name: str = 'Structure',
                  slicing_origin: str = 'scene_bottom',
-                 slicing_offset: float = 0.0, 
-                 priority: int = 0, 
+                 slicing_offset: float = 0.0, # okay if int
+                 priority: int = 0,
                  expose_individually: bool = False):
         """
         Initialize a Structure node.
@@ -589,16 +1053,22 @@ class Structure(Node):
         if slicing_origin not in valid_slicing_origins:
             raise ValueError(f"slicing_origin must be one of {valid_slicing_origins}")
         
-        super().__init__('structure', name, preset=preset.id, slicing_origin_reference=slicing_origin,
-                         slicing_offset=slicing_offset, priority=priority, expose_individually=expose_individually,
-                         geometry={'type': 'mesh', 'resource': mesh.id,
-                                   'scale': [size[0]/100, size[1]/100, size[2]/100]})
+        super().__init__('structure', 
+                         name, 
+                         preset=preset.id, 
+                         slicing_origin_reference=slicing_origin,
+                         slicing_offset=slicing_offset, 
+                         priority=priority,
+                         expose_individually=expose_individually)
         self.mesh = mesh
+        self.size = size
         self.preset = preset
         self.project = project
         self.auto_load_presets = auto_load_presets
         self.auto_load_resources = auto_load_resources
         
+        self._mesh=True
+ 
         if (auto_load_presets or auto_load_resources) and project:
             self._load_resources()
 
@@ -608,7 +1078,7 @@ class Structure(Node):
             self.project.load_presets(self.preset)
             
         if self.auto_load_resources:
-            if self.mesh.type != 'mesh_file':
+            if self.mesh._type != 'mesh_file':
                 raise TypeError("Images are supposed to be used for MarkerAligner() class only.")
             self.project.load_resources(self.mesh)
 
@@ -653,10 +1123,133 @@ class Structure(Node):
         Returns:
         dict: The dictionary representation of the structure.
         """
+        if self._mesh:
+            self.geometry={'type': 'mesh',
+                            'resource': self.mesh.id,
+                            'scale': [self.size[0]/100, self.size[1]/100, self.size[2]/100]}
         node_dict = super().to_dict()
+        node_dict['geometry'] = self.geometry
         return node_dict
 
 
+class Text(Structure):
+    def __init__(self, preset, #only objects from class Preset are allowed!
+                 name: str = 'Text', #Has to have a name!
+                 text = 'Text', # Has to have text!
+                 font_size = 10.0, # Okay if int. must be greater 0
+                 height = 5.0, # Okay if int. must be greater 0
+                 slicing_origin: str = 'scene_bottom',
+                 slicing_offset: float = 0.0, 
+                 priority: int = 0,
+                 expose_individually: bool = False): 
+        
+        super().__init__(preset = preset, mesh=None, name=name,
+                         slicing_origin = slicing_origin,
+                         slicing_offset = slicing_offset,
+                         priority=priority,
+                         expose_individually=expose_individually)
+        self.text = text
+        self.font_size = font_size
+        self.height = height
+        
+        self._mesh=False
+    def to_dict(self) -> dict:
+        self.geometry = {'type': 'text',
+                         'text': self.text,
+                         'font_size': self.font_size,
+                         'height' : self.height}
+        node_dict = super().to_dict()
+        node_dict['geometry'] = self.geometry
+        return node_dict
+        
+    
+class Lens(Structure):
+    def __init__(self, preset,
+                 name: str = 'Lens', #Has to have a name!
+                 radius = 100.0, # Okay if int. must be greater 0
+                 height = 50.0, # Okay if int. must be greater 0
+                 crop_base = False,
+                 asymmetric = False,
+                 curvature = 0.01, # Okay if int.
+                 conic_constant = 0.01, # Okay if int.
+                 curvature_y = 0.01, # Okay if int.
+                 conic_constant_y = -1.0, # Okay if int.
+                 nr_radial_segments = 500, #has to be int!
+                 nr_phi_segments = 360, #has to be int!
+                 slicing_origin: str = 'scene_bottom',
+                 slicing_offset: float = 0.0, 
+                 priority: int = 0, 
+                 expose_individually: bool = False):
+    
+        super().__init__(preset = preset, mesh=None, name=name,
+                         slicing_origin = slicing_origin,
+                         slicing_offset = slicing_offset,
+                         priority=priority,
+                         expose_individually=expose_individually)
+        
+        self.name = name
+        self.radius = radius
+        self.height = height
+        self.crop_base = crop_base
+        self.asymmetric = asymmetric #if this is False, the lens is considered being radialy symmetric. non-y-values are in this case considered! Passing y-values is allowed but have no effect.
+        self.curvature = curvature
+        self.conic_constant = conic_constant
+        self.curvature_y =  curvature_y
+        self.conic_constant_y = conic_constant_y
+        
+        self.polynomial_type = 'Normalized'
+        #Can be either 'Normalized' or 'Standard'. The latter has units um^-(2n+1) where n is index in passed list to polynomial_factors (or polynomial_factors_y if asymmetric). Former has no units. Both can be any number
+        self.polynomial_factors = []
+        self.polynomial_factors_y = []
+        
+        self.surface_compensation_factors = [] #has units um^-(2n+1) where n is index in passed list (must contain numbers) to it
+        self.surface_compensation_factors_y = [] #has units um^-(2n+1) where n is index in passed list (must contain numbers) to it
+        
+        
+        
+        self.nr_radial_segments = nr_radial_segments
+        self.nr_phi_segments = nr_phi_segments
+        
+        self._mesh=False
+        
+    def polynomial(self, polynomial_type = 'Normalized', polynomial_factors = [0,0,0], polynomial_factors_y = [0,0,0]): #passed lists can have arbitrary length!
+        self.polynomial_type = polynomial_type
+        self.polynomial_factors = polynomial_factors
+        if self.asymmetric:
+            self.polynomial_factors_y = polynomial_factors_y
+        return self
+        
+    def surface_compensation(self, surface_compensation_factors = [0,0,0], surface_compensation_factors_y = [0,0,0]):#passed lists can have arbitrary length!
+        self.surface_compensation_factors = surface_compensation_factors
+        if self.asymmetric:
+            self.surface_compensation_factors_y = surface_compensation_factors_y
+        return self
+        
+    def to_dict(self) -> dict:
+        self.geometry = {
+                            'type': 'lens',
+                            'radius': self.radius,
+                            'height': self.height,
+                            'crop_base': self.crop_base,
+                            'asymmetric': self.asymmetric,
+                            'curvature': self.curvature,
+                            'conic_constant': self.conic_constant,
+                            'curvature_y': self.curvature_y,
+                            'conic_constant_y': self.conic_constant_y,
+                            'polynomial_type': self.polynomial_type,
+                            'polynomial_factors': self.polynomial_factors,
+                            'polynomial_factors_y': self.polynomial_factors_y,
+                            'surface_compensation_factors': self.surface_compensation_factors,
+                            'surface_compensation_factors_y': self.surface_compensation_factors_y,
+                            'nr_radial_segments': self.nr_radial_segments,
+                            'nr_phi_segments': self.nr_phi_segments
+                        }
+
+        node_dict = super().to_dict()
+        node_dict['geometry'] = self.geometry
+        return node_dict
+    
+    
 class CoarseAligner(Node):
     """
     A class to manage coarse alignment nodes.
@@ -664,7 +1257,9 @@ class CoarseAligner(Node):
     Attributes:
         alignment_anchors (list): List of alignment anchors.
     """
-    def __init__(self, name: str = 'Coarse aligner', residual_threshold: float = 10.0):
+    def __init__(self, name: str = 'Coarse aligner',
+                 residual_threshold: float = 10.0 # must be greater 0
+                 ):
         """
         Initialize the coarse aligner with a name and a residual threshold.
 
@@ -808,10 +1403,10 @@ class InterfaceAligner(Node):
         
         self.alignment_anchors = []
         self.count = [5, 5]
-        self.size = [200, 200]
+        self.size = [200.0, 200.0]
         self.pattern = 'Origin'
         
-    def set_grid(self, count: List[int] = [5, 5], size: List[int] = [200, 200]):
+    def set_grid(self, count: List[int] = [5, 5], size: List[float] = [200.0, 200.0]):
         """
         Sets the grid point count and grid size.
 
@@ -903,6 +1498,53 @@ class InterfaceAligner(Node):
         node_dict['grid_point_count'] = self.count
         node_dict['grid_size'] = self.size
         node_dict['pattern'] = self.pattern
+        return node_dict
+
+
+class FiberAligner(Node):
+    def __init__(self, name = 'Fiber aligner',
+                 fiber_radius = 63.5,  #number in um. must be grater 0
+                 center_stage = True,
+                 action_upon_failure = 'abort', #can be 'abort' 'ignore'
+                 illumination_name = "process_led_1", 
+                 core_signal_lower_threshold = 0.05,
+                 core_signal_range = [0.1, 0.9],
+                 detection_margin = 6.3500000000000005 #must be number greater 0. unit in um
+                 ):
+        super().__init__(node_type = 'fiber_core_alignment', name=name,
+                       fiber_radius=fiber_radius,
+                       center_stage=center_stage,
+                       action_upon_failure = action_upon_failure,
+                       illumination_name =illumination_name,
+                       core_signal_lower_threshold =core_signal_lower_threshold,
+                       core_signal_range =core_signal_range,
+                       core_position_offset_tolerance =detection_margin)
+        
+        self.detect_light_direction = False
+        self.z_scan_range = [10, 100] # has to be list of two entries that are number. The second entry must be greater than 0 AND greater than the first value! all units um
+        self.z_scan_range_sample_count = 1 # has to be greater 0 integer 
+        self.z_scan_range_scan_count = 1 # has to be greater 0 integer
+        
+        
+    def measure_tilt(self, z_scan_range=[10, 100], z_scan_range_sample_count = 3, z_scan_range_scan_count = 1):
+        self.detect_light_direction = True
+        self.z_scan_range = z_scan_range # has to be list of two entries that are number. The second entry must be greater than 0 AND greater than the first value! all units um
+        self.z_scan_range_sample_count = z_scan_range_sample_count # has to be greater 0 integer 
+        self.z_scan_range_scan_count = z_scan_range_scan_count # has to be greater 0 integer 
+        
+        return self
+    def to_dict(self) -> Dict:
+        """
+        Converts the current state of the object into a dictionary representation.
+
+        Returns:
+            dict: Dictionary representation of the current state of the object.
+        """
+        node_dict = super().to_dict()
+        node_dict['detect_light_direction'] = self.detect_light_direction
+        node_dict['z_scan_range'] = self.z_scan_range
+        node_dict['z_scan_range_sample_count'] = self.z_scan_range_sample_count
+        node_dict['z_scan_range_scan_count'] = self.z_scan_range_scan_count
         return node_dict
 
 
@@ -1321,450 +1963,3 @@ class Wait(Node):
         super().__init__(node_type='wait', 
                          name=name,
                          wait_time=wait_time)
-
-
-
-
-class Preset:
-    """
-    A class to represent a preset with various parameters related to writing and hatching settings.
-
-    Attributes:
-        id (str): Unique identifier for the preset.
-        name (str): Name of the preset.
-        valid_objectives (List[str]): Valid objectives for the preset.
-        valid_resins (List[str]): Valid resins for the preset.
-        valid_substrates (List[str]): Valid substrates for the preset.
-        writing_speed (float): Writing speed.
-        writing_power (float): Writing power.
-        slicing_spacing (float): Slicing spacing.
-        hatching_spacing (float): Hatching spacing.
-        hatching_angle (float): Hatching angle.
-        hatching_angle_increment (float): Hatching angle increment.
-        hatching_offset (float): Hatching offset.
-        hatching_offset_increment (float): Hatching offset increment.
-        hatching_back_n_forth (bool): Whether hatching is back and forth.
-        mesh_z_offset (float): Mesh Z offset.
-        grayscale_multilayer_enabled (bool): Whether grayscale multilayer is enabled.
-        grayscale_layer_profile_nr_layers (int): Number of layers for grayscale layer profile.
-        grayscale_writing_power_minimum (float): Minimum writing power for grayscale.
-        grayscale_exponent (float): Grayscale exponent.
-        unique_attributes (Dict[str, Any]): Additional dynamic attributes.
-    """
-    def __init__(self, 
-                 name: str = '25x_IP-n162',
-                 valid_objectives: str = "25x",
-                 valid_resins: str = "IP-n162",
-                 valid_substrates: str = "*",
-                 writing_speed: float = 250000.0,
-                 writing_power: float = 50.0,
-                 slicing_spacing: float = 0.8,
-                 hatching_spacing: float = 0.3,
-                 hatching_angle: float = 0.0,
-                 hatching_angle_increment: float = 0.0,
-                 hatching_offset: float = 0.0,
-                 hatching_offset_increment: float = 0.0,
-                 hatching_back_n_forth: bool = True,
-                 mesh_z_offset: float = 0.0,
-                 grayscale_multilayer_enabled: bool = False,
-                 grayscale_layer_profile_nr_layers: int = 6,
-                 grayscale_writing_power_minimum: float = 0.0,
-                 grayscale_exponent: float = 1.0,
-                 **kwargs: Any):
-        """
-        Initialize a Preset instance with various parameters related to writing and hatching settings.
-        
-        Parameters:
-            name (str): Name of the preset.
-            valid_objectives (str): Valid objectives for the preset.
-            valid_resins (str): Valid resins for the preset.
-            valid_substrates (str): Valid substrates for the preset.
-            writing_speed (float): Writing speed.
-            writing_power (float): Writing power.
-            slicing_spacing (float): Slicing spacing.
-            hatching_spacing (float): Hatching spacing.
-            hatching_angle (float): Hatching angle.
-            hatching_angle_increment (float): Hatching angle increment.
-            hatching_offset (float): Hatching offset.
-            hatching_offset_increment (float): Hatching offset increment.
-            hatching_back_n_forth (bool): Whether hatching is back and forth.
-            mesh_z_offset (float): Mesh Z offset.
-            grayscale_multilayer_enabled (bool): Whether grayscale multilayer is enabled.
-            grayscale_layer_profile_nr_layers (int): Number of layers for grayscale layer profile.
-            grayscale_writing_power_minimum (float): Minimum writing power for grayscale.
-            grayscale_exponent (float): Grayscale exponent.
-            **kwargs (Any): Additional dynamic attributes.
-        """
-        self.id = str(uuid.uuid4())
-        self.name = name
-        
-        self.valid_objectives = [valid_objectives]
-        self.valid_resins = [valid_resins]
-        self.valid_substrates = [valid_substrates]
-        
-        self.writing_speed = writing_speed
-        self.writing_power = writing_power
-        self.slicing_spacing = slicing_spacing
-        self.hatching_spacing = hatching_spacing
-        self.hatching_angle = hatching_angle
-        self.hatching_angle_increment = hatching_angle_increment
-        self.hatching_offset = hatching_offset
-        self.hatching_offset_increment = hatching_offset_increment
-        self.hatching_back_n_forth = hatching_back_n_forth
-        self.mesh_z_offset = mesh_z_offset
-        self.grayscale_multilayer_enabled = grayscale_multilayer_enabled
-        self.grayscale_layer_profile_nr_layers = grayscale_layer_profile_nr_layers
-        self.grayscale_writing_power_minimum = grayscale_writing_power_minimum
-        self.grayscale_exponent = grayscale_exponent
-        
-        self.unique_attributes = kwargs
-
-    def duplicate(self) -> 'Preset':
-        """
-        Create a duplicate of the current preset instance.
-        
-        Returns:
-            Preset: A duplicate of the current preset instance.
-        """
-        duplicate = copy.copy(self)
-        duplicate.id = str(uuid.uuid4())
-        return duplicate
-    
-    @classmethod
-    def load_single(cls, file_path: str, fresh_id: bool = True) -> 'Preset':
-        """
-        Load a single preset from a .toml file.
-
-        Parameters:
-            file_path (str): The path to the .toml file.
-            fresh_id (bool): Whether to assign a fresh ID to the loaded preset.
-
-        Returns:
-            Preset: The loaded preset instance.
-
-        Raises:
-            FileNotFoundError: If the file at file_path does not exist.
-            toml.TomlDecodeError: If there is an error decoding the TOML file.
-        """
-        if not os.path.isfile(file_path):
-            raise FileNotFoundError(f"File not found: {file_path}")
-        
-        with open(file_path, 'r') as toml_file:
-            data = toml.load(toml_file)
-
-        # Extract the file name without the extension
-        name = os.path.splitext(os.path.basename(file_path))[0]
-
-        # Ensure 'name' is not in the data dictionary to avoid conflicts
-        if 'name' in data:
-            del data['name']
-            
-        cls_instance = cls(name=name, **data)
-        
-        if not fresh_id:
-            cls_instance.id = data.get('id', cls_instance.id)
-        
-        return cls_instance
-
-    @classmethod
-    def load_multiple(cls, directory_path: str, print_names: bool = False, fresh_id: bool = True) -> List['Preset']:
-        """
-        Load multiple presets from a directory containing .toml files.
-
-        Parameters:
-            directory_path (str): The path to the directory containing .toml files.
-            print_names (bool): If True, print the names of the files in the order they are loaded.
-            fresh_id (bool): Whether to assign fresh IDs to the loaded presets.
-
-        Returns:
-            List[Preset]: A list of loaded preset instances.
-
-        Raises:
-            FileNotFoundError: If the directory_path does not exist.
-        """
-        if not os.path.isdir(directory_path):
-            raise FileNotFoundError(f"Directory not found: {directory_path}")
-
-        presets = []
-        for file_name in sorted(os.listdir(directory_path)):
-            if file_name.endswith('.toml'):
-                file_path = os.path.join(directory_path, file_name)
-                preset = cls.load_single(file_path, fresh_id)
-                presets.append(preset)
-                if print_names:
-                    print(file_name)
-        return presets
-    
-    def to_dict(self) -> Dict[str, Any]:
-        """
-        Convert the preset and its unique attributes to a dictionary format.
-        
-        Returns:
-            Dict[str, Any]: Dictionary representation of the preset.
-        """
-        preset_dict = {k: v for k, v in self.__dict__.items() if k != 'unique_attributes'}
-        preset_dict.update(self.unique_attributes)
-        return preset_dict
-
-    def export(self, file_path: str = None) -> None:
-        """
-        Export the preset to a file that can be loaded by nanoPrintX and/or npxpy.
-        
-        Parameters:
-            file_path (str): The path to the .toml file to be created. If not provided, defaults to the current directory with the preset's name.
-        
-        Raises:
-            IOError: If there is an error writing to the file.
-        """
-        if file_path is None:
-            file_path = f"{self.name}.toml"
-        elif not file_path.endswith('.toml'):
-            file_path += '.toml'
-        
-        data = self.to_dict()
-        
-        with open(file_path, 'w') as toml_file:
-            toml.dump(data, toml_file)
-
-
-
-
-
-
-
-
-class Resource:
-    """
-    A class to represent a resource.
-
-    Attributes:
-        id (str): Unique identifier for the resource.
-        type (str): Type of the resource.
-        name (str): Name of the resource.
-        path (str): Path where the resource is loaded from.
-        unique_attributes (dict): Additional attributes specific to the resource type.
-        fetch_from (str): Original path from which the resource was fetched.
-    """
-    def __init__(self, resource_type: str, name: str, path: str, **kwargs):
-        """
-        Initialize the resource with the specified parameters.
-
-        Parameters:
-            resource_type (str): Type of the resource.
-            name (str): Name of the resource.
-            path (str): Path where the resource is loaded from.
-            **kwargs: Additional keyword arguments for unique attributes.
-        """
-        self.id = str(uuid.uuid4())
-        self.type = resource_type
-        self.name = name
-        self.path = self.generate_path(path)
-        self.unique_attributes = kwargs
-        self.fetch_from = path
-        
-    def generate_path(self, file_path: str) -> str:
-        """
-        Generate a path for the resource based on the MD5 hash of the file content.
-
-        Parameters:
-            file_path (str): Path to the file.
-
-        Returns:
-            str: Generated path for the resource.
-
-        Raises:
-            FileNotFoundError: If the file at file_path does not exist.
-        """
-        if not os.path.isfile(file_path):
-            raise FileNotFoundError(f"File not found: {file_path}")
-
-        md5_hash = hashlib.md5()
-        with open(file_path, 'rb') as file:
-            for chunk in iter(lambda: file.read(4096), b""):
-                md5_hash.update(chunk)
-        
-        file_hash = md5_hash.hexdigest()
-        target_path = f'resources/{file_hash}/{os.path.basename(file_path)}'
-        return target_path
-        
-    def to_dict(self) -> Dict[str, Any]:
-        """
-        Converts the current state of the object into a dictionary representation.
-
-        Returns:
-            dict: Dictionary representation of the current state of the object.
-        """
-        resource_dict = {
-            "type": self.type,
-            "id": self.id,
-            "name": self.name,
-            "path": self.path,
-            **self.unique_attributes
-        }
-        return resource_dict
-    
-    
-class Image(Resource):
-    """
-    A class to represent an image resource.
-    """
-    def __init__(self, path: str, name: str = 'image'):
-        """
-        Initialize the image resource with the specified parameters.
-
-        Parameters:
-            path (str): Path where the image is stored.
-            name (str, optional): Name of the image resource. Defaults to 'image'.
-        """
-        super().__init__(resource_type='image_file', name=name, path=path)
-
-
-class Mesh(Resource):
-    """
-    A class to represent a mesh resource.
-
-    Attributes:
-        original_triangle_count (int): The original number of triangles in the mesh.
-    """
-    def __init__(self, path: str, name: str = 'mesh', translation: List[float] = [0, 0, 0],
-                 auto_center: bool = False, rotation: List[float] = [0.0, 0.0, 0.0],
-                 scale: List[float] = [1.0, 1.0, 1.0], enhance_mesh: bool = True,
-                 simplify_mesh: bool = False, target_ratio: float = 100.0):
-        """
-        Initialize the mesh resource with the specified parameters.
-
-        Parameters:
-            path (str): Path where the mesh is stored.
-            name (str, optional): Name of the mesh resource. Defaults to 'mesh'.
-            translation (List[float], optional): Translation values [x, y, z]. Defaults to [0, 0, 0].
-            auto_center (bool, optional): Whether to auto-center the mesh. Defaults to False.
-            rotation (List[float], optional): Rotation values [psi, theta, phi]. Defaults to [0.0, 0.0, 0.0].
-            scale (List[float], optional): Scale values [x, y, z]. Defaults to [1.0, 1.0, 1.0].
-            enhance_mesh (bool, optional): Whether to enhance the mesh. Defaults to True.
-            simplify_mesh (bool, optional): Whether to simplify the mesh. Defaults to False.
-            target_ratio (float, optional): Target ratio for mesh simplification. Defaults to 100.0.
-
-        Raises:
-            ValueError: If target_ratio is not between 0 and 100.
-        """
-        if not (0 <= target_ratio <= 100):
-            raise ValueError("target_ratio must be between 0 and 100.")
-        
-        super().__init__(resource_type='mesh_file', name=name, path=path,
-                         translation=translation, auto_center=auto_center,
-                         rotation=rotation, scale=scale, enhance_mesh=enhance_mesh,
-                         simplify_mesh=simplify_mesh, target_ratio=target_ratio)
-
-        self.original_triangle_count = self._get_triangle_count(path)
-
-    def _get_triangle_count(self, path: str) -> int:
-        """
-        Get the number of triangles in the mesh.
-
-        Parameters:
-            path (str): Path to the mesh file.
-
-        Returns:
-            int: Number of triangles in the mesh.
-
-        Raises:
-            FileNotFoundError: If the mesh file does not exist.
-            Exception: If there is an error reading the STL file.
-        """
-        if not os.path.isfile(path):
-            raise FileNotFoundError(f"Mesh file not found: {path}")
-        
-        try:
-            mesh_data = stl_mesh.Mesh.from_file(path)
-            return len(mesh_data.vectors)
-        except Exception as e:
-            print(f"Error reading STL file: {e}")
-            return 0
-
-    def to_dict(self) -> Dict[str, Any]:
-        """
-        Converts the current state of the object into a dictionary representation.
-
-        Returns:
-            dict: Dictionary representation of the current state of the object.
-        """
-        resource_dict = super().to_dict()
-        resource_dict['properties'] = {'original_triangle_count': self.original_triangle_count}
-        return resource_dict
-
-
-
-
-
-
-
-#Below starts: misc. functions mainly for use if Node is used for project creation instead of the subclasses.
-# In general those can be considered obsolete by most users.
-
-def copy_files_to_resource_directory(source_directory, target_directory="./resources"):
-    # Quick breakdown of this function:
-    # Skip directories
-    # Calculate MD5 hash
-    # Create a sub-directory for the hash if it doesn't exist
-    # Copy the file to the new directory
-    # NOTE: This function is only of interest if you want to adapt to NanoScribe's fail-safe naming convention!
-    # NOTE: Sticking to this way of naming/sorting might make things a bit more complicated.
-    if not os.path.exists(target_directory):
-        os.makedirs(target_directory)
-    
-    for filename in os.listdir(source_directory):
-        file_path = os.path.join(source_directory, filename)
-        
-        
-        if os.path.isdir(file_path):
-            continue
-        
-        
-        with open(file_path, 'rb') as f:
-            file_hash = hashlib.md5(f.read()).hexdigest()
-        
-        
-        hash_directory = os.path.join(target_directory, file_hash)
-        if not os.path.exists(hash_directory):
-            os.makedirs(hash_directory)
-        
-        
-        shutil.copy(file_path, os.path.join(hash_directory, filename))
-
-    
-
-def save_to_toml(presets, resources, nodes, filename="__main__.toml"):
-    data = {
-        "presets": [preset.to_dict() for preset in presets],
-        "resources": [resource.to_dict() for resource in resources],
-        "nodes": [node.to_dict() for node in nodes]
-        }
-    with open(filename, 'w') as toml_file:
-        toml.dump(data, toml_file)
-
-def project_info(project_info_json, file_name="project_info.json"):
-    with open(file_name, 'w') as file:
-        json.dump(project_info_json, file)
-
-
-def nano_file_gen(project_name, path = './', output_7z = False):
-    print('npxpy: Attempting to create .nano-file...')
-    #time.sleep(1)
-    cmd = ['7z', 'a', '-tzip', '-mx0',
-           f'{path}{project_name}.nano',  
-           f'{path}__main__.toml',       
-           f'{path}project_info.json',   
-           f'{path}resources']
-    
-    process = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    print('npxpy: .nano-file created.')
-    #This part is just for cleaning up the 'mess'
-    #time.sleep(1)
-    os.remove('__main__.toml')
-    os.remove('project_info.json')
-    #optional 7z output if necessary
-    output = process.stdout.decode()
-    error = process.stderr.decode()
-    if output_7z == True:
-        print(output, error)
-    return process
