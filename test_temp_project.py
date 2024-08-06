@@ -23,11 +23,11 @@ edit_presets = {"writing_speed" : 220000.0,
                 "hatching_back_n_forth" : True,
                 "mesh_z_offset" : 0.0}
 
-preset = n.Preset(name = "25x_IP-n162_anchorage_FuSi_clone", **edit_presets)
+preset = n.Preset(name = "supervalidname", **edit_presets)
 
 
-resource_mesh = n.Mesh(path = "resources/5416ba193f0bacf1e37be08d5c249914/combined_file.stl")
-resource_image = n.Image(path = "resources/78eab7abd2cd201630ba30ed5a7ef4fc/markers.png")
+resource_mesh = n.Mesh(name = ' .', path = "resources/5416ba193f0bacf1e37be08d5c249914/combined_file.stl", rotation = [25,85,"20"])
+resource_image = n.Image(name = '.', path = "resources/78eab7abd2cd201630ba30ed5a7ef4fc/markers.png")
 
 
 
@@ -51,7 +51,7 @@ positions = [[-60.0, -528.0, 0.0],
 
 coarse_aligner1 = n.CoarseAligner(residual_threshold = 8).set_coarse_anchors_at(labels, positions)
 scene1 = n.Scene(writing_direction_upward=False).position_at([10,10,10],[45,45,45])
-group1 = n.Group().position_at([-10,-10,-10],[30,30,30])
+group1 = n.Group().position_at([-10,-10,-8.0],[30,30,30])
 
 
 labels = ['marker 0',
@@ -81,7 +81,7 @@ scan_area_sizes = [[11.0,11.0],
                    [11.0,11.0],
                    [11.0,11.0]]
 
-interface_aligner1 = n.InterfaceAligner(name = 'nameless', area_measurement=False,
+interface_aligner1 = n.InterfaceAligner(name = 'interface_aligner1', area_measurement=False,
                                          signal_type = 'reflection', detector_type = 'confocal'
                                          ).set_grid([8,8], [133,133])
 
@@ -112,8 +112,24 @@ interface_aligner1.add_child(marker_aligner1)
 structure = n.Structure(preset, resource_mesh, project, auto_load_presets=True, auto_load_resources=True)
 marker_aligner1.add_child(structure)
 
+text1 = n.Text(preset, priority=1)
+lens1 = n.Lens(preset, name = 'my lens', asymmetric=True).polynomial('Standard',[1,2,3,4,5,6],[1,2,3,4]).surface_compensation([1,1,1],[86,99,43,4])
+#structure.add_child(text1)
 
-project.add_child(coarse_aligner1).add_child(n.DoseCompensation()).add_child(n.StageMove()).add_child(n.EdgeAligner())
+
+
+array1 = n.Array(name = 'my array', count = [3,6], spacing=[25,25.0], order = 'Meander', shape = 'Round')
+
+children = [coarse_aligner1, n.DoseCompensation(), n.StageMove(), n.EdgeAligner(), text1, lens1]
+for child in children:
+    project.add_child(child)
+    
+project.add_child(array1)
+
+fiberaligner1 = n.FiberAligner(detection_margin = 100)
+fiberaligner2 = n.FiberAligner(fiber_radius = 50, center_stage=False).measure_tilt([50, 150], 11, 10)
+project.add_child(fiberaligner2)
+project.add_child(fiberaligner1)
 project.nano('testmeplease')
 
 

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 npxpy (formerly nanoAPI)
-v0.0.3-alpha
+v0.0.4-alpha
 Created on Thu Feb 29 11:49:17 2024
 
 @author: Caghan Uenlueer
@@ -22,16 +22,17 @@ import copy
 from typing import Dict, Any, List, Optional, Tuple, Union
 import zipfile
 from stl import mesh as stl_mesh
+from pydantic import BaseModel, Field, ValidationError, model_validator, field_validator
 
 
 
 
-class Preset:
+
+class Preset(BaseModel):
     """
     A class to represent a preset with various parameters related to writing and hatching settings.
-
+    
     Attributes:
-        id (str): Unique identifier for the preset.
         name (str): Name of the preset.
         valid_objectives (List[str]): Valid objectives for the preset.
         valid_resins (List[str]): Valid resins for the preset.
@@ -46,91 +47,101 @@ class Preset:
         hatching_offset_increment (float): Hatching offset increment.
         hatching_back_n_forth (bool): Whether hatching is back and forth.
         mesh_z_offset (float): Mesh Z offset.
-        grayscale_multilayer_enabled (bool): Whether grayscale multilayer is enabled.
-        grayscale_layer_profile_nr_layers (int): Number of layers for grayscale layer profile.
+        grayscale_layer_profile_nr_layers (float): Number of layers for grayscale layer profile.
         grayscale_writing_power_minimum (float): Minimum writing power for grayscale.
         grayscale_exponent (float): Grayscale exponent.
         unique_attributes (Dict[str, Any]): Additional dynamic attributes.
     """
-    def __init__(self, 
-                 name: str = '25x_IP-n162',
-                 valid_objectives: str = "25x", #can be '25x' or '63x' or '*'
-                 valid_resins: str = "IP-n162", #can be 'IP-PDMS', 'IPX-S', 'IP-L', 'IP-n162', 'IP-Dip2', 'IP-Dip', 'IP-S', 'IP-Vision', '*'
-                 valid_substrates: str = "*", # can be '*', 'FuSi', 'Si'
-                 writing_speed: float = 250000.0, #number greater 0 unit um/s
-                 writing_power: float = 50.0, #number greaterequal 0 unit mW
-                 slicing_spacing: float = 0.8, #number greater 0 um
-                 hatching_spacing: float = 0.3, #number greater 0 um
-                 hatching_angle: float = 0.0, #number deg (you do not need to ensure the value is between 0-359!)
-                 hatching_angle_increment: float = 0.0, #number deg
-                 hatching_offset: float = 0.0, #number um
-                 hatching_offset_increment: float = 0.0, #number um
-                 hatching_back_n_forth: bool = True, 
-                 mesh_z_offset: float = 0.0, #number um
-                 grayscale_multilayer_enabled: bool = False,
-                 grayscale_layer_profile_nr_layers: int = 6, #integer must be here! #number greaterequal 0
-                 grayscale_writing_power_minimum: float = 0.0, # #number greater equal 0
-                 grayscale_exponent: float = 1.0, #number greater 0
-                 **kwargs: Any):
+    class Config:
+        extra = 'allow'
+    
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str = '25x_IP-n162'
+    valid_objectives: List[str] = Field(default_factory=lambda: ["25x"])
+    valid_resins: List[str] = Field(default_factory=lambda: ["IP-n162"])
+    valid_substrates: List[str] = Field(default_factory=lambda: ["*"])
+    writing_speed: float = Field(gt=0, default=250000.0)
+    writing_power: float = Field(ge=0, default=50.0)
+    slicing_spacing: float = Field(gt=0, default=0.8)
+    hatching_spacing: float = Field(gt=0, default=0.3)
+    hatching_angle: float = 0.0
+    hatching_angle_increment: float = 0.0
+    hatching_offset: float = 0.0
+    hatching_offset_increment: float = 0.0
+    hatching_back_n_forth: bool = True
+    mesh_z_offset: float = 0.0
+    grayscale_multilayer_enabled: bool = False
+    grayscale_layer_profile_nr_layers: float = Field(ge=0, default=6)
+    grayscale_writing_power_minimum: float = Field(ge=0, default=0.0)
+    grayscale_exponent: float = Field(gt=0, default=1.0)
+    unique_attributes: Dict[str, Any] = Field(default_factory=dict)
+
+    @model_validator(mode='before')
+    def validate_list(cls, values):
+        for key in ['valid_objectives', 'valid_resins', 'valid_substrates']:
+            if isinstance(values.get(key), str):
+                values[key] = [values[key]]
+        return values
+
+    @model_validator(mode='after')
+    def validate_values(cls, values):
+        valid_objectives = {'25x', '63x', '*'}
+        valid_resins = {'IP-PDMS', 'IPX-S', 'IP-L', 'IP-n162', 'IP-Dip2', 'IP-Dip', 'IP-S', 'IP-Visio', '*'}
+        valid_substrates = {'*', 'FuSi', 'Si'}
+
+        if not set(values.valid_objectives).issubset(valid_objectives):
+            raise ValueError(f"Invalid valid_objectives: {values.valid_objectives}")
+        if not set(values.valid_resins).issubset(valid_resins):
+            raise ValueError(f"Invalid valid_resins: {values.valid_resins}")
+        if not set(values.valid_substrates).issubset(valid_substrates):
+            raise ValueError(f"Invalid valid_substrates: {values.valid_substrates}")
+
+        return values
+
+    def set_grayscale_multilayer(
+        self, 
+        grayscale_layer_profile_nr_layers: float = 6.0, 
+        grayscale_writing_power_minimum: float = 0.0, 
+        grayscale_exponent: float = 1.0
+    ) -> 'Preset':
         """
-        Initialize a Preset instance with various parameters related to writing and hatching settings.
-        
+        Enable grayscale multilayer and set the related attributes.
+
         Parameters:
-            name (str): Name of the preset.
-            valid_objectives (str): Valid objectives for the preset.
-            valid_resins (str): Valid resins for the preset.
-            valid_substrates (str): Valid substrates for the preset.
-            writing_speed (float): Writing speed.
-            writing_power (float): Writing power.
-            slicing_spacing (float): Slicing spacing.
-            hatching_spacing (float): Hatching spacing.
-            hatching_angle (float): Hatching angle.
-            hatching_angle_increment (float): Hatching angle increment.
-            hatching_offset (float): Hatching offset.
-            hatching_offset_increment (float): Hatching offset increment.
-            hatching_back_n_forth (bool): Whether hatching is back and forth.
-            mesh_z_offset (float): Mesh Z offset.
-            grayscale_multilayer_enabled (bool): Whether grayscale multilayer is enabled.
-            grayscale_layer_profile_nr_layers (int): Number of layers for grayscale layer profile.
+            grayscale_layer_profile_nr_layers (float): Number of layers for grayscale layer profile.
             grayscale_writing_power_minimum (float): Minimum writing power for grayscale.
             grayscale_exponent (float): Grayscale exponent.
-            **kwargs (Any): Additional dynamic attributes.
+
+        Returns:
+            Preset: The instance with updated grayscale multilayer settings.
+
+        Raises:
+            ValueError: If any of the parameters are invalid.
         """
-        self.id = str(uuid.uuid4())
-        self.name = name
-        
-        self.valid_objectives = [valid_objectives]
-        self.valid_resins = [valid_resins]
-        self.valid_substrates = [valid_substrates]
-        
-        self.writing_speed = writing_speed
-        self.writing_power = writing_power
-        self.slicing_spacing = slicing_spacing
-        self.hatching_spacing = hatching_spacing
-        self.hatching_angle = hatching_angle
-        self.hatching_angle_increment = hatching_angle_increment
-        self.hatching_offset = hatching_offset
-        self.hatching_offset_increment = hatching_offset_increment
-        self.hatching_back_n_forth = hatching_back_n_forth
-        self.mesh_z_offset = mesh_z_offset
-        self.grayscale_multilayer_enabled = grayscale_multilayer_enabled
+        if grayscale_layer_profile_nr_layers < 0:
+            raise ValueError("grayscale_layer_profile_nr_layers must be greater or equal to 0.")
+        if grayscale_writing_power_minimum < 0:
+            raise ValueError("grayscale_writing_power_minimum must be greater or equal to 0.")
+        if grayscale_exponent <= 0:
+            raise ValueError("grayscale_exponent must be greater than 0.")
+
+        self.grayscale_multilayer_enabled = True
         self.grayscale_layer_profile_nr_layers = grayscale_layer_profile_nr_layers
         self.grayscale_writing_power_minimum = grayscale_writing_power_minimum
         self.grayscale_exponent = grayscale_exponent
-        
-        self.unique_attributes = kwargs
+        return self
 
     def duplicate(self) -> 'Preset':
         """
         Create a duplicate of the current preset instance.
-        
+
         Returns:
             Preset: A duplicate of the current preset instance.
         """
         duplicate = copy.copy(self)
         duplicate.id = str(uuid.uuid4())
         return duplicate
-    
+
     @classmethod
     def load_single(cls, file_path: str, fresh_id: bool = True) -> 'Preset':
         """
@@ -149,22 +160,27 @@ class Preset:
         """
         if not os.path.isfile(file_path):
             raise FileNotFoundError(f"File not found: {file_path}")
-        
+
         with open(file_path, 'r') as toml_file:
             data = toml.load(toml_file)
 
         # Extract the file name without the extension
         name = os.path.splitext(os.path.basename(file_path))[0]
 
-        # Ensure 'name' is not in the data dictionary to avoid conflicts
-        if 'name' in data:
-            del data['name']
-            
-        cls_instance = cls(name=name, **data)
-        
+        # Get the valid fields of the model
+        valid_fields = cls.__fields__.keys()
+
+        # Filter out invalid keys from data
+        valid_data = {key: value for key, value in data.items() if key in valid_fields}
+
+        try:
+            cls_instance = cls(name=name, **valid_data)
+        except ValidationError as e:
+            raise ValidationError(model=cls, errors=e.errors())
+
         if not fresh_id:
             cls_instance.id = data.get('id', cls_instance.id)
-        
+
         return cls_instance
 
     @classmethod
@@ -195,25 +211,26 @@ class Preset:
                 if print_names:
                     print(file_name)
         return presets
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """
         Convert the preset and its unique attributes to a dictionary format.
-        
+
         Returns:
             Dict[str, Any]: Dictionary representation of the preset.
         """
-        preset_dict = {k: v for k, v in self.__dict__.items() if k != 'unique_attributes'}
+        preset_dict = self.dict(exclude={'unique_attributes'})
         preset_dict.update(self.unique_attributes)
         return preset_dict
 
     def export(self, file_path: str = None) -> None:
         """
         Export the preset to a file that can be loaded by nanoPrintX and/or npxpy.
-        
+
         Parameters:
-            file_path (str): The path to the .toml file to be created. If not provided, defaults to the current directory with the preset's name.
-        
+            file_path (str): The path to the .toml file to be created. If not provided,
+                             defaults to the current directory with the preset's name.
+
         Raises:
             IOError: If there is an error writing to the file.
         """
@@ -221,12 +238,11 @@ class Preset:
             file_path = f"{self.name}.toml"
         elif not file_path.endswith('.toml'):
             file_path += '.toml'
-        
+
         data = self.to_dict()
-        
+
         with open(file_path, 'w') as toml_file:
             toml.dump(data, toml_file)
-
 
 
 
@@ -256,6 +272,10 @@ class Resource:
             path (str): Path where the resource is loaded from.
             **kwargs: Additional keyword arguments for unique attributes.
         """
+        if not name or not name.strip():
+            raise ValueError("Resource: The 'name' parameter must not be an empty string.")
+            
+            
         self.id = str(uuid.uuid4())
         self._type = resource_type
         self.name = name
@@ -317,8 +337,35 @@ class Image(Resource):
             path (str): Path where the image is stored.
             name (str, optional): Name of the image resource. Defaults to 'image'.
         """
+        # Ensure the path is valid
+        if not os.path.isfile(path):
+            raise FileNotFoundError(f"Image file not found: {path}")
+
         super().__init__(resource_type='image_file', name=name, path=path)
 
+class MeshValidator(BaseModel):
+    path: str
+    resource_type: str = 'mesh_file'
+    name: str = 'mesh'
+    translation: List[float] = Field(default_factory=lambda: [0, 0, 0])
+    auto_center: bool = False
+    rotation: List[float] = Field(default_factory=lambda: [0.0, 0.0, 0.0])
+    scale: List[float] = Field(default_factory=lambda: [1.0, 1.0, 1.0])
+    enhance_mesh: bool = True
+    simplify_mesh: bool = False
+    target_ratio: float = Field(default=100.0, ge=0, le=100)
+
+    @field_validator('path')
+    def check_file_exists(cls, v):
+        if not os.path.isfile(v):
+            raise FileNotFoundError(f"File not found: {v}")
+        return v
+    
+    @field_validator('translation', 'rotation', 'scale')
+    def check_list_length(cls, v):
+        if len(v) != 3:
+            raise ValueError(f"List must have exactly 3 elements, got {len(v)}")
+        return v
 
 class Mesh(Resource):
     """
@@ -328,17 +375,18 @@ class Mesh(Resource):
         original_triangle_count (int): The original number of triangles in the mesh.
     """
     def __init__(self, path: str, name: str = 'mesh',
-                 translation: List[float] = [0, 0, 0], #number in um
+                 translation: List[float] = [0, 0, 0],  # number in um
                  auto_center: bool = False,
-                 rotation: List[float] = [0.0, 0.0, 0.0], #number in deg
-                 scale: List[float] = [1.0, 1.0, 1.0], #scale number
+                 rotation: List[float] = [0.0, 0.0, 0.0],  # number in deg
+                 scale: List[float] = [1.0, 1.0, 1.0],  # scale number
                  enhance_mesh: bool = True,
                  simplify_mesh: bool = False,
-                 target_ratio: float = 100.0):
+                 target_ratio: float = 100.0                 ):
         """
         Initialize the mesh resource with the specified parameters.
 
         Parameters:
+            resource_type (str): Type of the resource.
             path (str): Path where the mesh is stored.
             name (str, optional): Name of the mesh resource. Defaults to 'mesh'.
             translation (List[float], optional): Translation values [x, y, z]. Defaults to [0, 0, 0].
@@ -351,16 +399,21 @@ class Mesh(Resource):
 
         Raises:
             ValueError: If target_ratio is not between 0 and 100.
+            FileNotFoundError: If the mesh file does not exist.
         """
-        if not (0 <= target_ratio <= 100):
-            raise ValueError("target_ratio must be between 0 and 100.")
+        # Validate inputs using MeshValidator
+        validated_data = MeshValidator(
+            path=path, name=name, translation=translation, auto_center=auto_center,
+            rotation=rotation, scale=scale, enhance_mesh=enhance_mesh,
+            simplify_mesh=simplify_mesh, target_ratio=target_ratio
+        ).dict()
         
-        super().__init__(resource_type='mesh_file', name=name, path=path,
-                         translation=translation, auto_center=auto_center,
-                         rotation=rotation, scale=scale, enhance_mesh=enhance_mesh,
-                         simplify_mesh=simplify_mesh, target_ratio=target_ratio)
+        # Initialize the Resource part
+        super().__init__(**validated_data)
 
-        self.original_triangle_count = self._get_triangle_count(path)
+        # Assign validated attributes to self
+
+        self.original_triangle_count = self._get_triangle_count(self.fetch_from)
 
     def _get_triangle_count(self, path: str) -> int:
         """
@@ -378,13 +431,12 @@ class Mesh(Resource):
         """
         if not os.path.isfile(path):
             raise FileNotFoundError(f"Mesh file not found: {path}")
-        
+
         try:
             mesh_data = stl_mesh.Mesh.from_file(path)
             return len(mesh_data.vectors)
         except Exception as e:
-            print(f"Error reading STL file: {e}")
-            return 0
+            raise Exception(f"Error reading STL file: {e}")
 
     def to_dict(self) -> Dict[str, Any]:
         """
@@ -397,14 +449,33 @@ class Mesh(Resource):
         resource_dict['properties'] = {'original_triangle_count': self.original_triangle_count}
         return resource_dict
 
+#Implementation of validator not foolproof. However, it still ensures an instance of control while initialization.
+class NodeValidator(BaseModel):
 
+    name: str
+    properties: Dict[str, Any] = {}
+    geometry: Dict[str, Any] = {}
+    position: List[float] = [0.0, 0.0, 0.0]
+    rotation: List[float] = [0.0, 0.0, 0.0]
 
+    @field_validator('position', 'rotation')
+    def check_list_length(cls, v):
+        if len(v) != 3:
+            raise ValueError(f"List must have exactly 3 elements, got {len(v)}")
+        return v
+    
+    @field_validator('name')
+    def check_name_not_empty(cls, v):
+        if not v.strip():
+            raise Warning("Name must not be an empty string")
+        return v
+
+    
 class Node:
     """
     A class to represent a node object of nanoPrintX with various attributes and methods for managing node hierarchy.
 
     Attributes:
-        id (str): Unique identifier for the node.
         type (str): Type of the node.
         name (str): Name of the node.
         position (List[float]): Position of the node [x, y, z].
@@ -414,10 +485,14 @@ class Node:
         properties (Any): Properties of the node.
         geometry (Any): Geometry of the node.
         unique_attributes (Dict[str, Any]): Additional dynamic attributes.
-        all_descendants (List[Node]): List of all descendant nodes.
     """
-    def __init__(self, node_type: str, name: str, #Everything needs to have a name!!!
-                 properties: Any = None, geometry: Any = None, **kwargs: Any):
+    def __init__(self, node_type: str,
+                 name: str,
+                 properties: Dict[str, Any] = {}, 
+                 geometry: Dict[str, Any] = {}, 
+                 position: List[float] = [0.0, 0.0, 0.0],
+                 rotation: List[float] = [0.0, 0.0, 0.0],
+                 **kwargs: Any):
         """
         Initialize a Node instance with the specified parameters.
 
@@ -428,17 +503,31 @@ class Node:
             geometry (Any, optional): Geometry of the node. Defaults to None.
             **kwargs (Any): Additional dynamic attributes.
         """
+        
         self.id = str(uuid.uuid4())
         self._type = node_type
-        self.name = name
-        self.position = kwargs.get('position', [0, 0, 0])
-        self.rotation = kwargs.get('rotation', [0.0, 0.0, 0.0])
-        self.children = kwargs.get('children', [])
+        validated_data = NodeValidator(
+                         
+                         name=name,
+                         properties=properties,
+                         geometry=geometry,
+                         position=position,
+                         rotation=rotation
+                         ).dict()
+        self.name = validated_data['name']
+        self.position = validated_data['position']
+        self.rotation = validated_data['rotation']
+        self.properties = validated_data['properties']
+        self.geometry = validated_data['geometry']
+        
+        self.children: List[str] = kwargs.get('children', [])
         self.children_nodes: List[Node] = []
-        self.properties = properties
-        self.geometry = geometry
-        self.unique_attributes = {key: value for key, value in kwargs.items() if key not in ['position', 'rotation', 'children']}
-        self.all_descendants = self._generate_all_descendants()
+        self.all_descendants: List[Node] = self._generate_all_descendants()
+        
+        self.parents_nodes: List[Node] = []
+        self.all_ancestors: List[Node] = []
+        
+        self.unique_attributes = {key: value for key, value in kwargs.items() if key not in ['children']}
         
     def add_child(self, child_node: 'Node'):
         """
@@ -449,11 +538,43 @@ class Node:
         """
         if self._type == 'structure':
             raise ValueError('Structure objects (including Text and Lens) are terminal nodes! They cannot have children!')
+        if child_node._type == 'project':
+            raise ValueError('A project node can never be a child to any node!')
+
+        if child_node._type == 'structure':
+            if not self._has_ancestor_of_type('scene'):
+                print('WARNING: Structures have to be inside Scene nodes!')
+        elif child_node._type == 'scene':
+            if self._has_ancestor_of_type('scene'):
+                raise ValueError('Nested scenes are not allowed!')
+                
+        child_node.parents_nodes.append(self)
         self.children_nodes.append(child_node)
         self.all_descendants = self._generate_all_descendants()  # Update descendants list
+        child_node.all_ancestors = child_node._generate_all_ancestors()  # Update ancestors list
         
+        for i in self.all_descendants + child_node.all_ancestors:  # update for the whole batch of nodes their ancestors and descendants
+            i.all_descendants = i._generate_all_descendants()
+            i.all_ancestors = i._generate_all_ancestors()
         return self
 
+    def _has_ancestor_of_type(self, node_type: str) -> bool:
+        """
+        Check if the current node has an ancestor of the specified type.
+
+        Parameters:
+            node_type (str): The type of the ancestor node to check for.
+
+        Returns:
+            bool: True if an ancestor of the specified type exists, False otherwise.
+        """
+        current_node = self
+        while current_node:
+            if current_node._type == node_type:
+                return True
+            current_node = getattr(current_node, 'parent', None)  # Assumes a parent attribute is set for each node
+        return False
+ 
     def tree(self, level: int = 0, show_type: bool = True, show_id: bool = False, is_last: bool = True, prefix: str = ''):
         """
         Print the tree structure of the node and its descendants.
@@ -539,6 +660,21 @@ class Node:
             descendants.extend(current_node.children_nodes)
             nodes_to_check.extend(current_node.children_nodes)
         return descendants
+    
+    def _generate_all_ancestors(self) -> List['Node']:
+        """
+        Generate a list of all ancestor nodes.
+
+        Returns:
+            List[Node]: List of all descendant nodes.
+        """
+        ancestors = []
+        nodes_to_check = [self]
+        while nodes_to_check:
+            current_node = nodes_to_check.pop()
+            ancestors.extend(current_node.parents_nodes)
+            nodes_to_check.extend(current_node.parents_nodes)
+        return ancestors
 
     def grab_all_nodes_bfs(self, node_type: str) -> List['Node']:
         """
@@ -568,7 +704,6 @@ class Node:
         """
         grandest_grandchild = self._find_grandest_grandchild(self)
         grandest_grandchild.add_child(node_to_append)
-        self.all_descendants = self._generate_all_descendants()  # Update descendants list
 
     def _find_grandest_grandchild(self, current_node: 'Node') -> 'Node':
         """
@@ -622,6 +757,17 @@ class Node:
             "geometry": self.geometry,
             **self.unique_attributes
         }
+        
+        valid_data = NodeValidator(
+                         
+                         name=node_dict['name'],
+                         properties=node_dict['properties'],
+                         geometry=node_dict['geometry'],
+                         position=node_dict['position'],
+                         rotation=node_dict['rotation']
+                         ).dict()
+        node_dict.update(valid_data)
+        
         return node_dict
 
 
@@ -629,16 +775,16 @@ class Node:
 
 class Project(Node):
     """
-    A class to manage project nodes.
+    Class: project nodes.
 
     Attributes:
         presets (list): List of presets for the project.
         resources (list): List of resources for the project.
         project_info (dict): Information about the project including author, objective, resin, substrate, and creation date.
     """
-    def __init__(self, objective: str, # '25x' or '63x' or '*'
-                 resin: str, # can be 'IP-PDMS', 'IPX-S', 'IP-L', 'IP-n162', 'IP-Dip2', 'IP-Dip', 'IP-S', 'IP-Vision', '*'
-                 substrate: str # '*', 'Si' and 'FuSi'
+    def __init__(self, objective: str,  # '25x' or '63x' or '*'
+                 resin: str,  # can be 'IP-PDMS', 'IPX-S', 'IP-L', 'IP-n162', 'IP-Dip2', 'IP-Dip', 'IP-S', 'IP-Vision', '*'
+                 substrate: str  # '*', 'Si' and 'FuSi'
                  ):
         """
         Initialize the project with the specified parameters.
@@ -647,7 +793,21 @@ class Project(Node):
             objective (str): Objective of the project.
             resin (str): Resin used in the project.
             substrate (str): Substrate used in the project.
+
+        Raises:
+            ValueError: If any of the parameters have invalid values.
         """
+        valid_objectives = {'25x', '63x', '*'}
+        valid_resins = {'IP-PDMS', 'IPX-S', 'IP-L', 'IP-n162', 'IP-Dip2', 'IP-Dip', 'IP-S', 'IP-Vision', '*'}
+        valid_substrates = {'*', 'Si', 'FuSi'}
+
+        if objective not in valid_objectives:
+            raise ValueError(f"Invalid objective: {objective}. Must be one of {valid_objectives}.")
+        if resin not in valid_resins:
+            raise ValueError(f"Invalid resin: {resin}. Must be one of {valid_resins}.")
+        if substrate not in valid_substrates:
+            raise ValueError(f"Invalid substrate: {substrate}. Must be one of {valid_substrates}.")
+
         super().__init__(node_type='project', name='Project',
                          objective=objective, resin=resin, substrate=substrate)
 
@@ -661,28 +821,42 @@ class Project(Node):
             "creation_date": datetime.now().replace(microsecond=0).isoformat()
         }
 
-    def load_resources(self, resources: Any): # This has to be an object from the class Ressource (including inheriting classes)!
+    def load_resources(self, resources: Union[Resource, List[Resource]]):  # This has to be an object from the class Resource (including inheriting classes)!
         """
         Adds resources to the resources list. The input can be either a list of resources
         or a single resource element.
 
         Args:
-            resources (list or any): A list of resources or a single resource element.
+            resources (Resource or list): A list of resources or a single resource element.
+
+        Raises:
+            TypeError: If the resources are not of type Resource or list of Resource.
         """
         if not isinstance(resources, list):
             resources = [resources]
+
+        if not all(isinstance(resource, Resource) for resource in resources):
+            raise TypeError("All resources must be instances of the Resource class or its subclasses.")
+
         self.resources.extend(resources)
 
-    def load_presets(self, presets: Any): # This has to be an object from the class Preset!
+    def load_presets(self, presets: Union[Preset, List[Preset]]):  # This has to be an object from the class Preset!
         """
         Adds presets to the presets list. The input can be either a list of presets
         or a single preset element.
 
         Args:
-            presets (list or any): A list of presets or a single preset element.
+            presets (Preset or list): A list of presets or a single preset element.
+
+        Raises:
+            TypeError: If the presets are not of type Preset or list of Preset.
         """
         if not isinstance(presets, list):
             presets = [presets]
+
+        if not all(isinstance(preset, Preset) for preset in presets):
+            raise TypeError("All presets must be instances of the Preset class.")
+
         self.presets.extend(presets)
 
     def _create_toml_data(self, presets: List[Any], resources: List[Any], nodes: List[Node]) -> str:
@@ -728,7 +902,7 @@ class Project(Node):
         with open(file_path, 'rb') as f:
             zip_file.writestr(arcname, f.read())
 
-    def nano(self, project_name: str, path: str = './'):
+    def nano(self, project_name: str = 'Project', path: str = './'):
         """
         Creates a .nano file for the project.
 
@@ -771,23 +945,23 @@ class Project(Node):
 
 class Scene(Node):
     """
-    A class to manage scene nodes.
+    scene nodes.
 
     Attributes:
         position (List[float]): Position of the scene [x, y, z].
         rotation (List[float]): Rotation of the scene [psi, theta, phi].
     """
-    def __init__(self, name: str = 'Scene', writing_direction_upward: bool = True):
+    def __init__(self, name: str = 'Scene', position: List[float] = [0, 0, 0], rotation: List[float] = [0.0, 0.0, 0.0], writing_direction_upward: bool = True):
         """
         Initialize the scene with a name and writing direction.
 
         Parameters:
             name (str): The name of the scene node.
+            position (List[float]): Initial position of the scene [x, y, z].
+            rotation (List[float]): Initial rotation of the scene [psi, theta, phi].
             writing_direction_upward (bool): Writing direction of the scene.
         """
-        super().__init__('scene', name, writing_direction_upward=writing_direction_upward)
-        self.position = [0, 0, 0]
-        self.rotation = [0.0, 0.0, 0.0]
+        super().__init__('scene', name, position=position, rotation=rotation, writing_direction_upward=writing_direction_upward)
         
     def position_at(self, position: List[float] = [0, 0, 0], rotation: List[float] = [0.0, 0.0, 0.0]):
         """
@@ -799,11 +973,21 @@ class Scene(Node):
 
         Returns:
             self: The instance of the Scene class.
+
+        Raises:
+            ValueError: If position or rotation does not contain exactly three elements,
+                        or if any element is not a number.
         """
         if len(position) != 3:
             raise ValueError("position must be a list of three elements.")
+        if not all(isinstance(p, (int, float)) for p in position):
+            raise ValueError("All position elements must be numbers.")
+        
         if len(rotation) != 3:
             raise ValueError("rotation must be a list of three elements.")
+        if not all(isinstance(r, (int, float)) for r in rotation):
+            raise ValueError("All rotation elements must be numbers.")
+        
         self.position = position
         self.rotation = rotation
         return self
@@ -816,10 +1000,14 @@ class Scene(Node):
             translation (List[float]): List of translation values [dx, dy, dz].
 
         Raises:
-            ValueError: If translation does not contain exactly three elements.
+            ValueError: If translation does not contain exactly three elements,
+                        or if any element is not a number.
         """
         if len(translation) != 3:
             raise ValueError("translation must be a list of three elements.")
+        if not all(isinstance(t, (int, float)) for t in translation):
+            raise ValueError("All translation elements must be numbers.")
+        
         self.position = [pos + trans for pos, trans in zip(self.position, translation)]
 
     def rotate(self, rotation: List[float]):
@@ -830,10 +1018,14 @@ class Scene(Node):
             rotation (List[float]): List of rotation angles to apply [d_psi, d_theta, d_phi].
 
         Raises:
-            ValueError: If rotation does not contain exactly three elements.
+            ValueError: If rotation does not contain exactly three elements,
+                        or if any element is not a number.
         """
         if len(rotation) != 3:
             raise ValueError("rotation must be a list of three elements.")
+        if not all(isinstance(r, (int, float)) for r in rotation):
+            raise ValueError("All rotation elements must be numbers.")
+        
         self.rotation = [(angle + rot) % 360 for angle, rot in zip(self.rotation, rotation)]
         
     def to_dict(self) -> Dict:
@@ -849,22 +1041,21 @@ class Scene(Node):
 
 class Group(Node):
     """
-    A class to manage group nodes.
+    Class: group nodes.
 
     Attributes:
         position (List[float]): Position of the group [x, y, z].
         rotation (List[float]): Rotation of the group [psi, theta, phi].
     """
-    def __init__(self, name: str = 'Group'):
+    def __init__(self, name: str = 'Group', position: List[float] = [0, 0, 0], rotation: List[float] = [0.0, 0.0, 0.0]):
         """
         Initialize the group with a name.
 
         Parameters:
             name (str): The name of the group node.
         """
-        super().__init__('group', name)
-        self.position = [0, 0, 0]
-        self.rotation = [0.0, 0.0, 0.0]
+        super().__init__('group', name, position=position, rotation=rotation)
+
         
     def position_at(self, position: List[float] = [0, 0, 0], rotation: List[float] = [0.0, 0.0, 0.0]):
         """
@@ -876,11 +1067,21 @@ class Group(Node):
 
         Returns:
             self: The instance of the Group class.
+
+        Raises:
+            ValueError: If position or rotation does not contain exactly three elements,
+                        or if any element is not a number.
         """
         if len(position) != 3:
             raise ValueError("position must be a list of three elements.")
+        if not all(isinstance(p, (int, float)) for p in position):
+            raise ValueError("All position elements must be numbers.")
+        
         if len(rotation) != 3:
             raise ValueError("rotation must be a list of three elements.")
+        if not all(isinstance(r, (int, float)) for r in rotation):
+            raise ValueError("All rotation elements must be numbers.")
+        
         self.position = position
         self.rotation = rotation
         return self
@@ -893,10 +1094,14 @@ class Group(Node):
             translation (List[float]): List of translation values [dx, dy, dz].
 
         Raises:
-            ValueError: If translation does not contain exactly three elements.
+            ValueError: If translation does not contain exactly three elements,
+                        or if any element is not a number.
         """
         if len(translation) != 3:
             raise ValueError("translation must be a list of three elements.")
+        if not all(isinstance(t, (int, float)) for t in translation):
+            raise ValueError("All translation elements must be numbers.")
+        
         self.position = [pos + trans for pos, trans in zip(self.position, translation)]
 
     def rotate(self, rotation: List[float]):
@@ -907,10 +1112,14 @@ class Group(Node):
             rotation (List[float]): List of rotation angles to apply [d_psi, d_theta, d_phi].
 
         Raises:
-            ValueError: If rotation does not contain exactly three elements.
+            ValueError: If rotation does not contain exactly three elements,
+                        or if any element is not a number.
         """
         if len(rotation) != 3:
             raise ValueError("rotation must be a list of three elements.")
+        if not all(isinstance(r, (int, float)) for r in rotation):
+            raise ValueError("All rotation elements must be numbers.")
+        
         self.rotation = [(angle + rot) % 360 for angle, rot in zip(self.rotation, rotation)]
         
     def to_dict(self) -> Dict:
@@ -925,17 +1134,49 @@ class Group(Node):
 
 
 class Array(Node):
-    def __init__(self, name = 'Array', 
-                 count = [5,5], # this has to be an integer and greater zero!!
-                 spacing = [100.0,100.0], # Okay if integer is passed (i.e. no need to transform to float!). is in micrometers (or um)
-                 order = "Lexical", # Can only take 'Lexiacal' and 'Meander' as values
-                 shape = 'Rectangular', # can only take 'Rectangluar' and 'Round' as values
-                 ):
-        super().__init__('array', name=name,
-                         order = order,
-                         shape = shape,
-                         count = count,
-                         spacing = spacing)
+    """
+    Class: array nodes.
+
+    Attributes:
+        position (List[float]): Position of the array [x, y, z].
+        rotation (List[float]): Rotation of the array [psi, theta, phi].
+        count (List[int]): Number of grid points in [x, y] direction.
+        spacing (List[float]): Spacing of the grid in [width, height].
+        order (str): Order of the array ('Lexical' or 'Meander').
+        shape (str): Shape of the array ('Rectangular' or 'Round').
+    """
+    def __init__(self, name: str = 'Array', position: List[float] = [0, 0, 0], rotation: List[float] = [0.0, 0.0, 0.0],
+                 count: List[int] = [5, 5], spacing: List[float] = [100.0, 100.0],
+                 order: str = "Lexical", shape: str = 'Rectangular'):
+        """
+        Initialize the array with a name, position, rotation, count, spacing, order, and shape.
+
+        Parameters:
+            name (str): The name of the array node.
+            position (List[float]): Initial position of the array [x, y, z].
+            rotation (List[float]): Initial rotation of the array [psi, theta, phi].
+            count (List[int]): Number of grid points in [x, y] direction. Must be integers and greater than zero.
+            spacing (List[float]): Spacing of the grid in [width, height]. Can be integers or floats.
+            order (str): Order of the array. Can only be 'Lexical' or 'Meander'.
+            shape (str): Shape of the array. Can only be 'Rectangular' or 'Round'.
+
+        Raises:
+            ValueError: If count elements are not integers or not greater than zero.
+                        If spacing elements are not numbers.
+                        If order is not 'Lexical' or 'Meander'.
+                        If shape is not 'Rectangular' or 'Round'.
+        """
+        if not all(isinstance(c, int) and c > 0 for c in count):
+            raise ValueError("All count elements must be integers greater than zero.")
+        if not all(isinstance(s, (int, float)) for s in spacing):
+            raise ValueError("All spacing elements must be numbers.")
+        if order not in ['Lexical', 'Meander']:
+            raise ValueError("order must be either 'Lexical' or 'Meander'.")
+        if shape not in ['Rectangular', 'Round']:
+            raise ValueError("shape must be either 'Rectangular' or 'Round'.")
+
+        super().__init__('array', name=name, position=position, rotation=rotation,
+                         order=order, shape=shape, count=count, spacing=spacing)
         
     def set_grid(self, count: List[int] = [5, 5], spacing: List[float] = [200.0, 200.0]):
         """
@@ -947,9 +1188,18 @@ class Array(Node):
 
         Returns:
             self: The instance of the Array class.
+
+        Raises:
+            ValueError: If count or spacing does not contain exactly two elements.
+                        If count elements are not integers or not greater than zero.
+                        If spacing elements are not numbers.
         """
         if len(count) != 2 or len(spacing) != 2:
-            raise ValueError("count and size must each be lists of two elements.")
+            raise ValueError("count and spacing must each be lists of two elements.")
+        if not all(isinstance(c, int) and c > 0 for c in count):
+            raise ValueError("All count elements must be integers greater than zero.")
+        if not all(isinstance(s, (int, float)) for s in spacing):
+            raise ValueError("All spacing elements must be numbers.")
         
         self.count = count
         self.spacing = spacing
@@ -964,12 +1214,22 @@ class Array(Node):
             rotation (List[float]): List of rotation angles [psi, theta, phi].
 
         Returns:
-            self: The instance of the array class.
+            self: The instance of the Array class.
+
+        Raises:
+            ValueError: If position or rotation does not contain exactly three elements,
+                        or if any element is not a number.
         """
         if len(position) != 3:
             raise ValueError("position must be a list of three elements.")
+        if not all(isinstance(p, (int, float)) for p in position):
+            raise ValueError("All position elements must be numbers.")
+        
         if len(rotation) != 3:
             raise ValueError("rotation must be a list of three elements.")
+        if not all(isinstance(r, (int, float)) for r in rotation):
+            raise ValueError("All rotation elements must be numbers.")
+        
         self.position = position
         self.rotation = rotation
         return self
@@ -982,10 +1242,14 @@ class Array(Node):
             translation (List[float]): List of translation values [dx, dy, dz].
 
         Raises:
-            ValueError: If translation does not contain exactly three elements.
+            ValueError: If translation does not contain exactly three elements,
+                        or if any element is not a number.
         """
         if len(translation) != 3:
             raise ValueError("translation must be a list of three elements.")
+        if not all(isinstance(t, (int, float)) for t in translation):
+            raise ValueError("All translation elements must be numbers.")
+        
         self.position = [pos + trans for pos, trans in zip(self.position, translation)]
 
     def rotate(self, rotation: List[float]):
@@ -996,10 +1260,14 @@ class Array(Node):
             rotation (List[float]): List of rotation angles to apply [d_psi, d_theta, d_phi].
 
         Raises:
-            ValueError: If rotation does not contain exactly three elements.
+            ValueError: If rotation does not contain exactly three elements,
+                        or if any element is not a number.
         """
         if len(rotation) != 3:
             raise ValueError("rotation must be a list of three elements.")
+        if not all(isinstance(r, (int, float)) for r in rotation):
+            raise ValueError("All rotation elements must be numbers.")
+        
         self.rotation = [(angle + rot) % 360 for angle, rot in zip(self.rotation, rotation)]
     
     def to_dict(self) -> Dict:
@@ -1018,7 +1286,7 @@ class Structure(Node):
     def __init__(self, 
                  preset, #only objects from class Preset are allowed!
                  mesh, #only objects from class Mesh are allowed!
-                 project: Optional[Node] = None,
+                 project: Optional[Project] = None,
                  auto_load_presets: bool = False,
                  auto_load_resources: bool = False,
                  size: List[float] = [100.0, 100.0, 100.0], # okay if int
@@ -1082,39 +1350,70 @@ class Structure(Node):
                 raise TypeError("Images are supposed to be used for MarkerAligner() class only.")
             self.project.load_resources(self.mesh)
 
-    def position_at(self, position: List[float] = [0, 0, 0], rotation: List[float] = [0.0, 0.0, 0.0]) -> 'Structure':
+    def position_at(self, position: List[float] = [0, 0, 0], rotation: List[float] = [0.0, 0.0, 0.0]):
         """
-        Set the current position and rotation of the object.
+        Set the current position and rotation of the array.
 
         Parameters:
-        position (List[float]): List of position values [x, y, z].
-        rotation (List[float]): List of rotation angles [psi, theta, phi].
-        
+            position (List[float]): List of position values [x, y, z].
+            rotation (List[float]): List of rotation angles [psi, theta, phi].
+
         Returns:
-        Structure: The instance of the Structure class.
+            self: The instance of the Array class.
+
+        Raises:
+            ValueError: If position or rotation does not contain exactly three elements,
+                        or if any element is not a number.
         """
+        if len(position) != 3:
+            raise ValueError("position must be a list of three elements.")
+        if not all(isinstance(p, (int, float)) for p in position):
+            raise ValueError("All position elements must be numbers.")
+        
+        if len(rotation) != 3:
+            raise ValueError("rotation must be a list of three elements.")
+        if not all(isinstance(r, (int, float)) for r in rotation):
+            raise ValueError("All rotation elements must be numbers.")
+        
         self.position = position
         self.rotation = rotation
         return self
 
-    def translate(self, translation: List[float]) -> None:
+    def translate(self, translation: List[float]):
         """
         Translate the current position by the specified translation.
 
         Parameters:
-        translation (List[float]): List of translation values [dx, dy, dz].
+            translation (List[float]): List of translation values [dx, dy, dz].
+
+        Raises:
+            ValueError: If translation does not contain exactly three elements,
+                        or if any element is not a number.
         """
+        if len(translation) != 3:
+            raise ValueError("translation must be a list of three elements.")
+        if not all(isinstance(t, (int, float)) for t in translation):
+            raise ValueError("All translation elements must be numbers.")
+        
         self.position = [pos + trans for pos, trans in zip(self.position, translation)]
 
-    def rotate(self, rotation: List[float]) -> None:
+    def rotate(self, rotation: List[float]):
         """
-        Rotate the current angles by the specified rotation and confine them between 0 and 359 degrees.
-        
+        Rotate the array by the specified rotation angles.
+
         Parameters:
-        rotation (List[float]): List of rotation angles to apply [d_psi, d_theta, d_phi].
+            rotation (List[float]): List of rotation angles to apply [d_psi, d_theta, d_phi].
+
+        Raises:
+            ValueError: If rotation does not contain exactly three elements,
+                        or if any element is not a number.
         """
-        rotated_angles = [(angle + rot) % 360 for angle, rot in zip(self.rotation, rotation)]
-        self.rotation = rotated_angles
+        if len(rotation) != 3:
+            raise ValueError("rotation must be a list of three elements.")
+        if not all(isinstance(r, (int, float)) for r in rotation):
+            raise ValueError("All rotation elements must be numbers.")
+        
+        self.rotation = [(angle + rot) % 360 for angle, rot in zip(self.rotation, rotation)]
 
     def to_dict(self) -> dict:
         """
@@ -1252,7 +1551,7 @@ class Lens(Structure):
     
 class CoarseAligner(Node):
     """
-    A class to manage coarse alignment nodes.
+    Class: coarse alignment nodes.
 
     Attributes:
         alignment_anchors (list): List of alignment anchors.
