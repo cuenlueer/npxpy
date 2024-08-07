@@ -164,14 +164,17 @@ class Preset(BaseModel):
         with open(file_path, 'r') as toml_file:
             data = toml.load(toml_file)
 
-        # Extract the file name without the extension
-        name = os.path.splitext(os.path.basename(file_path))[0]
-
         # Get the valid fields of the model
         valid_fields = cls.__fields__.keys()
 
         # Filter out invalid keys from data
         valid_data = {key: value for key, value in data.items() if key in valid_fields}
+
+        if 'name' not in valid_data:
+            # Extract the file name without the extension if not in .toml
+            name = os.path.splitext(os.path.basename(file_path))[0]
+        else:
+            name = valid_data.pop('name')
 
         try:
             cls_instance = cls(name=name, **valid_data)
@@ -553,7 +556,7 @@ class Node:
         self.all_descendants = self._generate_all_descendants()  # Update descendants list
         child_node.all_ancestors = child_node._generate_all_ancestors()  # Update ancestors list
         
-        for i in self.all_descendants + child_node.all_ancestors:  # update for the whole batch of nodes their ancestors and descendants
+        for i in self.all_descendants + child_node.all_ancestors:  # Update for the whole batch of nodes their ancestors and descendants
             i.all_descendants = i._generate_all_descendants()
             i.all_ancestors = i._generate_all_ancestors()
         return self
@@ -1282,45 +1285,68 @@ class Array(Node):
 
 
 
+
 class Structure(Node):
     def __init__(self, 
-                 preset, #only objects from class Preset are allowed!
-                 mesh, #only objects from class Mesh are allowed!
+                 preset: Optional[Preset] = None,  # only objects from class Preset are allowed!
+                 mesh: Optional[Mesh] = None,  # only objects from class Mesh are allowed!
                  project: Optional[Project] = None,
                  auto_load_presets: bool = False,
                  auto_load_resources: bool = False,
-                 size: List[float] = [100.0, 100.0, 100.0], # okay if int
+                 size: List[Union[float, int]] = [100.0, 100.0, 100.0],  # okay if int
                  name: str = 'Structure',
                  slicing_origin: str = 'scene_bottom',
-                 slicing_offset: float = 0.0, # okay if int
+                 slicing_offset: Union[float, int] = 0.0,  # okay if int
                  priority: int = 0,
                  expose_individually: bool = False):
         """
         Initialize a Structure node.
 
         Parameters:
-        preset (Resource): The preset associated with the structure.
-        mesh (Resource): The mesh object to be used for the structure.
-        project (Optional[Node]): The project context, if any, necessary for auto-loading resources.
+        preset (Preset): The preset associated with the structure.
+        mesh (Mesh): The mesh object to be used for the structure.
+        project (Optional[Project]): The project context, if any, necessary for auto-loading resources.
         auto_load_presets (bool): Flag to auto-load presets.
         auto_load_resources (bool): Flag to auto-load resources.
-        size (List[int]): The size (scaling) of the structure in micrometers [x, y, z].
+        size (List[Union[float, int]]): The size (scaling) of the structure in micrometers [x, y, z].
         name (str): The name of the structure.
         slicing_origin (str): The origin for slicing. Must be one of 'structure_center', 'zero', 
                               'scene_top', 'scene_bottom', 'structure_top', 'structure_bottom', 'scene_center'.
-        slicing_offset (float): The offset for slicing.
+        slicing_offset (Union[float, int]): The offset for slicing.
         priority (int): The priority of the structure. Must be >= 0.
         expose_individually (bool): Flag to expose the structure individually.
         """
+        if mesh is not None and not isinstance(preset, Preset):
+            raise TypeError("preset must be an instance of Preset or None.")
+        if mesh is not None and not isinstance(mesh, Mesh):
+            raise TypeError("mesh must be an instance of Mesh or None.")
+        if project is not None and not isinstance(project, Project):
+            raise TypeError("project must be an instance of Project or None.")
+        if not isinstance(auto_load_presets, bool):
+            raise TypeError("auto_load_presets must be a boolean.")
+        if not isinstance(auto_load_resources, bool):
+            raise TypeError("auto_load_resources must be a boolean.")
+        if not all(isinstance(s, (float, int)) for s in size):
+            raise TypeError("All size elements must be float or int.")
+        if not isinstance(name, str):
+            raise TypeError("name must be a string.")
+        if not isinstance(slicing_origin, str):
+            raise TypeError("slicing_origin must be a string.")
+        if not isinstance(slicing_offset, (float, int)):
+            raise TypeError("slicing_offset must be a float or an int.")
+        if not isinstance(priority, int):
+            raise TypeError("priority must be an integer.")
         if priority < 0:
-            raise ValueError("Priority must be greater than or equal to 0.")
-        
+            raise ValueError("priority must be greater than or equal to 0.")
+        if not isinstance(expose_individually, bool):
+            raise TypeError("expose_individually must be a boolean.")
+
         valid_slicing_origins = {'structure_center', 'zero', 'scene_top', 
                                  'scene_bottom', 'structure_top', 
                                  'structure_bottom', 'scene_center'}
         if slicing_origin not in valid_slicing_origins:
             raise ValueError(f"slicing_origin must be one of {valid_slicing_origins}")
-        
+
         super().__init__('structure', 
                          name, 
                          preset=preset.id, 
@@ -1335,8 +1361,8 @@ class Structure(Node):
         self.auto_load_presets = auto_load_presets
         self.auto_load_resources = auto_load_resources
         
-        self._mesh=True
- 
+        self._mesh = True
+
         if (auto_load_presets or auto_load_resources) and project:
             self._load_resources()
 
@@ -1350,16 +1376,16 @@ class Structure(Node):
                 raise TypeError("Images are supposed to be used for MarkerAligner() class only.")
             self.project.load_resources(self.mesh)
 
-    def position_at(self, position: List[float] = [0, 0, 0], rotation: List[float] = [0.0, 0.0, 0.0]):
+    def position_at(self, position: List[Union[float, int]] = [0, 0, 0], rotation: List[Union[float, int]] = [0.0, 0.0, 0.0]):
         """
-        Set the current position and rotation of the array.
+        Set the current position and rotation of the structure.
 
         Parameters:
-            position (List[float]): List of position values [x, y, z].
-            rotation (List[float]): List of rotation angles [psi, theta, phi].
+            position (List[Union[float, int]]): List of position values [x, y, z].
+            rotation (List[Union[float, int]]): List of rotation angles [psi, theta, phi].
 
         Returns:
-            self: The instance of the Array class.
+            self: The instance of the Structure class.
 
         Raises:
             ValueError: If position or rotation does not contain exactly three elements,
@@ -1367,24 +1393,24 @@ class Structure(Node):
         """
         if len(position) != 3:
             raise ValueError("position must be a list of three elements.")
-        if not all(isinstance(p, (int, float)) for p in position):
+        if not all(isinstance(p, (float, int)) for p in position):
             raise ValueError("All position elements must be numbers.")
         
         if len(rotation) != 3:
             raise ValueError("rotation must be a list of three elements.")
-        if not all(isinstance(r, (int, float)) for r in rotation):
+        if not all(isinstance(r, (float, int)) for r in rotation):
             raise ValueError("All rotation elements must be numbers.")
         
         self.position = position
         self.rotation = rotation
         return self
 
-    def translate(self, translation: List[float]):
+    def translate(self, translation: List[Union[float, int]]):
         """
         Translate the current position by the specified translation.
 
         Parameters:
-            translation (List[float]): List of translation values [dx, dy, dz].
+            translation (List[Union[float, int]]): List of translation values [dx, dy, dz].
 
         Raises:
             ValueError: If translation does not contain exactly three elements,
@@ -1392,17 +1418,17 @@ class Structure(Node):
         """
         if len(translation) != 3:
             raise ValueError("translation must be a list of three elements.")
-        if not all(isinstance(t, (int, float)) for t in translation):
+        if not all(isinstance(t, (float, int)) for t in translation):
             raise ValueError("All translation elements must be numbers.")
         
         self.position = [pos + trans for pos, trans in zip(self.position, translation)]
 
-    def rotate(self, rotation: List[float]):
+    def rotate(self, rotation: List[Union[float, int]]):
         """
-        Rotate the array by the specified rotation angles.
+        Rotate the structure by the specified rotation angles.
 
         Parameters:
-            rotation (List[float]): List of rotation angles to apply [d_psi, d_theta, d_phi].
+            rotation (List[Union[float, int]]): List of rotation angles to apply [d_psi, d_theta, d_phi].
 
         Raises:
             ValueError: If rotation does not contain exactly three elements,
@@ -1410,7 +1436,7 @@ class Structure(Node):
         """
         if len(rotation) != 3:
             raise ValueError("rotation must be a list of three elements.")
-        if not all(isinstance(r, (int, float)) for r in rotation):
+        if not all(isinstance(r, (float, int)) for r in rotation):
             raise ValueError("All rotation elements must be numbers.")
         
         self.rotation = [(angle + rot) % 360 for angle, rot in zip(self.rotation, rotation)]
@@ -1423,190 +1449,321 @@ class Structure(Node):
         dict: The dictionary representation of the structure.
         """
         if self._mesh:
-            self.geometry={'type': 'mesh',
-                            'resource': self.mesh.id,
-                            'scale': [self.size[0]/100, self.size[1]/100, self.size[2]/100]}
+            self.geometry = {
+                'type': 'mesh',
+                'resource': self.mesh.id,
+                'scale': [self.size[0] / 100, self.size[1] / 100, self.size[2] / 100]
+            }
         node_dict = super().to_dict()
         node_dict['geometry'] = self.geometry
         return node_dict
 
-
 class Text(Structure):
-    def __init__(self, preset, #only objects from class Preset are allowed!
-                 name: str = 'Text', #Has to have a name!
-                 text = 'Text', # Has to have text!
-                 font_size = 10.0, # Okay if int. must be greater 0
-                 height = 5.0, # Okay if int. must be greater 0
+    def __init__(self, preset: Preset,
+                 name: str = 'Text',
+                 text: str = 'Text',
+                 font_size: Union[float, int] = 10.0,
+                 height: Union[float, int] = 5.0,
                  slicing_origin: str = 'scene_bottom',
-                 slicing_offset: float = 0.0, 
+                 slicing_offset: Union[float, int] = 0.0,
                  priority: int = 0,
-                 expose_individually: bool = False): 
+                 expose_individually: bool = False):
+        """
+        Initialize a Text node.
+
+        Parameters:
+        preset (Preset): The preset associated with the text.
+        name (str): The name of the text.
+        text (str): The text content.
+        font_size (Union[float, int]): The font size of the text. Must be greater than 0.
+        height (Union[float, int]): The height of the text. Must be greater than 0.
+        slicing_origin (str): The origin for slicing. Must be one of 'structure_center', 'zero', 
+                              'scene_top', 'scene_bottom', 'structure_top', 'structure_bottom', 'scene_center'.
+        slicing_offset (Union[float, int]): The offset for slicing.
+        priority (int): The priority of the text. Must be >= 0.
+        expose_individually (bool): Flag to expose the text individually.
+        """
+        if not isinstance(text, str):
+            raise TypeError("text must be a string.")
+        if not isinstance(font_size, (float, int)) or font_size <= 0:
+            raise ValueError("font_size must be a positive number.")
+        if not isinstance(height, (float, int)) or height <= 0:
+            raise ValueError("height must be a positive number.")
         
-        super().__init__(preset = preset, mesh=None, name=name,
-                         slicing_origin = slicing_origin,
-                         slicing_offset = slicing_offset,
+        super().__init__(preset=preset, mesh=None, name=name,
+                         slicing_origin=slicing_origin,
+                         slicing_offset=slicing_offset,
                          priority=priority,
                          expose_individually=expose_individually)
         self.text = text
         self.font_size = font_size
         self.height = height
         
-        self._mesh=False
+        self._mesh = False
+
     def to_dict(self) -> dict:
+        """
+        Convert the text to a dictionary representation.
+
+        Returns:
+        dict: The dictionary representation of the text.
+        """
         self.geometry = {'type': 'text',
                          'text': self.text,
                          'font_size': self.font_size,
-                         'height' : self.height}
+                         'height': self.height}
         node_dict = super().to_dict()
         node_dict['geometry'] = self.geometry
         return node_dict
-        
-    
+
+
 class Lens(Structure):
-    def __init__(self, preset,
-                 name: str = 'Lens', #Has to have a name!
-                 radius = 100.0, # Okay if int. must be greater 0
-                 height = 50.0, # Okay if int. must be greater 0
-                 crop_base = False,
-                 asymmetric = False,
-                 curvature = 0.01, # Okay if int.
-                 conic_constant = 0.01, # Okay if int.
-                 curvature_y = 0.01, # Okay if int.
-                 conic_constant_y = -1.0, # Okay if int.
-                 nr_radial_segments = 500, #has to be int!
-                 nr_phi_segments = 360, #has to be int!
+    def __init__(self, preset: Preset,
+                 name: str = 'Lens',
+                 radius: Union[float, int] = 100.0,
+                 height: Union[float, int] = 50.0,
+                 crop_base: bool = False,
+                 asymmetric: bool = False,
+                 curvature: Union[float, int] = 0.01,
+                 conic_constant: Union[float, int] = 0.01,
+                 curvature_y: Union[float, int] = 0.01,
+                 conic_constant_y: Union[float, int] = -1.0,
+                 nr_radial_segments: int = 500,
+                 nr_phi_segments: int = 360,
                  slicing_origin: str = 'scene_bottom',
-                 slicing_offset: float = 0.0, 
-                 priority: int = 0, 
+                 slicing_offset: Union[float, int] = 0.0,
+                 priority: int = 0,
                  expose_individually: bool = False):
-    
-        super().__init__(preset = preset, mesh=None, name=name,
-                         slicing_origin = slicing_origin,
-                         slicing_offset = slicing_offset,
+        """
+        Initialize a Lens node.
+
+        Parameters:
+        preset (Preset): The preset associated with the lens.
+        name (str): The name of the lens.
+        radius (Union[float, int]): The radius of the lens. Must be greater than 0.
+        height (Union[float, int]): The height of the lens. Must be greater than 0.
+        crop_base (bool): Flag to indicate if the base should be cropped.
+        asymmetric (bool): Flag to indicate if the lens is asymmetric.
+        curvature (Union[float, int]): The curvature of the lens.
+        conic_constant (Union[float, int]): The conic constant of the lens.
+        curvature_y (Union[float, int]): The curvature of the lens in the y direction.
+        conic_constant_y (Union[float, int]): The conic constant of the lens in the y direction.
+        nr_radial_segments (int): The number of radial segments.
+        nr_phi_segments (int): The number of phi segments.
+        slicing_origin (str): The origin for slicing. Must be one of 'structure_center', 'zero', 
+                              'scene_top', 'scene_bottom', 'structure_top', 'structure_bottom', 'scene_center'.
+        slicing_offset (Union[float, int]): The offset for slicing.
+        priority (int): The priority of the lens. Must be >= 0.
+        expose_individually (bool): Flag to expose the lens individually.
+        """
+        if not isinstance(radius, (float, int)) or radius <= 0:
+            raise ValueError("radius must be a positive number.")
+        if not isinstance(height, (float, int)) or height <= 0:
+            raise ValueError("height must be a positive number.")
+        if not isinstance(crop_base, bool):
+            raise TypeError("crop_base must be a boolean.")
+        if not isinstance(asymmetric, bool):
+            raise TypeError("asymmetric must be a boolean.")
+        if not isinstance(curvature, (float, int)):
+            raise TypeError("curvature must be a float or an int.")
+        if not isinstance(conic_constant, (float, int)):
+            raise TypeError("conic_constant must be a float or an int.")
+        if not isinstance(curvature_y, (float, int)):
+            raise TypeError("curvature_y must be a float or an int.")
+        if not isinstance(conic_constant_y, (float, int)):
+            raise TypeError("conic_constant_y must be a float or an int.")
+        if not isinstance(nr_radial_segments, int):
+            raise TypeError("nr_radial_segments must be an int.")
+        if not isinstance(nr_phi_segments, int):
+            raise TypeError("nr_phi_segments must be an int.")
+        
+        super().__init__(preset=preset, mesh=None, name=name,
+                         slicing_origin=slicing_origin,
+                         slicing_offset=slicing_offset,
                          priority=priority,
                          expose_individually=expose_individually)
         
-        self.name = name
         self.radius = radius
         self.height = height
         self.crop_base = crop_base
-        self.asymmetric = asymmetric #if this is False, the lens is considered being radialy symmetric. non-y-values are in this case considered! Passing y-values is allowed but have no effect.
+        self.asymmetric = asymmetric
         self.curvature = curvature
         self.conic_constant = conic_constant
-        self.curvature_y =  curvature_y
+        self.curvature_y = curvature_y
         self.conic_constant_y = conic_constant_y
         
         self.polynomial_type = 'Normalized'
-        #Can be either 'Normalized' or 'Standard'. The latter has units um^-(2n+1) where n is index in passed list to polynomial_factors (or polynomial_factors_y if asymmetric). Former has no units. Both can be any number
         self.polynomial_factors = []
         self.polynomial_factors_y = []
         
-        self.surface_compensation_factors = [] #has units um^-(2n+1) where n is index in passed list (must contain numbers) to it
-        self.surface_compensation_factors_y = [] #has units um^-(2n+1) where n is index in passed list (must contain numbers) to it
-        
-        
+        self.surface_compensation_factors = []
+        self.surface_compensation_factors_y = []
         
         self.nr_radial_segments = nr_radial_segments
         self.nr_phi_segments = nr_phi_segments
         
-        self._mesh=False
+        self._mesh = False
+
+    def polynomial(self, polynomial_type: str = 'Normalized',
+                   polynomial_factors: List[Union[float, int]] = [0, 0, 0],
+                   polynomial_factors_y: List[Union[float, int]] = [0, 0, 0]):
+        """
+        Set the polynomial factors for the lens.
+
+        Parameters:
+        polynomial_type (str): The type of polynomial, either 'Normalized' or 'Standard'.
+        polynomial_factors (List[Union[float, int]]): List of polynomial factors.
+        polynomial_factors_y (List[Union[float, int]]): List of polynomial factors for y-axis, if asymmetric.
+
+        Returns:
+        self: The instance of the Lens class.
+        """
+        if not isinstance(polynomial_type, str):
+            raise TypeError("polynomial_type must be a string.")
+        if not all(isinstance(f, (float, int)) for f in polynomial_factors):
+            raise TypeError("All polynomial_factors elements must be float or int.")
+        if not all(isinstance(f, (float, int)) for f in polynomial_factors_y):
+            raise TypeError("All polynomial_factors_y elements must be float or int.")
         
-    def polynomial(self, polynomial_type = 'Normalized', polynomial_factors = [0,0,0], polynomial_factors_y = [0,0,0]): #passed lists can have arbitrary length!
         self.polynomial_type = polynomial_type
         self.polynomial_factors = polynomial_factors
         if self.asymmetric:
             self.polynomial_factors_y = polynomial_factors_y
         return self
+
+    def surface_compensation(self, surface_compensation_factors: List[Union[float, int]] = [0, 0, 0],
+                             surface_compensation_factors_y: List[Union[float, int]] = [0, 0, 0]):
+        """
+        Set the surface compensation factors for the lens.
+
+        Parameters:
+        surface_compensation_factors (List[Union[float, int]]): List of surface compensation factors.
+        surface_compensation_factors_y (List[Union[float, int]]): List of surface compensation factors for y-axis, if asymmetric.
+
+        Returns:
+        self: The instance of the Lens class.
+        """
+        if not all(isinstance(f, (float, int)) for f in surface_compensation_factors):
+            raise TypeError("All surface_compensation_factors elements must be float or int.")
+        if not all(isinstance(f, (float, int)) for f in surface_compensation_factors_y):
+            raise TypeError("All surface_compensation_factors_y elements must be float or int.")
         
-    def surface_compensation(self, surface_compensation_factors = [0,0,0], surface_compensation_factors_y = [0,0,0]):#passed lists can have arbitrary length!
         self.surface_compensation_factors = surface_compensation_factors
         if self.asymmetric:
             self.surface_compensation_factors_y = surface_compensation_factors_y
         return self
-        
+
     def to_dict(self) -> dict:
+        """
+        Convert the lens to a dictionary representation.
+
+        Returns:
+        dict: The dictionary representation of the lens.
+        """
         self.geometry = {
-                            'type': 'lens',
-                            'radius': self.radius,
-                            'height': self.height,
-                            'crop_base': self.crop_base,
-                            'asymmetric': self.asymmetric,
-                            'curvature': self.curvature,
-                            'conic_constant': self.conic_constant,
-                            'curvature_y': self.curvature_y,
-                            'conic_constant_y': self.conic_constant_y,
-                            'polynomial_type': self.polynomial_type,
-                            'polynomial_factors': self.polynomial_factors,
-                            'polynomial_factors_y': self.polynomial_factors_y,
-                            'surface_compensation_factors': self.surface_compensation_factors,
-                            'surface_compensation_factors_y': self.surface_compensation_factors_y,
-                            'nr_radial_segments': self.nr_radial_segments,
-                            'nr_phi_segments': self.nr_phi_segments
-                        }
+            'type': 'lens',
+            'radius': self.radius,
+            'height': self.height,
+            'crop_base': self.crop_base,
+            'asymmetric': self.asymmetric,
+            'curvature': self.curvature,
+            'conic_constant': self.conic_constant,
+            'curvature_y': self.curvature_y,
+            'conic_constant_y': self.conic_constant_y,
+            'polynomial_type': self.polynomial_type,
+            'polynomial_factors': self.polynomial_factors,
+            'polynomial_factors_y': self.polynomial_factors_y,
+            'surface_compensation_factors': self.surface_compensation_factors,
+            'surface_compensation_factors_y': self.surface_compensation_factors_y,
+            'nr_radial_segments': self.nr_radial_segments,
+            'nr_phi_segments': self.nr_phi_segments
+        }
 
         node_dict = super().to_dict()
         node_dict['geometry'] = self.geometry
         return node_dict
     
-    
+
 class CoarseAligner(Node):
     """
-    Class: coarse alignment nodes.
+    Class for coarse alignment nodes.
 
     Attributes:
         alignment_anchors (list): List of alignment anchors.
     """
-    def __init__(self, name: str = 'Coarse aligner',
-                 residual_threshold: float = 10.0 # must be greater 0
-                 ):
+    def __init__(self, name: str = 'Coarse aligner', residual_threshold: Union[float, int] = 10.0):
         """
         Initialize the coarse aligner with a name and a residual threshold.
 
         Parameters:
             name (str): The name of the coarse aligner node.
-            residual_threshold (float): The residual threshold for alignment.
+            residual_threshold (Union[float, int]): The residual threshold for alignment. Must be greater than 0.
+
+        Raises:
+            ValueError: If residual_threshold is not greater than 0.
         """
+        if not isinstance(name, str):
+            raise TypeError("name must be a string.")
+        if not isinstance(residual_threshold, (float, int)) or residual_threshold <= 0:
+            raise ValueError("residual_threshold must be a positive number.")
+        
         super().__init__('coarse_alignment', name, residual_threshold=residual_threshold)
         self.alignment_anchors = []
-        
-    def add_coarse_anchor(self, label: str, position: List[float]):
+
+    def add_coarse_anchor(self, label: str, position: List[Union[float, int]]):
         """
         Add a single coarse anchor with a label and position.
 
         Parameters:
             label (str): The label for the anchor.
-            position (List[float]): The position [x, y, z] for the anchor.
+            position (List[Union[float, int]]): The position [x, y, z] for the anchor.
 
         Raises:
             ValueError: If position does not contain exactly three elements.
+            TypeError: If any element in position is not a number.
         """
+        if not isinstance(label, str):
+            raise TypeError("label must be a string.")
         if len(position) != 3:
             raise ValueError("position must be a list of three elements.")
+        if not all(isinstance(p, (float, int)) for p in position):
+            raise TypeError("All position elements must be numbers.")
+        
         self.alignment_anchors.append({
             "label": label,
             "position": position,
         })
-        
-    def set_coarse_anchors_at(self, labels: List[str], positions: List[List[float]]):
+
+    def set_coarse_anchors_at(self, labels: List[str], positions: List[List[Union[float, int]]]):
         """
         Create multiple coarse anchors at specified positions.
 
         Parameters:
             labels (List[str]): List of labels for the anchors.
-            positions (List[List[float]]): List of positions for the anchors, each position is [x, y, z].
+            positions (List[List[Union[float, int]]]): List of positions for the anchors, each position is [x, y, z].
 
         Returns:
             self: The instance of the CoarseAligner class.
 
         Raises:
             ValueError: If the number of labels does not match the number of positions.
+            TypeError: If any label is not a string or any position is not a list of numbers.
         """
         if len(labels) != len(positions):
             raise ValueError("The number of labels must match the number of positions.")
+        for label in labels:
+            if not isinstance(label, str):
+                raise TypeError("All labels must be strings.")
+        for position in positions:
+            if len(position) != 3:
+                raise ValueError("Each position must be a list of three elements.")
+            if not all(isinstance(p, (float, int)) for p in position):
+                raise TypeError("All position elements must be numbers.")
+
         for label, position in zip(labels, positions):
             self.add_coarse_anchor(label, position)
         return self
-        
+
     def to_dict(self) -> Dict:
         """
         Converts the current state of the object into a dictionary representation.
@@ -1617,7 +1774,6 @@ class CoarseAligner(Node):
         node_dict = super().to_dict()
         node_dict['alignment_anchors'] = self.alignment_anchors
         return node_dict
-
     
 class InterfaceAligner(Node):
     """
@@ -1626,29 +1782,9 @@ class InterfaceAligner(Node):
     Attributes:
         alignment_anchors (list): Stores the measurement locations (or interface anchors) for interface alignment.
         count (list of int): The number of grid points in [x, y] direction.
-        size (list of int): The size of the grid in [width, height].
-    
-    Methods:
-        __init__(self, name='Interface aligner', signal_type='auto', detector_type='auto',
-                 measure_tilt=False, area_measurement=False, center_stage=True,
-                 action_upon_failure='abort', laser_power=0.5,
-                 scan_area_res_factors=[1.0, 1.0], scan_z_sample_distance=0.1,
-                 scan_z_sample_count=51):
-            Initializes the interface aligner with specified parameters.
-        
-        set_grid(self, count=[5, 5], size=[200, 200]):
-            Sets the grid point count and grid size.
-        
-        add_interface_anchor(self, label, position, scan_area_size=None):
-            Adds an interface anchor with a given label, position, and scan area size.
-        
-        set_interface_anchors_at(self, labels, positions, scan_area_sizes=None):
-            Creates multiple measurement locations at specified positions.
-
-        to_dict(self):
-            Converts the current state of the object into a dictionary representation.
+        size (list of float): The size of the grid in [width, height].
+        pattern (str): The pattern used for grid or custom alignment.
     """
-
     def __init__(self, name: str = 'Interface aligner',
                  signal_type: str = 'auto',
                  detector_type: str = 'auto',
@@ -1679,9 +1815,29 @@ class InterfaceAligner(Node):
         Raises:
             ValueError: If scan_z_sample_count is less than 1.
         """
-        if scan_z_sample_count < 1:
-            raise ValueError("scan_z_sample_count must be at least 1.")
-        
+        if not isinstance(name, str):
+            raise TypeError("name must be a string.")
+        if not isinstance(signal_type, str):
+            raise TypeError("signal_type must be a string.")
+        if not isinstance(detector_type, str):
+            raise TypeError("detector_type must be a string.")
+        if not isinstance(measure_tilt, bool):
+            raise TypeError("measure_tilt must be a boolean.")
+        if not isinstance(area_measurement, bool):
+            raise TypeError("area_measurement must be a boolean.")
+        if not isinstance(center_stage, bool):
+            raise TypeError("center_stage must be a boolean.")
+        if not isinstance(action_upon_failure, str):
+            raise TypeError("action_upon_failure must be a string.")
+        if not isinstance(laser_power, (float, int)) or laser_power <= 0:
+            raise ValueError("laser_power must be a positive number.")
+        if not isinstance(scan_area_res_factors, list) or not all(isinstance(f, (float, int)) for f in scan_area_res_factors):
+            raise TypeError("scan_area_res_factors must be a list of floats or ints.")
+        if not isinstance(scan_z_sample_distance, (float, int)):
+            raise TypeError("scan_z_sample_distance must be a float or an int.")
+        if not isinstance(scan_z_sample_count, int) or scan_z_sample_count < 1:
+            raise ValueError("scan_z_sample_count must be an integer greater than 0.")
+
         if signal_type not in ['auto', 'fluorescence', 'reflection']:
             raise ValueError('signal_type must be "auto", "fluorescence", or "reflection".')
         
@@ -1711,13 +1867,22 @@ class InterfaceAligner(Node):
 
         Parameters:
             count (List[int]): Number of grid points in [x, y] direction.
-            size (List[int]): Size of the grid in [width, height].
+            size (List[float]): Size of the grid in [width, height].
 
         Returns:
             self: The instance of the InterfaceAligner class.
+
+        Raises:
+            ValueError: If count or size does not contain exactly two elements.
+            TypeError: If elements in count or size are not numbers.
         """
         if len(count) != 2 or len(size) != 2:
             raise ValueError("count and size must each be lists of two elements.")
+        if not all(isinstance(c, int) for c in count):
+            raise TypeError("All count elements must be integers.")
+        if not all(isinstance(s, (float, int)) for s in size):
+            raise TypeError("All size elements must be numbers.")
+        
         if self.pattern != 'Grid':
             self.pattern = 'Grid'
         
@@ -1732,22 +1897,27 @@ class InterfaceAligner(Node):
         Parameters:
             label (str): The label for the anchor.
             position (List[float]): The position of the anchor [x, y].
-            scan_area_size (List[float] or None): The scan area size [width, height]. 
-                                                  If None, defaults to [10.0, 10.0]. This parameter is
-                                                  only relevant for signal_type = 'reflection' and
-                                                  detector_type = 'confocal' with area_measurement = True.
+            scan_area_size (List[float], optional): The scan area size [width, height]. 
+                                                   Defaults to [10.0, 10.0].
 
         Raises:
             ValueError: If position does not contain exactly two elements.
+            TypeError: If label is not a string or elements in position or scan_area_size are not numbers.
         """
+        if not isinstance(label, str):
+            raise TypeError("label must be a string.")
         if len(position) != 2:
             raise ValueError("position must be a list of two elements.")
+        if not all(isinstance(p, (float, int)) for p in position):
+            raise TypeError("All position elements must be numbers.")
         
         if self.pattern != 'Custom':
             self.pattern = 'Custom'
         
         if scan_area_size is None:
             scan_area_size = [10.0, 10.0]
+        elif len(scan_area_size) != 2 or not all(isinstance(s, (float, int)) for s in scan_area_size):
+            raise TypeError("scan_area_size must be a list of two numbers.")
         
         self.alignment_anchors.append({
             "label": label,
@@ -1763,23 +1933,36 @@ class InterfaceAligner(Node):
         Parameters:
             labels (List[str]): List of labels for the measurement locations.
             positions (List[List[float]]): List of positions for the measurement locations, each position is [x, y].
-            scan_area_sizes (List[List[float]] or None): List of scan area sizes for the measurement locations, 
-                                                         each scan area size is [width, height]. If None, 
-                                                         defaults to [10.0, 10.0] for each anchor. This parameter is
-                                                         only relevant for signal_type = 'reflection' and
-                                                         detector_type = 'confocal' with area_measurement = True.
+            scan_area_sizes (List[List[float]], optional): List of scan area sizes for the measurement locations, 
+                                                           each scan area size is [width, height]. Defaults to [10.0, 10.0] 
+                                                           for each anchor.
 
         Returns:
             self: The instance of the InterfaceAligner class.
 
         Raises:
             ValueError: If the number of labels does not match the number of positions.
+            TypeError: If elements in labels, positions, or scan_area_sizes are not of the correct types.
         """
         if len(labels) != len(positions):
             raise ValueError("The number of labels must match the number of positions.")
         
         if scan_area_sizes is None:
             scan_area_sizes = [[10.0, 10.0]] * len(labels)
+        
+        for label in labels:
+            if not isinstance(label, str):
+                raise TypeError("All labels must be strings.")
+        
+        for position in positions:
+            if len(position) != 2:
+                raise ValueError("Each position must be a list of two elements.")
+            if not all(isinstance(p, (float, int)) for p in position):
+                raise TypeError("All position elements must be numbers.")
+        
+        for scan_area_size in scan_area_sizes:
+            if len(scan_area_size) != 2 or not all(isinstance(s, (float, int)) for s in scan_area_size):
+                raise TypeError("Each scan_area_size must be a list of two numbers.")
         
         for label, position, scan_area_size in zip(labels, positions, scan_area_sizes):
             self.add_interface_anchor(label, position, scan_area_size)
@@ -1799,39 +1982,97 @@ class InterfaceAligner(Node):
         node_dict['pattern'] = self.pattern
         return node_dict
 
-
 class FiberAligner(Node):
-    def __init__(self, name = 'Fiber aligner',
-                 fiber_radius = 63.5,  #number in um. must be grater 0
-                 center_stage = True,
-                 action_upon_failure = 'abort', #can be 'abort' 'ignore'
-                 illumination_name = "process_led_1", 
-                 core_signal_lower_threshold = 0.05,
-                 core_signal_range = [0.1, 0.9],
-                 detection_margin = 6.3500000000000005 #must be number greater 0. unit in um
-                 ):
-        super().__init__(node_type = 'fiber_core_alignment', name=name,
-                       fiber_radius=fiber_radius,
-                       center_stage=center_stage,
-                       action_upon_failure = action_upon_failure,
-                       illumination_name =illumination_name,
-                       core_signal_lower_threshold =core_signal_lower_threshold,
-                       core_signal_range =core_signal_range,
-                       core_position_offset_tolerance =detection_margin)
+    def __init__(self, name: str = 'Fiber aligner',
+                 fiber_radius: Union[float, int] = 63.5,
+                 center_stage: bool = True,
+                 action_upon_failure: str = 'abort',
+                 illumination_name: str = "process_led_1",
+                 core_signal_lower_threshold: Union[float, int] = 0.05,
+                 core_signal_range: List[Union[float, int]] = [0.1, 0.9],
+                 detection_margin: Union[float, int] = 6.35):
+        """
+        Initialize the fiber aligner with specified parameters.
+
+        Parameters:
+            name (str): Name of the fiber aligner.
+            fiber_radius (Union[float, int]): Radius of the fiber in micrometers. Must be greater than 0.
+            center_stage (bool): Whether to center the stage.
+            action_upon_failure (str): Action upon failure, can be 'abort' or 'ignore'.
+            illumination_name (str): Name of the illumination source.
+            core_signal_lower_threshold (Union[float, int]): Lower threshold for the core signal.
+            core_signal_range (List[Union[float, int]]): Range for the core signal [min, max].
+            detection_margin (Union[float, int]): Detection margin in micrometers. Must be greater than 0.
+
+        Raises:
+            ValueError: If fiber_radius or detection_margin is not greater than 0.
+            ValueError: If core_signal_range does not contain exactly two elements.
+        """
+        if not isinstance(name, str):
+            raise TypeError("name must be a string.")
+        if not isinstance(fiber_radius, (float, int)) or fiber_radius <= 0:
+            raise ValueError("fiber_radius must be a positive number.")
+        if not isinstance(center_stage, bool):
+            raise TypeError("center_stage must be a boolean.")
+        if action_upon_failure not in ['abort', 'ignore']:
+            raise ValueError("action_upon_failure must be 'abort' or 'ignore'.")
+        if not isinstance(illumination_name, str):
+            raise TypeError("illumination_name must be a string.")
+        if not isinstance(core_signal_lower_threshold, (float, int)):
+            raise TypeError("core_signal_lower_threshold must be a float or an int.")
+        if not isinstance(core_signal_range, list) or len(core_signal_range) != 2:
+            raise ValueError("core_signal_range must be a list of two elements.")
+        if not all(isinstance(val, (float, int)) for val in core_signal_range):
+            raise TypeError("All elements in core_signal_range must be numbers.")
+        if not isinstance(detection_margin, (float, int)) or detection_margin <= 0:
+            raise ValueError("detection_margin must be a positive number.")
+        
+        super().__init__(node_type='fiber_core_alignment', name=name,
+                         fiber_radius=fiber_radius,
+                         center_stage=center_stage,
+                         action_upon_failure=action_upon_failure,
+                         illumination_name=illumination_name,
+                         core_signal_lower_threshold=core_signal_lower_threshold,
+                         core_signal_range=core_signal_range,
+                         core_position_offset_tolerance=detection_margin)
         
         self.detect_light_direction = False
-        self.z_scan_range = [10, 100] # has to be list of two entries that are number. The second entry must be greater than 0 AND greater than the first value! all units um
-        self.z_scan_range_sample_count = 1 # has to be greater 0 integer 
-        self.z_scan_range_scan_count = 1 # has to be greater 0 integer
+        self.z_scan_range = [10, 100]
+        self.z_scan_range_sample_count = 1
+        self.z_scan_range_scan_count = 1
+
+    def measure_tilt(self, z_scan_range: List[Union[float, int]] = [10, 100],
+                     z_scan_range_sample_count: int = 3,
+                     z_scan_range_scan_count: int = 1):
+        """
+        Measures tilt by setting scan range parameters.
+
+        Parameters:
+            z_scan_range (List[Union[float, int]]): Range for the z-scan [min, max]. The second entry must be greater than the first.
+            z_scan_range_sample_count (int): Number of samples in the z-scan range. Must be greater than 0.
+            z_scan_range_scan_count (int): Number of scans in the z-scan range. Must be greater than 0.
+
+        Returns:
+            self: The instance of the FiberAligner class.
+
+        Raises:
+            ValueError: If z_scan_range does not contain exactly two elements or if the second element is not greater than the first.
+            ValueError: If z_scan_range_sample_count or z_scan_range_scan_count is not greater than 0.
+        """
+        if len(z_scan_range) != 2 or z_scan_range[1] <= z_scan_range[0] or z_scan_range[1] <= 0:
+            raise ValueError("z_scan_range must be a list of two elements where the second element is greater than the first and greater than 0.")
+        if not isinstance(z_scan_range_sample_count, int) or z_scan_range_sample_count <= 0:
+            raise ValueError("z_scan_range_sample_count must be a positive integer.")
+        if not isinstance(z_scan_range_scan_count, int) or z_scan_range_scan_count <= 0:
+            raise ValueError("z_scan_range_scan_count must be a positive integer.")
         
-        
-    def measure_tilt(self, z_scan_range=[10, 100], z_scan_range_sample_count = 3, z_scan_range_scan_count = 1):
         self.detect_light_direction = True
-        self.z_scan_range = z_scan_range # has to be list of two entries that are number. The second entry must be greater than 0 AND greater than the first value! all units um
-        self.z_scan_range_sample_count = z_scan_range_sample_count # has to be greater 0 integer 
-        self.z_scan_range_scan_count = z_scan_range_scan_count # has to be greater 0 integer 
+        self.z_scan_range = z_scan_range
+        self.z_scan_range_sample_count = z_scan_range_sample_count
+        self.z_scan_range_scan_count = z_scan_range_scan_count
         
         return self
+
     def to_dict(self) -> Dict:
         """
         Converts the current state of the object into a dictionary representation.
@@ -1849,7 +2090,7 @@ class FiberAligner(Node):
 
 class MarkerAligner(Node):
     """
-    Marker aligner class
+    Marker aligner class.
 
     Attributes:
         image (Resources): Image object that the marker gets assigned.
@@ -1871,7 +2112,7 @@ class MarkerAligner(Node):
         measure_z (bool): Whether to measure z or not.
     """
 
-    def __init__(self, image, 
+    def __init__(self, image: Image, 
                  name: str = 'Marker aligner',
                  marker_size: List[float] = [0.0, 0.0],
                  center_stage: bool = True,
@@ -1890,18 +2131,67 @@ class MarkerAligner(Node):
                  measure_z: bool = False):
         """
         Initializes the MarkerAligner with the provided parameters.
-        
+
+        Parameters:
+            image (Image): Image object that the marker gets assigned.
+            name (str): Name of the marker aligner.
+            marker_size (List[float]): Size of markers in micrometers. Marker size must be greater than 0.
+            center_stage (bool): Centers stage if true.
+            action_upon_failure (str): 'abort' or 'ignore' at failure (not yet implemented!).
+            laser_power (float): Laser power in mW.
+            scan_area_size (List[float]): Scan area size in micrometers.
+            scan_area_res_factors (List[float]): Resolution factors in scanned area.
+            detection_margin (float): Additional margin around marker imaging field in micrometers.
+            correlation_threshold (float): Correlation threshold below which abort is triggered in percent.
+            residual_threshold (float): Residual threshold of marker image.
+            max_outliers (int): Maximum amount of markers that are allowed to be outliers.
+            orthonormalize (bool): Whether to orthonormalize or not.
+            z_scan_sample_count (int): Number of z samples to be taken.
+            z_scan_sample_distance (float): Sampling distance in micrometers for z samples to be apart from each other.
+            z_scan_sample_mode (str): "correlation" or "intensity" for scan_z_sample_mode.
+            measure_z (bool): Whether to measure z or not.
+
         Raises:
             ValueError: If marker_size is not greater than 0, if z_scan_sample_count is less than 1,
                         or if z_scan_sample_mode is not "correlation" or "intensity".
         """
+        if not isinstance(image, Image):
+            raise TypeError("image must be an instance of Image class.")
+        if not isinstance(name, str):
+            raise TypeError("name must be a string.")
+        if not isinstance(marker_size, list) or len(marker_size) != 2 or not all(isinstance(val, (float, int)) for val in marker_size):
+            raise TypeError("marker_size must be a list of two positive numbers.")
         if marker_size[0] <= 0 or marker_size[1] <= 0:
             raise ValueError("marker_size must be greater than 0.")
-        if z_scan_sample_count < 1:
+        if not isinstance(center_stage, bool):
+            raise TypeError("center_stage must be a boolean.")
+        if action_upon_failure not in ['abort', 'ignore']:
+            raise ValueError("action_upon_failure must be 'abort' or 'ignore'.")
+        if not isinstance(laser_power, (float, int)) or laser_power < 0:
+            raise ValueError("laser_power must be a non-negative number.")
+        if not isinstance(scan_area_size, list) or len(scan_area_size) != 2 or not all(isinstance(val, (float, int)) for val in scan_area_size):
+            raise TypeError("scan_area_size must be a list of two positive numbers.")
+        if not isinstance(scan_area_res_factors, list) or len(scan_area_res_factors) != 2 or not all(isinstance(val, (float, int)) for val in scan_area_res_factors):
+            raise TypeError("scan_area_res_factors must be a list of two positive numbers.")
+        if not isinstance(detection_margin, (float, int)) or detection_margin < 0:
+            raise ValueError("detection_margin must be a non-negative number.")
+        if not isinstance(correlation_threshold, (float, int)) or not (0 <= correlation_threshold <= 100):
+            raise ValueError("correlation_threshold must be between 0 and 100.")
+        if not isinstance(residual_threshold, (float, int)) or residual_threshold < 0:
+            raise ValueError("residual_threshold must be a non-negative number.")
+        if not isinstance(max_outliers, int) or max_outliers < 0:
+            raise ValueError("max_outliers must be a non-negative integer.")
+        if not isinstance(orthonormalize, bool):
+            raise TypeError("orthonormalize must be a boolean.")
+        if not isinstance(z_scan_sample_count, int) or z_scan_sample_count < 1:
             raise ValueError("z_scan_sample_count must be at least 1.")
+        if not isinstance(z_scan_sample_distance, (float, int)) or z_scan_sample_distance <= 0:
+            raise ValueError("z_scan_sample_distance must be a positive number.")
         if z_scan_sample_mode not in ['correlation', 'intensity']:
             raise ValueError('z_scan_sample_mode must be either "correlation" or "intensity".')
-        
+        if not isinstance(measure_z, bool):
+            raise TypeError("measure_z must be a boolean.")
+
         super().__init__('marker_alignment', name,
                          action_upon_failure=action_upon_failure,
                          marker={'image': image.id,
@@ -1926,16 +2216,22 @@ class MarkerAligner(Node):
         """
         Adds a marker to the alignment anchors.
 
-        Args:
+        Parameters:
             label (str): The label of the marker.
             orientation (float): The orientation of the marker in degrees.
             position (List[float]): The position of the marker in micrometers.
 
         Raises:
             ValueError: If position does not contain exactly two elements.
+            TypeError: If label is not a string, orientation is not a number, or elements in position are not numbers.
         """
-        if len(position) != 2:
-            raise ValueError("position must be a list of two elements.")
+        if not isinstance(label, str):
+            raise TypeError("label must be a string.")
+        if not isinstance(orientation, (float, int)):
+            raise TypeError("orientation must be a float or an int.")
+        if not isinstance(position, list) or len(position) != 2 or not all(isinstance(val, (float, int)) for val in position):
+            raise TypeError("position must be a list of two numbers.")
+        
         self.alignment_anchors.append({
             "label": label,
             "position": position,
@@ -1946,7 +2242,7 @@ class MarkerAligner(Node):
         """
         Creates multiple markers at specified positions with given orientations.
 
-        Args:
+        Parameters:
             labels (List[str]): List of labels for the markers.
             orientations (List[float]): List of orientations for the markers in degrees.
             positions (List[List[float]]): List of positions for the markers in micrometers.
@@ -1956,9 +2252,22 @@ class MarkerAligner(Node):
 
         Raises:
             ValueError: If the lengths of labels, orientations, and positions do not match.
+            TypeError: If elements in labels, orientations, or positions are not of the correct types.
         """
         if len(labels) != len(positions) or len(labels) != len(orientations):
             raise ValueError("The number of labels, positions, and orientations must match.")
+        
+        for label in labels:
+            if not isinstance(label, str):
+                raise TypeError("All labels must be strings.")
+        
+        for orientation in orientations:
+            if not isinstance(orientation, (float, int)):
+                raise TypeError("All orientations must be float or int.")
+        
+        for position in positions:
+            if not isinstance(position, list) or len(position) != 2 or not all(isinstance(val, (float, int)) for val in position):
+                raise TypeError("All positions must be lists of two numbers.")
         
         for label, orientation, position in zip(labels, orientations, positions):
             self.add_marker(label, orientation, position)
@@ -1975,8 +2284,6 @@ class MarkerAligner(Node):
         node_dict['alignment_anchors'] = self.alignment_anchors
         return node_dict
 
-
-
 class EdgeAligner(Node):
     """
     A class to represent an edge aligner with various attributes and methods for managing edge alignment.
@@ -1987,15 +2294,15 @@ class EdgeAligner(Node):
     def __init__(self, 
                  node_type: str = 'edge_alignment',
                  name: str = 'Edge aligner',
-                 edge_location: List[float] = [0.0, 0.0],  # in micrometers
-                 edge_orientation: float = 0.0,  # in degrees
+                 edge_location: List[float] = [0.0, 0.0],
+                 edge_orientation: float = 0.0,
                  center_stage: bool = True,
-                 action_upon_failure: str = 'abort',  # can be 'abort' or 'ignore'
-                 laser_power: float = 0.5,  # must be >= 0
-                 scan_area_res_factors: List[float] = [1.0, 1.0],  # must be greater than zero
-                 scan_z_sample_distance: float = 0.1,
-                 scan_z_sample_count: int = 51,  # must be greater than zero
-                 outlier_threshold: float = 10.0):  # value must be in percent (0 <= 100)
+                 action_upon_failure: str = 'abort',
+                 laser_power: Union[float, int] = 0.5,
+                 scan_area_res_factors: List[float] = [1.0, 1.0],
+                 scan_z_sample_distance: Union[float, int] = 0.1,
+                 scan_z_sample_count: int = 51,
+                 outlier_threshold: float = 10.0):
         """
         Initialize the edge aligner with the specified parameters.
 
@@ -2006,15 +2313,38 @@ class EdgeAligner(Node):
             edge_orientation (float): Orientation of the edge in degrees.
             center_stage (bool): Whether to center the stage.
             action_upon_failure (str): Action upon failure, can be 'abort' or 'ignore'.
-            laser_power (float): Power of the laser, must be >= 0.
+            laser_power (Union[float, int]): Power of the laser, must be >= 0.
             scan_area_res_factors (List[float]): Resolution factors for the scan area, must be greater than zero.
-            scan_z_sample_distance (float): Distance between samples in the z-direction.
+            scan_z_sample_distance (Union[float, int]): Distance between samples in the z-direction.
             scan_z_sample_count (int): Number of samples in the z-direction, must be greater than zero.
             outlier_threshold (float): Outlier threshold in percent (0 <= 100).
 
         Raises:
-            ValueError: If scan_z_sample_count is less than 1.
+            ValueError: If any parameter is out of expected range.
         """
+        if not isinstance(name, str):
+            raise TypeError("name must be a string.")
+        if not isinstance(edge_location, list) or len(edge_location) != 2 or not all(isinstance(val, (float, int)) for val in edge_location):
+            raise TypeError("edge_location must be a list of two numbers.")
+        if not isinstance(edge_orientation, (float, int)):
+            raise TypeError("edge_orientation must be a float or an int.")
+        if not isinstance(center_stage, bool):
+            raise TypeError("center_stage must be a boolean.")
+        if action_upon_failure not in ['abort', 'ignore']:
+            raise ValueError("action_upon_failure must be 'abort' or 'ignore'.")
+        if not isinstance(laser_power, (float, int)) or laser_power < 0:
+            raise ValueError("laser_power must be a non-negative number.")
+        if not isinstance(scan_area_res_factors, list) or len(scan_area_res_factors) != 2 or not all(isinstance(factor, (float, int)) for factor in scan_area_res_factors):
+            raise TypeError("scan_area_res_factors must be a list of two numbers greater than zero.")
+        if not all(factor > 0 for factor in scan_area_res_factors):
+            raise ValueError("All elements in scan_area_res_factors must be greater than 0.")
+        if not isinstance(scan_z_sample_distance, (float, int)) or scan_z_sample_distance <= 0:
+            raise ValueError("scan_z_sample_distance must be a positive number.")
+        if not isinstance(scan_z_sample_count, int) or scan_z_sample_count < 1:
+            raise ValueError("scan_z_sample_count must be an integer greater than zero.")
+        if not isinstance(outlier_threshold, (float, int)) or not (0 <= outlier_threshold <= 100):
+            raise ValueError("outlier_threshold must be a number between 0 and 100.")
+        
         super().__init__(node_type=node_type,
                          name=name,
                          properties={'xy_position_local_cos': edge_location,
@@ -2028,36 +2358,30 @@ class EdgeAligner(Node):
                                      'outlier_threshold': outlier_threshold})
         
         self.alignment_anchors = []
-        
-        if scan_z_sample_count < 1:
-            raise ValueError("scan_z_sample_count must be at least 1.")
-        if scan_z_sample_distance <= 0:
-            raise ValueError("scan_z_sample_distance must be greater 0.")
-        if laser_power < 0:
-            raise ValueError("laser_power must be greater than or equal to 0.")
-        if not all(factor > 0 for factor in scan_area_res_factors):
-            raise ValueError("All elements in scan_area_res_factors must be greater than 0.")
-        if not (0 <= outlier_threshold <= 100):
-            raise ValueError("outlier_threshold must be between 0 and 100.")
 
-    def add_measurement(self, label: str, offset: float, scan_area_size: List[float]):
+    def add_measurement(self, label: str, offset: Union[float, int], scan_area_size: List[Union[float, int]]):
         """
         Add a measurement with a label, offset, and scan area size.
 
         Parameters:
             label (str): The label for the measurement.
-            offset (float): The offset for the measurement.
-            scan_area_size (List[float]): The scan area size [width, height].
+            offset (Union[float, int]): The offset for the measurement.
+            scan_area_size (List[Union[float, int]]): The scan area size [width, height].
 
         Raises:
-            ValueError: If scan_area_size does not contain exactly two elements or if X <= 0 or Y < 0.
+            ValueError: If scan_area_size does not contain exactly two elements or if width <= 0 or height < 0.
+            TypeError: If label is not a string or elements in scan_area_size are not numbers.
         """
-        if len(scan_area_size) != 2:
-            raise ValueError("scan_area_size must be a list of two elements.")
+        if not isinstance(label, str):
+            raise TypeError("label must be a string.")
+        if not isinstance(offset, (float, int)):
+            raise TypeError("offset must be a float or an int.")
+        if not isinstance(scan_area_size, list) or len(scan_area_size) != 2 or not all(isinstance(val, (float, int)) for val in scan_area_size):
+            raise TypeError("scan_area_size must be a list of two numbers.")
         if scan_area_size[0] <= 0:
-            raise ValueError("The width (X) in scan_area_size must be greater than or equal to 0.")
+            raise ValueError("The width (X) in scan_area_size must be greater than 0.")
         if scan_area_size[1] < 0:
-            raise ValueError("The height (Y) in scan_area_size must be greater than 0.")
+            raise ValueError("The height (Y) in scan_area_size must be greater than or equal to 0.")
         
         self.alignment_anchors.append({
             "label": label,
@@ -2065,23 +2389,40 @@ class EdgeAligner(Node):
             "scan_area_size": scan_area_size
         })
     
-    def set_measurements_at(self, labels: List[str], offsets: List[float], scan_area_sizes: List[List[float]]):
+    def set_measurements_at(self, labels: List[str], offsets: List[Union[float, int]], scan_area_sizes: List[List[Union[float, int]]]):
         """
         Set multiple measurements at specified positions.
 
         Parameters:
             labels (List[str]): List of labels for the measurements.
-            offsets (List[float]): List of offsets for the measurements.
-            scan_area_sizes (List[List[float]]): List of scan area sizes for the measurements.
+            offsets (List[Union[float, int]]): List of offsets for the measurements.
+            scan_area_sizes (List[List[Union[float, int]]]): List of scan area sizes for the measurements.
 
         Returns:
             EdgeAligner: The instance of the EdgeAligner class.
 
         Raises:
             ValueError: If the lengths of labels, offsets, and scan_area_sizes do not match.
+            TypeError: If elements in labels, offsets, or scan_area_sizes are not of the correct types.
         """
         if len(labels) != len(scan_area_sizes) or len(labels) != len(offsets):
             raise ValueError("The number of labels, offsets, and scan_area_sizes must match.")
+        
+        for label in labels:
+            if not isinstance(label, str):
+                raise TypeError("All labels must be strings.")
+        
+        for offset in offsets:
+            if not isinstance(offset, (float, int)):
+                raise TypeError("All offsets must be float or int.")
+        
+        for scan_area_size in scan_area_sizes:
+            if not isinstance(scan_area_size, list) or len(scan_area_size) != 2 or not all(isinstance(val, (float, int)) for val in scan_area_size):
+                raise TypeError("All scan_area_sizes must be lists of two numbers.")
+            if scan_area_size[0] <= 0:
+                raise ValueError("The width (X) in scan_area_size must be greater than 0.")
+            if scan_area_size[1] < 0:
+                raise ValueError("The height (Y) in scan_area_size must be greater than or equal to 0.")
         
         for label, offset, scan_area_size in zip(labels, offsets, scan_area_sizes):
             self.add_measurement(label, offset, scan_area_size)
@@ -2099,7 +2440,6 @@ class EdgeAligner(Node):
         return node_dict
 
 
-
 class DoseCompensation(Node):
     """
     A class to represent dose compensation with various attributes and methods for managing dose settings.
@@ -2109,36 +2449,44 @@ class DoseCompensation(Node):
     """
     def __init__(self, 
                  name: str = 'Dose compensation 1',
-                 edge_location: List[float] = [0.0, 0.0, 0.0],  # in micrometers
-                 edge_orientation: float = 0.0,  # in degrees
-                 domain_size: List[float] = [200.0, 100.0, 100.0],  # in micrometers, must be > 0
-                 gain_limit: float = 2.0):  # must be >= 1
+                 edge_location: List[Union[float, int]] = [0.0, 0.0, 0.0],
+                 edge_orientation: Union[float, int] = 0.0,
+                 domain_size: List[Union[float, int]] = [200.0, 100.0, 100.0],
+                 gain_limit: Union[float, int] = 2.0):
         """
         Initialize the dose compensation with the specified parameters.
 
         Parameters:
             name (str): Name of the dose compensation.
-            edge_location (List[float]): Location of the edge [x, y, z] in micrometers.
-            edge_orientation (float): Orientation of the edge in degrees.
-            domain_size (List[float]): Size of the domain [width, height, depth] in micrometers, must be > 0.
-            gain_limit (float): Gain limit, must be >= 1.
+            edge_location (List[Union[float, int]]): Location of the edge [x, y, z] in micrometers.
+            edge_orientation (Union[float, int]): Orientation of the edge in degrees.
+            domain_size (List[Union[float, int]]): Size of the domain [width, height, depth] in micrometers, must be > 0.
+            gain_limit (Union[float, int]): Gain limit, must be >= 1.
 
         Raises:
             ValueError: If domain_size contains non-positive values or if gain_limit is less than 1.
+            TypeError: If any parameter is not of the correct type.
         """
+        if not isinstance(name, str):
+            raise TypeError("name must be a string.")
+        if not isinstance(edge_location, list) or len(edge_location) != 3 or not all(isinstance(val, (float, int)) for val in edge_location):
+            raise TypeError("edge_location must be a list of three numbers.")
+        if not isinstance(edge_orientation, (float, int)):
+            raise TypeError("edge_orientation must be a float or an int.")
+        if not isinstance(domain_size, list) or len(domain_size) != 3 or not all(isinstance(val, (float, int)) for val in domain_size):
+            raise TypeError("domain_size must be a list of three numbers.")
         if any(size <= 0 for size in domain_size):
             raise ValueError("All elements in domain_size must be greater than 0.")
-        if gain_limit < 1:
+        if not isinstance(gain_limit, (float, int)) or gain_limit < 1:
             raise ValueError("gain_limit must be greater than or equal to 1.")
-        
+
         super().__init__(node_type='dose_compensation',
                          name=name,
                          position_local_cos=edge_location,
                          z_rotation_local_cos=edge_orientation,
                          size=domain_size,
                          gain_limit=gain_limit)
-
-
+        
 class Capture(Node):
     """
     A class to represent a capture node with attributes and methods for managing capture settings.
@@ -2156,15 +2504,18 @@ class Capture(Node):
         Parameters:
             name (str): Name of the capture node.
         """
+        if not isinstance(name, str):
+            raise TypeError("name must be a string.")
+        
         super().__init__(node_type='capture', name=name)
         self.capture_type = 'Camera'
         self.laser_power = 0.5
-        self.scan_area_size = [100, 100]
+        self.scan_area_size = [100.0, 100.0]
         self.scan_area_ref_factors = [1.0, 1.0]
-        
-    def confocal(self, laser_power: float = 0.5,  # greater or equal to 0
-                 scan_area_size: List[float] = [100, 100],  # greater or equal to 0
-                 scan_area_ref_factors: List[float] = [1.0, 1.0]):  # greater than 0
+
+    def confocal(self, laser_power: float = 0.5,
+                 scan_area_size: List[float] = [100.0, 100.0],
+                 scan_area_ref_factors: List[float] = [1.0, 1.0]) -> 'Capture':
         """
         Configure the capture node for confocal capture.
 
@@ -2179,10 +2530,14 @@ class Capture(Node):
         Raises:
             ValueError: If any parameter value is not valid.
         """
-        if laser_power < 0:
+        if not isinstance(laser_power, (float, int)) or laser_power < 0:
             raise ValueError("laser_power must be greater or equal to 0.")
+        if not isinstance(scan_area_size, list) or len(scan_area_size) != 2 or not all(isinstance(size, (float, int)) for size in scan_area_size):
+            raise TypeError("scan_area_size must be a list of two numbers greater or equal to 0.")
         if any(size < 0 for size in scan_area_size):
             raise ValueError("All elements in scan_area_size must be greater or equal to 0.")
+        if not isinstance(scan_area_ref_factors, list) or len(scan_area_ref_factors) != 2 or not all(isinstance(factor, (float, int)) for factor in scan_area_ref_factors):
+            raise TypeError("scan_area_ref_factors must be a list of two numbers greater than 0.")
         if any(factor <= 0 for factor in scan_area_ref_factors):
             raise ValueError("All elements in scan_area_ref_factors must be greater than 0.")
         
@@ -2192,7 +2547,7 @@ class Capture(Node):
         self.capture_type = 'Confocal'
         
         return self
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """
         Converts the current state of the object into a dictionary representation.
@@ -2206,7 +2561,6 @@ class Capture(Node):
         node_dict['scan_area_size'] = self.scan_area_size
         node_dict['scan_area_ref_factors'] = self.scan_area_ref_factors
         return node_dict
-
 
 class StageMove(Node):
     """
@@ -2227,14 +2581,16 @@ class StageMove(Node):
 
         Raises:
             ValueError: If stage_position does not contain exactly three elements.
+            TypeError: If stage_position elements are not numbers.
         """
-        if len(stage_position) != 3:
-            raise ValueError("stage_position must be a list of three elements.")
+        if not isinstance(name, str):
+            raise TypeError("name must be a string.")
+        if not isinstance(stage_position, list) or len(stage_position) != 3 or not all(isinstance(val, (float, int)) for val in stage_position):
+            raise TypeError("stage_position must be a list of three numbers.")
         
         super().__init__(node_type='stage_move',
                          name=name,
                          target_position=stage_position)
-
 
 class Wait(Node):
     """
@@ -2255,9 +2611,12 @@ class Wait(Node):
 
         Raises:
             ValueError: If wait_time is not greater than 0.
+            TypeError: If wait_time is not a number.
         """
-        if wait_time <= 0:
-            raise ValueError("wait_time must be greater than 0.")
+        if not isinstance(name, str):
+            raise TypeError("name must be a string.")
+        if not isinstance(wait_time, (float, int)) or wait_time <= 0:
+            raise ValueError("wait_time must be a positive number.")
         
         super().__init__(node_type='wait', 
                          name=name,
