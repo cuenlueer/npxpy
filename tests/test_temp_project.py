@@ -26,8 +26,8 @@ edit_presets = {"writing_speed" : 220000.0,
 preset = n.Preset(name = "supervalidname", **edit_presets)
 
 
-resource_mesh = n.Mesh(name = ' .', path = "resources/5416ba193f0bacf1e37be08d5c249914/combined_file.stl", rotation = [25,85,"20"])
-resource_image = n.Image(name = '.', path = "resources/78eab7abd2cd201630ba30ed5a7ef4fc/markers.png")
+resource_mesh = n.Mesh(name = ' .', path = "test_resources/5416ba193f0bacf1e37be08d5c249914/combined_file.stl", rotation = [25,85,"20"])
+resource_image = n.Image(name = '.', path = "test_resources/78eab7abd2cd201630ba30ed5a7ef4fc/markers.png")
 
 
 

@@ -1,0 +1,27 @@
+format = "2.34+hotfix1"
+version = 1
+valid_objectives = [
+    "25x",
+]
+valid_resins = [
+    "IP-Visio",
+]
+valid_substrates = [
+    "*",
+]
+writing_speed = 75000.0
+writing_power = 110.0
+slicing_spacing = 0.5
+hatching_spacing = 0.3
+hatching_angle = 0.0
+hatching_angle_increment = 0.0
+hatching_offset = 0.0
+hatching_offset_increment = 0.0
+hatching_back_n_forth = true
+mesh_z_offset = 0.0
+grayscale_multilayer_enabled = false
+grayscale_layer_profile_nr_layers = 6.0
+grayscale_writing_power_minimum = 0.0
+grayscale_exponent = 1.0
+
+[properties]
