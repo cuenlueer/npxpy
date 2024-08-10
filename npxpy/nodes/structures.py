@@ -80,7 +80,6 @@ class Structure(Node):
 
         super().__init__('structure', 
                          name, 
-                         preset=preset.id, 
                          slicing_origin_reference=slicing_origin,
                          slicing_offset=slicing_offset, 
                          priority=priority,
@@ -186,6 +185,7 @@ class Structure(Node):
                 'scale': [self.size[0] / 100, self.size[1] / 100, self.size[2] / 100]
             }
         node_dict = super().to_dict()
+        node_dict['preset'] = self.preset.id
         node_dict['geometry'] = self.geometry
         return node_dict
 

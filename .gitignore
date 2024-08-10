@@ -1,5 +1,6 @@
 
 *.nano
 *.pyc
-*.nano
-*.nano
+/npxpy.egg-info
+todo_go_here.md
+alt.yml

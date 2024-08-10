@@ -7,7 +7,7 @@
    viewBox="0 0 655.54639 177.30368"
    version="1.1"
    id="svg1"
-   sodipodi:docname="npxpy.svg"
+   sodipodi:docname="logo.svg"
    inkscape:version="1.3.2 (091e20e, 2023-11-25, custom)"
    xml:space="preserve"
    inkscape:export-filename="npxpy_correctcolors_dark.png"
@@ -27,9 +27,9 @@
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
      inkscape:document-units="mm"
-     inkscape:zoom="0.5"
-     inkscape:cx="1224"
-     inkscape:cy="269"
+     inkscape:zoom="0.25"
+     inkscape:cx="1328"
+     inkscape:cy="778"
      inkscape:window-width="1920"
      inkscape:window-height="1009"
      inkscape:window-x="-8"
@@ -139,7 +139,14 @@
      inkscape:label="Ebene 1"
      inkscape:groupmode="layer"
      id="layer1"
-     transform="translate(204.93502,-944.08461)"><g
+     transform="translate(204.93502,-944.08461)"><rect
+       style="fill:#ffffff;fill-rule:evenodd;stroke-width:0.264583;fill-opacity:0.00543478"
+       id="rect1"
+       width="655.29767"
+       height="177.17868"
+       x="-204.93501"
+       y="944.08459"
+       transform="translate(1.0833333e-6)" /><g
        id="g7"
        transform="matrix(0.999764,0,0,1.0000003,32.870245,0.31540813)" /><path
        style="fill:url(#radialGradient18-2-6);fill-opacity:1;stroke:none;stroke-opacity:1"

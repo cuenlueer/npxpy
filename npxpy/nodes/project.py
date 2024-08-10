@@ -155,7 +155,7 @@ class Project(Node):
         Creates a .nano file for the project.
 
         This method collects the current presets and resources, saves them into a .toml file, and packages them
-        along with project information into a .nano file (a .zip archive with a custom extension).
+        along with project information into a .nano file.
 
         Args:
             project_name (str): The name of the project, used as the base name for the .nano file.

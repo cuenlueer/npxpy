@@ -104,12 +104,8 @@ class Node:
         """
         if self._type == 'structure':
             raise ValueError('Structure objects (including Text and Lens) are terminal nodes! They cannot have children!')
-        if child_node._type == 'project':
+        elif child_node._type == 'project':
             raise ValueError('A project node can never be a child to any node!')
-
-        if child_node._type == 'structure':
-            if not self._has_ancestor_of_type('scene'):
-                print('WARNING: Structures have to be inside Scene nodes!')
         elif child_node._type == 'scene':
             if self._has_ancestor_of_type('scene'):
                 raise ValueError('Nested scenes are not allowed!')
@@ -118,10 +114,15 @@ class Node:
         self.children_nodes.append(child_node)
         self.all_descendants = self._generate_all_descendants()  # Update descendants list
         child_node.all_ancestors = child_node._generate_all_ancestors()  # Update ancestors list
-        
+
         for i in self.all_descendants + child_node.all_ancestors:  # Update for the whole batch of nodes their ancestors and descendants
             i.all_descendants = i._generate_all_descendants()
             i.all_ancestors = i._generate_all_ancestors()
+        
+        if child_node._type == 'structure':
+            if not 'scene' in [i._type for i in self.all_ancestors] and 'scene' != self._type:
+                print('WARNING: Structures have to be inside Scene nodes!')
+        
         return self
 
     def _has_ancestor_of_type(self, node_type: str) -> bool:

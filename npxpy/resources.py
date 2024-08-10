@@ -8,8 +8,9 @@ Neuromorphic Quantumphotonics
 Heidelberg University
 E-Mail:	caghan.uenlueer@kip.uni-heidelberg.de
 
-This file is part of npxpy (formerly nanoAPI), which is licensed under the GNU Lesser General Public License v3.0.
-You can find a copy of this license at https://www.gnu.org/licenses/lgpl-3.0.html
+This file is part of npxpy (formerly nanoAPI), which is licensed under the GNU 
+Lesser General Public License v3.0. You can find a copy of this license at
+https://www.gnu.org/licenses/lgpl-3.0.html
 """
 import uuid
 import os
@@ -149,7 +150,7 @@ class Mesh(Resource):
                  scale: List[float] = [1.0, 1.0, 1.0],  # scale number
                  enhance_mesh: bool = True,
                  simplify_mesh: bool = False,
-                 target_ratio: float = 100.0                 ):
+                 target_ratio: float = 100.0):
         """
         Initialize the mesh resource with the specified parameters.
 
@@ -180,6 +181,13 @@ class Mesh(Resource):
         super().__init__(**validated_data)
 
         # Assign validated attributes to self
+        self.translation = validated_data['translation']
+        self.auto_center = validated_data['auto_center']
+        self.rotation = validated_data['rotation']
+        self.scale = validated_data['scale']
+        self.enhance_mesh = validated_data['enhance_mesh']
+        self.simplify_mesh = validated_data['simplify_mesh']
+        self.target_ratio = validated_data['target_ratio']
 
         self.original_triangle_count = self._get_triangle_count(self.fetch_from)
 
