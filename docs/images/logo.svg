@@ -27,9 +27,9 @@
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
      inkscape:document-units="mm"
-     inkscape:zoom="0.25"
-     inkscape:cx="1328"
-     inkscape:cy="778"
+     inkscape:zoom="1"
+     inkscape:cx="262"
+     inkscape:cy="688.5"
      inkscape:window-width="1920"
      inkscape:window-height="1009"
      inkscape:window-x="-8"
@@ -140,7 +140,7 @@
      inkscape:groupmode="layer"
      id="layer1"
      transform="translate(204.93502,-944.08461)"><rect
-       style="fill:#ffffff;fill-rule:evenodd;stroke-width:0.264583;fill-opacity:0.00543478"
+       style="fill:#ffffff;fill-rule:evenodd;stroke-width:0.264583;fill-opacity:0"
        id="rect1"
        width="655.29767"
        height="177.17868"
@@ -196,7 +196,9 @@
        xml:space="preserve"
        transform="matrix(0.19391006,0,0,0.19267265,-201.78204,991.43777)"
        id="text102"
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:36.5024px;line-height:1.25;font-family:Ar;-inkscape-font-specification:Ar;white-space:pre;shape-inside:url(#rect102);display:inline;fill:#ffffff;fill-opacity:1;stroke:#000000;stroke-width:1.29339;stroke-dasharray:none;stroke-opacity:1"><tspan
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:36.5024px;line-height:1.25;font-family:Ar;-inkscape-font-specification:Ar;white-space:pre;shape-inside:url(#rect102);display:inline;fill:#ffffff;fill-opacity:0.25;stroke:none;stroke-width:1.29339;stroke-dasharray:none;stroke-opacity:1"><tspan
          x="0"
          y="647.21263"
-         id="tspan1">©Caghan Ünlüer 2024</tspan></text></g></svg>
+         id="tspan4"><tspan
+           style="fill-opacity:0.08"
+           id="tspan2">©Caghan Ünlüer 2024</tspan></tspan></text></g></svg>

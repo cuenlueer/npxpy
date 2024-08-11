@@ -1,0 +1,20 @@
+/* Increase the width of the main container */
+.md-container {
+    max-width: 1920px; /* Adjust this value as needed */
+    margin: 0 auto; /* Center the container */
+}
+
+/* Adjust the width of the sidebar navigation (Table of Contents) */
+.md-sidebar {
+    width: 300px; /* Adjust this width as needed */
+}
+
+/* Ensure the content area aligns properly with the adjusted sidebar */
+.md-main {
+    margin-left: 320px; /* Matches sidebar width + some margin */
+}
+
+/* Optionally, you can adjust the inner content area width */
+.md-main__inner {
+    max-width: 900px; /* Adjust this value to make the content area wider */
+}

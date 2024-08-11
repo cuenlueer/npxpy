@@ -1,0 +1,96 @@
+site_name: npxpy
+extra_css:
+  - stylesheets/extra.css
+  
+theme:
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.tabs.link
+    - content.code.annotation
+    - content.code.copy
+  favicon: images/favicon.ico
+  logo: images/logo.svg
+  name: material
+  palette:
+
+    # Palette toggle for light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: grey
+      accent: 
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to dark mode
+        
+    # Palette toggle for dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: black
+      accent: teal
+      toggle:
+        icon: material/weather-night
+        name: Switch to system preference
+
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: google  # or numpy, sphinx, etc.
+
+markdown_extensions:
+  - toc
+  - tables
+  - admonition
+  - footnotes
+  - codehilite
+  - md_in_html
+  - pymdownx.superfences
+  - pymdownx.details
+  - pymdownx.tasklist
+
+#extra_css:
+#  - 'stylesheets/custom.css'
+
+nav:
+  - Home: README.md
+  - Documentation:
+    - Overview: 
+        - "Where to start?": overview.md
+    - "npxypy.nodes":
+        - "npxypy.nodes.node":
+           -  ".Node": nodes/Node.md
+        - "npxypy.nodes.project":
+           - ".Project": nodes/Project.md
+        - "npxypy.nodes.space": 
+           - ".Scene": nodes/space/Scene.md
+           - ".Group": nodes/space/Group.md
+           - ".Array": nodes/space/Array.md
+        - "npxypy.nodes.structures": 
+            - ".Structure": nodes/structures/Structure.md
+            - ".Text": nodes/structures/Text.md
+            - ".Lens": nodes/structures/Lens.md
+        - "npxypy.nodes.aligners": 
+            - ".CoarseAligner": nodes/aligners/CoarseAligner.md
+            - ".InterfaceAligner": nodes/aligners/InterfaceAligner.md
+            - ".FiberAligner": nodes/aligners/FiberAligner.md
+            - ".MarkerAligner": nodes/aligners/MarkerAligner.md
+            - ".EdgeAligner": nodes/aligners/EdgeAligner.md
+        - "npxypy.nodes.misc": 
+            - ".DoseCompensation": nodes/misc/DoseCompensation.md
+            - ".Capture": nodes/misc/Capture.md
+            - ".StageMove": nodes/misc/StageMove.md
+            - ".Wait": nodes/misc/Wait.md
+    - "npxpy.resources":
+        - ".Image": resources/Image.md
+        - ".Mesh": resources/Mesh.md
+    - "npxpy.preset":
+        - ".Preset":  preset/Preset.md
+  - Examples: 
+      - "Multi-.stl-sweep": .md

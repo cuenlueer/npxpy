@@ -3,4 +3,7 @@
 *.pyc
 /npxpy.egg-info
 todo_go_here.md
-alt.yml
+CHANGELOG.md
+README_finalversion.md
+adjusthashes.py
+docs/images/desktop.ini
