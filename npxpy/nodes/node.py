@@ -86,7 +86,14 @@ class Node:
         Parameters:
             child_node (Node): The child node to add.
         """
-        if self._type == "structure":
+        if not all(
+            hasattr(child_node, attr)
+            for attr in ["_type", "all_descendants", "all_ancestors"]
+        ):
+            raise TypeError(
+                "Only instances of nodes can be added as children to nodes!"
+            )
+        elif self._type == "structure":
             raise ValueError(
                 "Structure, Text and Lens are terminal nodes! They cannot have children!"
             )

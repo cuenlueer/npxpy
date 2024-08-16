@@ -1,119 +1,99 @@
 import unittest
-from unittest.mock import patch, mock_open
-import uuid
-import os
-import hashlib
-from npxpy.resources import Resource, Image, Mesh
+from npxpy.resources import Image
+from npxpy.nodes.aligners import CoarseAligner
+from npxpy.nodes.aligners import InterfaceAligner
+from npxpy.nodes.aligners import FiberAligner
+from npxpy.nodes.aligners import MarkerAligner
+from npxpy.nodes.aligners import EdgeAligner
 
-# Paths to test resources
-TEST_IMAGE_PATH = 'test_resources/78eab7abd2cd201630ba30ed5a7ef4fc/markers.png'
-TEST_MESH_PATH = 'test_resources/5416ba193f0bacf1e37be08d5c249914/combined_file.stl'
+# Define test resource paths
+TEST_IMAGE_PATH = "test_resources/78eab7abd2cd201630ba30ed5a7ef4fc/markers.png"
 
-class TestResource(unittest.TestCase):
+
+class TestAligners(unittest.TestCase):
     def setUp(self):
-        self.resource_type = 'test_type'
-        self.name = 'test_name'
-        self.path = TEST_IMAGE_PATH
-        self.kwargs = {'attr1': 'value1', 'attr2': 'value2'}
-        self.resource = Resource(self.resource_type, self.name, self.path, **self.kwargs)
+        self.image = Image(path=TEST_IMAGE_PATH)
 
-    def test_init(self):
-        self.assertEqual(self.resource._type, self.resource_type)
-        self.assertEqual(self.resource.name, self.name)
-        self.assertEqual(self.resource.fetch_from, self.path)
-        self.assertEqual(self.resource.unique_attributes, self.kwargs)
-        self.assertTrue(uuid.UUID(self.resource.id))
-
-    def test_init_empty_name(self):
+    def test_coarse_aligner_initialization(self):
+        coarse_aligner = CoarseAligner(residual_threshold=5.0)
+        self.assertEqual(coarse_aligner.residual_threshold, 5.0)
         with self.assertRaises(ValueError):
-            Resource(self.resource_type, '', self.path)
+            CoarseAligner(residual_threshold=-1)  # Invalid threshold
 
-    def test_generate_path(self):
-        with open(TEST_IMAGE_PATH, 'rb') as f:
-            file_content = f.read()
-        file_hash = hashlib.md5(file_content).hexdigest()
-        expected_path = f'resources/{file_hash}/{os.path.basename(self.path)}'
+        # Test adding coarse anchors
+        coarse_aligner.add_coarse_anchor("Anchor 1", [0, 0, 0])
+        self.assertEqual(len(coarse_aligner.alignment_anchors), 1)
 
-        with patch("builtins.open", mock_open(read_data=file_content)), \
-             patch("os.path.isfile", return_value=True):
-            self.assertEqual(self.resource.generate_path(self.path), expected_path)
+    def test_interface_aligner_initialization(self):
+        interface_aligner = InterfaceAligner(
+            signal_type="reflection", detector_type="camera"
+        )
+        self.assertEqual(interface_aligner.signal_type, "reflection")
+        self.assertEqual(interface_aligner.detector_type, "camera")
 
-    def test_generate_path_file_not_found(self):
-        with self.assertRaises(FileNotFoundError):
-            self.resource.generate_path('nonexistent_path.txt')
+        # Test grid setting
+        interface_aligner.set_grid([5, 5], [100.0, 100.0])
+        self.assertEqual(interface_aligner.count, [5, 5])
+        self.assertEqual(interface_aligner.size, [100.0, 100.0])
 
-    def test_to_dict(self):
-        expected_dict = {
-            "type": self.resource_type,
-            "id": self.resource.id,
-            "name": self.name,
-            "path": self.resource.path,
-            **self.kwargs
-        }
-        self.assertEqual(self.resource.to_dict(), expected_dict)
+    def test_fiber_aligner_initialization(self):
+        fiber_aligner = FiberAligner(
+            fiber_radius=63.5, core_signal_lower_threshold=0.05
+        )
+        self.assertEqual(fiber_aligner.fiber_radius, 63.5)
+        self.assertEqual(fiber_aligner.core_signal_lower_threshold, 0.05)
 
-class TestImage(unittest.TestCase):
-    def setUp(self):
-        self.path = TEST_IMAGE_PATH
-        self.image = Image(self.path)
+        with self.assertRaises(ValueError):
+            FiberAligner(fiber_radius=-5)  # Invalid fiber radius
 
-    def test_init(self):
-        self.assertEqual(self.image._type, 'image_file')
-        self.assertEqual(self.image.name, 'image')
-        self.assertEqual(self.image.fetch_from, self.path)
+    def test_marker_aligner_initialization(self):
+        marker_aligner = MarkerAligner(
+            image=self.image, marker_size=[10.0, 10.0]
+        )
+        self.assertEqual(marker_aligner.marker_size, [10.0, 10.0])
+        self.assertEqual(
+            marker_aligner.image.path,
+            "resources/" + TEST_IMAGE_PATH.split("/")[1] + "/markers.png",
+        )
 
-    def test_init_file_not_found(self):
-        with self.assertRaises(FileNotFoundError):
-            Image('nonexistent_image.jpg')
+        # Test marker addition
+        marker_aligner.add_marker("Marker 1", 90.0, [0, 0])
+        self.assertEqual(len(marker_aligner.alignment_anchors), 1)
 
-class TestMesh(unittest.TestCase):
-    def setUp(self):
-        self.path = TEST_MESH_PATH
-        self.name = 'test_mesh'
-        self.translation = [0, 0, 0]
-        self.auto_center = False
-        self.rotation = [0.0, 0.0, 0.0]
-        self.scale = [1.0, 1.0, 1.0]
-        self.enhance_mesh = True
-        self.simplify_mesh = False
-        self.target_ratio = 100.0
-        self.mesh = Mesh(self.path, self.name, self.translation, self.auto_center, self.rotation, self.scale, self.enhance_mesh, self.simplify_mesh, self.target_ratio)
+    def test_edge_aligner_initialization(self):
+        edge_aligner = EdgeAligner(
+            edge_location=[0.0, 0.0], edge_orientation=45.0
+        )
+        self.assertEqual(edge_aligner.edge_location, [0.0, 0.0])
+        self.assertEqual(edge_aligner.edge_orientation, 45.0)
 
-    @patch('os.path.isfile', return_value=True)
-    @patch('stl.mesh.Mesh.from_file')
-    def test_init(self, mock_from_file, mock_isfile):
-        self.assertEqual(self.mesh._type, 'mesh_file')
-        self.assertEqual(self.mesh.name, self.name)
-        self.assertEqual(self.mesh.fetch_from, self.path)
-        self.assertEqual(self.mesh.translation, self.translation)
-        self.assertEqual(self.mesh.auto_center, self.auto_center)
-        self.assertEqual(self.mesh.rotation, self.rotation)
-        self.assertEqual(self.mesh.scale, self.scale)
-        self.assertEqual(self.mesh.enhance_mesh, self.enhance_mesh)
-        self.assertEqual(self.mesh.simplify_mesh, self.simplify_mesh)
-        self.assertEqual(self.mesh.target_ratio, self.target_ratio)
+        # Test measurement addition
+        edge_aligner.add_measurement("Edge 1", 0.1, [50.0, 50.0])
+        self.assertEqual(len(edge_aligner.alignment_anchors), 1)
 
-    def test_init_file_not_found(self):
-        with self.assertRaises(FileNotFoundError):
-            Mesh('nonexistent_mesh.stl')
+    def test_to_dict_methods(self):
+        # Ensure the to_dict method generates proper output
+        coarse_aligner = CoarseAligner(residual_threshold=10.0)
+        self.assertIn("residual_threshold", coarse_aligner.to_dict())
 
-    @patch('os.path.isfile', return_value=True)
-    @patch('stl.mesh.Mesh.from_file')
-    def test_get_triangle_count(self, mock_from_file, mock_isfile):
-        mock_mesh = mock_from_file.return_value
-        mock_mesh.vectors = [1, 2, 3]
-        self.assertEqual(self.mesh._get_triangle_count(self.path), 3)
+        interface_aligner = InterfaceAligner()
+        self.assertIn(
+            "detector_type", interface_aligner.to_dict()["properties"]
+        )
 
-    @patch('os.path.isfile', return_value=True)
-    @patch('stl.mesh.Mesh.from_file', side_effect=Exception('Error reading STL file'))
-    def test_get_triangle_count_exception(self, mock_from_file, mock_isfile):
-        with self.assertRaises(Exception):
-            self.mesh._get_triangle_count(self.path)
+        fiber_aligner = FiberAligner()
+        self.assertIn("fiber_radius", fiber_aligner.to_dict())
 
-    def test_to_dict(self):
-        resource_dict = self.mesh.to_dict()
-        self.assertIn('properties', resource_dict)
-        self.assertIn('original_triangle_count', resource_dict['properties'])
+        marker_aligner = MarkerAligner(image=self.image)
+        self.assertIn("marker", marker_aligner.to_dict())
 
-if __name__ == '__main__':
+        edge_aligner = EdgeAligner()
+        self.assertNotIn("edge_location", edge_aligner.to_dict())
+        self.assertEqual(
+            edge_aligner.edge_location,
+            edge_aligner.to_dict()["xy_position_local_cos"],
+        )
+
+
+if __name__ == "__main__":
     unittest.main()

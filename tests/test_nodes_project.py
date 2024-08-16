@@ -1,119 +1,110 @@
 import unittest
-from unittest.mock import patch, mock_open
-import uuid
-import os
-import hashlib
-from npxpy.resources import Resource, Image, Mesh
+from unittest.mock import patch
+from npxpy.nodes.project import Project
+from npxpy.resources import Image, Mesh
+from npxpy.preset import Preset
 
-# Paths to test resources
-TEST_IMAGE_PATH = 'test_resources/78eab7abd2cd201630ba30ed5a7ef4fc/markers.png'
-TEST_MESH_PATH = 'test_resources/5416ba193f0bacf1e37be08d5c249914/combined_file.stl'
+# Define test resource paths
+TEST_IMAGE_PATH = "test_resources/78eab7abd2cd201630ba30ed5a7ef4fc/markers.png"
+TEST_MESH_PATH = (
+    "test_resources/5416ba193f0bacf1e37be08d5c249914/combined_file.stl"
+)
 
-class TestResource(unittest.TestCase):
+
+class TestProjectClass(unittest.TestCase):
     def setUp(self):
-        self.resource_type = 'test_type'
-        self.name = 'test_name'
-        self.path = TEST_IMAGE_PATH
-        self.kwargs = {'attr1': 'value1', 'attr2': 'value2'}
-        self.resource = Resource(self.resource_type, self.name, self.path, **self.kwargs)
+        # Set up dummy data for presets, image, and mesh
+        self.preset_1 = Preset(
+            name="Test Preset 1",
+            valid_objectives=["25x"],
+            valid_resins=["IP-n162"],
+        )
+        self.preset_2 = Preset(
+            name="Test Preset 2",
+            valid_objectives=["25x"],
+            valid_resins=["IP-Visio"],
+        )
 
-    def test_init(self):
-        self.assertEqual(self.resource._type, self.resource_type)
-        self.assertEqual(self.resource.name, self.name)
-        self.assertEqual(self.resource.fetch_from, self.path)
-        self.assertEqual(self.resource.unique_attributes, self.kwargs)
-        self.assertTrue(uuid.UUID(self.resource.id))
+        self.image = Image(path=TEST_IMAGE_PATH)
+        self.mesh = Mesh(path=TEST_MESH_PATH)
 
-    def test_init_empty_name(self):
+    def test_project_initialization(self):
+        # Create a valid project
+        with patch("os.getlogin", return_value="test_user"):
+            project = Project(objective="25x", resin="IP-n162", substrate="*")
+
+        self.assertEqual(project.objective, "25x")
+        self.assertEqual(project.resin, "IP-n162")
+        self.assertEqual(project.substrate, "*")
+        self.assertEqual(project.project_info["author"], "test_user")
+        self.assertTrue("creation_date" in project.project_info)
+
+    def test_invalid_objective(self):
+        # Test for invalid objective value
         with self.assertRaises(ValueError):
-            Resource(self.resource_type, '', self.path)
+            Project(objective="100x", resin="IP-n162", substrate="*")
 
-    def test_generate_path(self):
-        with open(TEST_IMAGE_PATH, 'rb') as f:
-            file_content = f.read()
-        file_hash = hashlib.md5(file_content).hexdigest()
-        expected_path = f'resources/{file_hash}/{os.path.basename(self.path)}'
+    def test_invalid_resin(self):
+        # Test for invalid resin value
+        with self.assertRaises(ValueError):
+            Project(objective="25x", resin="Unknown Resin", substrate="*")
 
-        with patch("builtins.open", mock_open(read_data=file_content)), \
-             patch("os.path.isfile", return_value=True):
-            self.assertEqual(self.resource.generate_path(self.path), expected_path)
+    def test_invalid_substrate(self):
+        # Test for invalid substrate value
+        with self.assertRaises(ValueError):
+            Project(
+                objective="25x", resin="IP-n162", substrate="InvalidSubstrate"
+            )
 
-    def test_generate_path_file_not_found(self):
-        with self.assertRaises(FileNotFoundError):
-            self.resource.generate_path('nonexistent_path.txt')
+    def test_load_presets(self):
+        # Create a valid project and load presets
+        project = Project(objective="25x", resin="IP-n162", substrate="*")
+        project.load_presets(self.preset_1)
+        self.assertIn(self.preset_1, project.presets)
 
-    def test_to_dict(self):
-        expected_dict = {
-            "type": self.resource_type,
-            "id": self.resource.id,
-            "name": self.name,
-            "path": self.resource.path,
-            **self.kwargs
-        }
-        self.assertEqual(self.resource.to_dict(), expected_dict)
+        # Test loading multiple presets
+        project.load_presets([self.preset_1, self.preset_2])
+        self.assertIn(self.preset_2, project.presets)
 
-class TestImage(unittest.TestCase):
-    def setUp(self):
-        self.path = TEST_IMAGE_PATH
-        self.image = Image(self.path)
+    def test_load_invalid_presets(self):
+        # Create a valid project and test loading invalid presets
+        project = Project(objective="25x", resin="IP-n162", substrate="*")
+        with self.assertRaises(TypeError):
+            project.load_presets("Invalid Preset")  # Not a Preset instance
 
-    def test_init(self):
-        self.assertEqual(self.image._type, 'image_file')
-        self.assertEqual(self.image.name, 'image')
-        self.assertEqual(self.image.fetch_from, self.path)
+    def test_load_image_and_mesh(self):
+        # Create a valid project and load image and mesh resources
+        project = Project(objective="25x", resin="IP-n162", substrate="*")
+        project.load_resources(self.image)
+        project.load_resources(self.mesh)
 
-    def test_init_file_not_found(self):
-        with self.assertRaises(FileNotFoundError):
-            Image('nonexistent_image.jpg')
+        self.assertIn(self.image, project.resources)
+        self.assertIn(self.mesh, project.resources)
 
-class TestMesh(unittest.TestCase):
-    def setUp(self):
-        self.path = TEST_MESH_PATH
-        self.name = 'test_mesh'
-        self.translation = [0, 0, 0]
-        self.auto_center = False
-        self.rotation = [0.0, 0.0, 0.0]
-        self.scale = [1.0, 1.0, 1.0]
-        self.enhance_mesh = True
-        self.simplify_mesh = False
-        self.target_ratio = 100.0
-        self.mesh = Mesh(self.path, self.name, self.translation, self.auto_center, self.rotation, self.scale, self.enhance_mesh, self.simplify_mesh, self.target_ratio)
+    def test_load_invalid_resources(self):
+        # Create a valid project and test loading invalid resources
+        project = Project(objective="25x", resin="IP-n162", substrate="*")
+        with self.assertRaises(TypeError):
+            project.load_resources(
+                "Invalid Resource"
+            )  # Not an Image or Mesh instance
 
-    @patch('os.path.isfile', return_value=True)
-    @patch('stl.mesh.Mesh.from_file')
-    def test_init(self, mock_from_file, mock_isfile):
-        self.assertEqual(self.mesh._type, 'mesh_file')
-        self.assertEqual(self.mesh.name, self.name)
-        self.assertEqual(self.mesh.fetch_from, self.path)
-        self.assertEqual(self.mesh.translation, self.translation)
-        self.assertEqual(self.mesh.auto_center, self.auto_center)
-        self.assertEqual(self.mesh.rotation, self.rotation)
-        self.assertEqual(self.mesh.scale, self.scale)
-        self.assertEqual(self.mesh.enhance_mesh, self.enhance_mesh)
-        self.assertEqual(self.mesh.simplify_mesh, self.simplify_mesh)
-        self.assertEqual(self.mesh.target_ratio, self.target_ratio)
+    @patch("os.path.isfile", return_value=True)
+    def test_nano_file_creation(self, mock_isfile):
+        # Test the .nano file creation
+        project = Project(objective="25x", resin="IP-n162", substrate="*")
+        project.load_presets(self.preset_1)
+        project.load_resources(self.image)
 
-    def test_init_file_not_found(self):
-        with self.assertRaises(FileNotFoundError):
-            Mesh('nonexistent_mesh.stl')
+        # Mock resource file path and name for adding to zip
+        with patch(
+            "builtins.open", unittest.mock.mock_open(read_data="data")
+        ), patch("zipfile.ZipFile.writestr"):
+            project.nano(project_name="TestProject", path="./test_path")
 
-    @patch('os.path.isfile', return_value=True)
-    @patch('stl.mesh.Mesh.from_file')
-    def test_get_triangle_count(self, mock_from_file, mock_isfile):
-        mock_mesh = mock_from_file.return_value
-        mock_mesh.vectors = [1, 2, 3]
-        self.assertEqual(self.mesh._get_triangle_count(self.path), 3)
+        # Check that resource was written to the zip file
+        self.assertTrue(mock_isfile.called)
 
-    @patch('os.path.isfile', return_value=True)
-    @patch('stl.mesh.Mesh.from_file', side_effect=Exception('Error reading STL file'))
-    def test_get_triangle_count_exception(self, mock_from_file, mock_isfile):
-        with self.assertRaises(Exception):
-            self.mesh._get_triangle_count(self.path)
 
-    def test_to_dict(self):
-        resource_dict = self.mesh.to_dict()
-        self.assertIn('properties', resource_dict)
-        self.assertIn('original_triangle_count', resource_dict['properties'])
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

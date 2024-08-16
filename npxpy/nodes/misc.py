@@ -8,8 +8,9 @@ Neuromorphic Quantumphotonics
 Heidelberg University
 E-Mail:	caghan.uenlueer@kip.uni-heidelberg.de
 
-This file is part of npxpy (formerly nanoAPI), which is licensed under the GNU Lesser General Public License v3.0.
-You can find a copy of this license at https://www.gnu.org/licenses/lgpl-3.0.html
+This file is part of npxpy (formerly nanoAPI), which is licensed under the GNU
+Lesser General Public License v3.0. You can find a copy of this license at
+https://www.gnu.org/licenses/lgpl-3.0.html
 """
 from typing import Dict, Any, List, Union
 from npxpy.nodes.node import Node
@@ -17,7 +18,8 @@ from npxpy.nodes.node import Node
 
 class DoseCompensation(Node):
     """
-    A class to represent dose compensation with various attributes and methods for managing dose settings.
+    A class to represent dose compensation with various attributes and methods
+    for managing dose settings.
 
     Attributes:
         edge_location (List[Union[float, int]]): Location of the edge [x, y, z] in micrometers.
@@ -160,7 +162,8 @@ class DoseCompensation(Node):
 
 class Capture(Node):
     """
-    A class to represent a capture node with attributes and methods for managing capture settings.
+    A class to represent a capture node with attributes and methods for managing
+    capture settings.
 
     Attributes:
         capture_type (str): The type of capture (e.g., 'Camera', 'Confocal').

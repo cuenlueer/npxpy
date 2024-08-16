@@ -44,33 +44,6 @@ class Project(Node):
         Raises:
             ValueError: If any of the parameters have invalid values.
         """
-        valid_objectives = {"25x", "63x", "*"}
-        valid_resins = {
-            "IP-PDMS",
-            "IPX-S",
-            "IP-L",
-            "IP-n162",
-            "IP-Dip2",
-            "IP-Dip",
-            "IP-S",
-            "IP-Vision",
-            "*",
-        }
-        valid_substrates = {"*", "Si", "FuSi"}
-
-        if objective not in valid_objectives:
-            raise ValueError(
-                f"Invalid objective: {objective}. Must be one of {valid_objectives}."
-            )
-        if resin not in valid_resins:
-            raise ValueError(
-                f"Invalid resin: {resin}. Must be one of {valid_resins}."
-            )
-        if substrate not in valid_substrates:
-            raise ValueError(
-                f"Invalid substrate: {substrate}. Must be one of {valid_substrates}."
-            )
-
         super().__init__(node_type="project", name="Project")
 
         self.objective = objective
@@ -115,7 +88,7 @@ class Project(Node):
             "IP-Dip2",
             "IP-Dip",
             "IP-S",
-            "IP-Vision",
+            "IP-Visio",
             "*",
         }
         if value not in valid_resins:

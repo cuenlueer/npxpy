@@ -8,8 +8,9 @@ Neuromorphic Quantumphotonics
 Heidelberg University
 E-Mail:	caghan.uenlueer@kip.uni-heidelberg.de
 
-This file is part of npxpy (formerly nanoAPI), which is licensed under the GNU Lesser General Public License v3.0.
-You can find a copy of this license at https://www.gnu.org/licenses/lgpl-3.0.html
+This file is part of npxpy (formerly nanoAPI), which is licensed under the GNU
+Lesser General Public License v3.0. You can find a copy of this license at
+https://www.gnu.org/licenses/lgpl-3.0.html
 """
 from typing import Dict, Any, List, Union
 from npxpy.nodes.node import Node
@@ -727,7 +728,7 @@ class MarkerAligner(Node):
         self,
         image: Image,
         name: str = "Marker aligner",
-        marker_size: List[float] = [0.0, 0.0],
+        marker_size: List[float] = [5.0, 5.0],
         center_stage: bool = True,
         action_upon_failure: str = "abort",
         laser_power: float = 0.5,

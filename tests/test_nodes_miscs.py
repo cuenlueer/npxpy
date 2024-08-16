@@ -1,119 +1,119 @@
 import unittest
-from unittest.mock import patch, mock_open
-import uuid
-import os
-import hashlib
-from npxpy.resources import Resource, Image, Mesh
+from npxpy.nodes.misc import DoseCompensation
+from npxpy.nodes.misc import Capture
+from npxpy.nodes.misc import StageMove
+from npxpy.nodes.misc import Wait
 
-# Paths to test resources
-TEST_IMAGE_PATH = 'test_resources/78eab7abd2cd201630ba30ed5a7ef4fc/markers.png'
-TEST_MESH_PATH = 'test_resources/5416ba193f0bacf1e37be08d5c249914/combined_file.stl'
 
-class TestResource(unittest.TestCase):
-    def setUp(self):
-        self.resource_type = 'test_type'
-        self.name = 'test_name'
-        self.path = TEST_IMAGE_PATH
-        self.kwargs = {'attr1': 'value1', 'attr2': 'value2'}
-        self.resource = Resource(self.resource_type, self.name, self.path, **self.kwargs)
+class TestNewNodeSubclasses(unittest.TestCase):
+    # Test DoseCompensation class
+    def test_dose_compensation_initialization(self):
+        dose_comp = DoseCompensation()
+        self.assertEqual(dose_comp.name, "Dose compensation 1")
+        self.assertEqual(dose_comp.edge_location, [0.0, 0.0, 0.0])
+        self.assertEqual(dose_comp.edge_orientation, 0.0)
+        self.assertEqual(dose_comp.domain_size, [200.0, 100.0, 100.0])
+        self.assertEqual(dose_comp.gain_limit, 2.0)
 
-    def test_init(self):
-        self.assertEqual(self.resource._type, self.resource_type)
-        self.assertEqual(self.resource.name, self.name)
-        self.assertEqual(self.resource.fetch_from, self.path)
-        self.assertEqual(self.resource.unique_attributes, self.kwargs)
-        self.assertTrue(uuid.UUID(self.resource.id))
+    def test_dose_compensation_edge_location_setter(self):
+        dose_comp = DoseCompensation()
+        dose_comp.edge_location = [10.0, 20.0, 30.0]
+        self.assertEqual(dose_comp.edge_location, [10.0, 20.0, 30.0])
 
-    def test_init_empty_name(self):
+        with self.assertRaises(TypeError):
+            dose_comp.edge_location = [10.0, 20.0]  # Length mismatch
+        with self.assertRaises(TypeError):
+            dose_comp.edge_location = ["x", 20.0, 30.0]  # Invalid type
+
+    def test_dose_compensation_domain_size_setter(self):
+        dose_comp = DoseCompensation()
+        dose_comp.domain_size = [150.0, 200.0, 300.0]
+        self.assertEqual(dose_comp.domain_size, [150.0, 200.0, 300.0])
+
         with self.assertRaises(ValueError):
-            Resource(self.resource_type, '', self.path)
+            dose_comp.domain_size = [150.0, -200.0, 300.0]  # Negative value
+        with self.assertRaises(TypeError):
+            dose_comp.domain_size = [150.0]  # Length mismatch
 
-    def test_generate_path(self):
-        with open(TEST_IMAGE_PATH, 'rb') as f:
-            file_content = f.read()
-        file_hash = hashlib.md5(file_content).hexdigest()
-        expected_path = f'resources/{file_hash}/{os.path.basename(self.path)}'
+    def test_dose_compensation_gain_limit_setter(self):
+        dose_comp = DoseCompensation()
+        dose_comp.gain_limit = 3.0
+        self.assertEqual(dose_comp.gain_limit, 3.0)
 
-        with patch("builtins.open", mock_open(read_data=file_content)), \
-             patch("os.path.isfile", return_value=True):
-            self.assertEqual(self.resource.generate_path(self.path), expected_path)
+        with self.assertRaises(ValueError):
+            dose_comp.gain_limit = 0.5  # Below 1.0
 
-    def test_generate_path_file_not_found(self):
-        with self.assertRaises(FileNotFoundError):
-            self.resource.generate_path('nonexistent_path.txt')
+    # Test Capture class
+    def test_capture_initialization(self):
+        capture = Capture()
+        self.assertEqual(capture.name, "Capture")
+        self.assertEqual(capture.capture_type, "Camera")
+        self.assertEqual(capture.laser_power, 0.5)
+        self.assertEqual(capture.scan_area_size, [100.0, 100.0])
+        self.assertEqual(capture.scan_area_res_factors, [1.0, 1.0])
 
-    def test_to_dict(self):
-        expected_dict = {
-            "type": self.resource_type,
-            "id": self.resource.id,
-            "name": self.name,
-            "path": self.resource.path,
-            **self.kwargs
-        }
-        self.assertEqual(self.resource.to_dict(), expected_dict)
+    def test_capture_laser_power_setter(self):
+        capture = Capture()
+        capture.laser_power = 1.5
+        self.assertEqual(capture.laser_power, 1.5)
 
-class TestImage(unittest.TestCase):
-    def setUp(self):
-        self.path = TEST_IMAGE_PATH
-        self.image = Image(self.path)
+        with self.assertRaises(ValueError):
+            capture.laser_power = -1.0  # Negative value not allowed
 
-    def test_init(self):
-        self.assertEqual(self.image._type, 'image_file')
-        self.assertEqual(self.image.name, 'image')
-        self.assertEqual(self.image.fetch_from, self.path)
+    def test_capture_scan_area_size_setter(self):
+        capture = Capture()
+        capture.scan_area_size = [200.0, 150.0]
+        self.assertEqual(capture.scan_area_size, [200.0, 150.0])
 
-    def test_init_file_not_found(self):
-        with self.assertRaises(FileNotFoundError):
-            Image('nonexistent_image.jpg')
+        with self.assertRaises(TypeError):
+            capture.scan_area_size = [200.0]  # Length mismatch
+        with self.assertRaises(ValueError):
+            capture.scan_area_size = [200.0, -150.0]  # Negative size
 
-class TestMesh(unittest.TestCase):
-    def setUp(self):
-        self.path = TEST_MESH_PATH
-        self.name = 'test_mesh'
-        self.translation = [0, 0, 0]
-        self.auto_center = False
-        self.rotation = [0.0, 0.0, 0.0]
-        self.scale = [1.0, 1.0, 1.0]
-        self.enhance_mesh = True
-        self.simplify_mesh = False
-        self.target_ratio = 100.0
-        self.mesh = Mesh(self.path, self.name, self.translation, self.auto_center, self.rotation, self.scale, self.enhance_mesh, self.simplify_mesh, self.target_ratio)
+    def test_capture_confocal_method(self):
+        capture = Capture()
+        capture.confocal(
+            laser_power=2.0,
+            scan_area_size=[250.0, 250.0],
+            scan_area_res_factors=[2.0, 2.0],
+        )
+        self.assertEqual(capture.laser_power, 2.0)
+        self.assertEqual(capture.scan_area_size, [250.0, 250.0])
+        self.assertEqual(capture.scan_area_res_factors, [2.0, 2.0])
+        self.assertEqual(capture.capture_type, "Confocal")
 
-    @patch('os.path.isfile', return_value=True)
-    @patch('stl.mesh.Mesh.from_file')
-    def test_init(self, mock_from_file, mock_isfile):
-        self.assertEqual(self.mesh._type, 'mesh_file')
-        self.assertEqual(self.mesh.name, self.name)
-        self.assertEqual(self.mesh.fetch_from, self.path)
-        self.assertEqual(self.mesh.translation, self.translation)
-        self.assertEqual(self.mesh.auto_center, self.auto_center)
-        self.assertEqual(self.mesh.rotation, self.rotation)
-        self.assertEqual(self.mesh.scale, self.scale)
-        self.assertEqual(self.mesh.enhance_mesh, self.enhance_mesh)
-        self.assertEqual(self.mesh.simplify_mesh, self.simplify_mesh)
-        self.assertEqual(self.mesh.target_ratio, self.target_ratio)
+    # Test StageMove class
+    def test_stage_move_initialization(self):
+        stage_move = StageMove()
+        self.assertEqual(stage_move.name, "Stage move")
+        self.assertEqual(stage_move.stage_position, [0.0, 0.0, 0.0])
 
-    def test_init_file_not_found(self):
-        with self.assertRaises(FileNotFoundError):
-            Mesh('nonexistent_mesh.stl')
+    def test_stage_move_position_setter(self):
+        stage_move = StageMove()
+        stage_move.stage_position = [10.0, 20.0, 30.0]
+        self.assertEqual(stage_move.stage_position, [10.0, 20.0, 30.0])
 
-    @patch('os.path.isfile', return_value=True)
-    @patch('stl.mesh.Mesh.from_file')
-    def test_get_triangle_count(self, mock_from_file, mock_isfile):
-        mock_mesh = mock_from_file.return_value
-        mock_mesh.vectors = [1, 2, 3]
-        self.assertEqual(self.mesh._get_triangle_count(self.path), 3)
+        with self.assertRaises(TypeError):
+            stage_move.stage_position = [10.0, 20.0]  # Length mismatch
+        with self.assertRaises(TypeError):
+            stage_move.stage_position = ["x", 20.0, 30.0]  # Invalid type
 
-    @patch('os.path.isfile', return_value=True)
-    @patch('stl.mesh.Mesh.from_file', side_effect=Exception('Error reading STL file'))
-    def test_get_triangle_count_exception(self, mock_from_file, mock_isfile):
-        with self.assertRaises(Exception):
-            self.mesh._get_triangle_count(self.path)
+    # Test Wait class
+    def test_wait_initialization(self):
+        wait = Wait()
+        self.assertEqual(wait.name, "Wait")
+        self.assertEqual(wait.wait_time, 1.0)
 
-    def test_to_dict(self):
-        resource_dict = self.mesh.to_dict()
-        self.assertIn('properties', resource_dict)
-        self.assertIn('original_triangle_count', resource_dict['properties'])
+    def test_wait_time_setter(self):
+        wait = Wait()
+        wait.wait_time = 2.5
+        self.assertEqual(wait.wait_time, 2.5)
 
-if __name__ == '__main__':
+        with self.assertRaises(ValueError):
+            wait.wait_time = 0  # Zero or negative time not allowed
+        with self.assertRaises(ValueError):
+            wait.wait_time = -5.0  # Negative time not allowed
+
+
+if __name__ == "__main__":
     unittest.main()

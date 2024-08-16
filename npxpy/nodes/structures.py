@@ -343,7 +343,8 @@ class Text(Structure):
 
     def __init__(
         self,
-        preset: Preset,
+        preset: Optional[Preset] = None,
+        project: Optional[Project] = None,
         name: str = "Text",
         text: str = "Text",
         font_size: Union[float, int] = 10.0,
@@ -360,6 +361,7 @@ class Text(Structure):
 
         Parameters:
             preset (Preset): The preset associated with the text.
+            project (Project): The project context for auto-loading resources.
             name (str): The name of the text.
             text (str): The text content.
             font_size (Union[float, int]): The font size of the text. Must be greater than 0.
@@ -375,6 +377,7 @@ class Text(Structure):
         """
         super().__init__(
             preset=preset,
+            project=project,
             mesh=None,
             name=name,
             slicing_origin=slicing_origin,
@@ -463,7 +466,8 @@ class Lens(Structure):
 
     def __init__(
         self,
-        preset: Preset,
+        preset: Optional[Preset] = None,
+        project: Optional[Project] = None,
         name: str = "Lens",
         radius: Union[float, int] = 100.0,
         height: Union[float, int] = 50.0,
@@ -487,6 +491,7 @@ class Lens(Structure):
 
         Parameters:
             preset (Preset): The preset associated with the lens.
+            project (Project): The project context for auto-loading resources.
             name (str): The name of the lens.
             radius (Union[float, int]): The radius of the lens. Must be > 0.
             height (Union[float, int]): The height of the lens. Must be > 0.
@@ -507,6 +512,7 @@ class Lens(Structure):
         """
         super().__init__(
             preset=preset,
+            project=project,
             name=name,
             slicing_origin=slicing_origin,
             slicing_offset=slicing_offset,

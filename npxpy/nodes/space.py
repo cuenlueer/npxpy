@@ -318,11 +318,17 @@ class Array(Node):
     def count(self):
         return self._count
 
+    @property
+    def count(self):
+        return self._count
+
     @count.setter
     def count(self, value: List[int]):
-        if not all(isinstance(c, int) and c > 0 for c in value):
+        if len(value) != 2 or not all(
+            isinstance(c, int) and c > 0 for c in value
+        ):
             raise ValueError(
-                "All count elements must be integers greater than zero."
+                "Count must be a list of exactly two integers greater than zero."
             )
         self._count = value
 
@@ -332,8 +338,12 @@ class Array(Node):
 
     @spacing.setter
     def spacing(self, value: List[float]):
-        if not all(isinstance(s, (int, float)) for s in value):
-            raise ValueError("All spacing elements must be numbers.")
+        if len(value) != 2 or not all(
+            isinstance(s, (int, float)) for s in value
+        ):
+            raise ValueError(
+                "Spacing must be a list of exactly two numeric values."
+            )
         self._spacing = value
 
     @property

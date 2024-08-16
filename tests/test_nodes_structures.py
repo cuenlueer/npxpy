@@ -1,119 +1,107 @@
 import unittest
-from unittest.mock import patch, mock_open
-import uuid
-import os
-import hashlib
-from npxpy.resources import Resource, Image, Mesh
+from npxpy.nodes.structures import Structure, Text, Lens
+from npxpy.preset import Preset
+from npxpy.resources import Mesh
+from npxpy.nodes.project import Project
 
-# Paths to test resources
-TEST_IMAGE_PATH = 'test_resources/78eab7abd2cd201630ba30ed5a7ef4fc/markers.png'
-TEST_MESH_PATH = 'test_resources/5416ba193f0bacf1e37be08d5c249914/combined_file.stl'
+# Define the test resource paths
+TEST_MESH_PATH = (
+    "test_resources/5416ba193f0bacf1e37be08d5c249914/combined_file.stl"
+)
+PRESETS_DIR = "./test_presets/"  # Path where test TOML presets are stored
 
-class TestResource(unittest.TestCase):
+# List of test presets
+PRESET_FILES = [
+    "25x_IP-n162_anchorage_FuSi.toml",
+    "25x_IP-n162_speed.toml",
+    "25x_IP-Visio.toml",
+]
+
+
+class TestStructureSubclasses(unittest.TestCase):
     def setUp(self):
-        self.resource_type = 'test_type'
-        self.name = 'test_name'
-        self.path = TEST_IMAGE_PATH
-        self.kwargs = {'attr1': 'value1', 'attr2': 'value2'}
-        self.resource = Resource(self.resource_type, self.name, self.path, **self.kwargs)
+        # Load the presets from the provided directory
+        self.preset_anchorage = Preset.load_single(
+            PRESETS_DIR + PRESET_FILES[0]
+        )
+        self.preset_speed = Preset.load_single(PRESETS_DIR + PRESET_FILES[1])
+        self.preset_visio = Preset.load_single(PRESETS_DIR + PRESET_FILES[2])
 
-    def test_init(self):
-        self.assertEqual(self.resource._type, self.resource_type)
-        self.assertEqual(self.resource.name, self.name)
-        self.assertEqual(self.resource.fetch_from, self.path)
-        self.assertEqual(self.resource.unique_attributes, self.kwargs)
-        self.assertTrue(uuid.UUID(self.resource.id))
+        # Create dummy Mesh
+        self.dummy_mesh = Mesh(TEST_MESH_PATH)
 
-    def test_init_empty_name(self):
-        with self.assertRaises(ValueError):
-            Resource(self.resource_type, '', self.path)
+    def test_structure_project_configuration(self):
+        # Project for "anchorage FuSi"
+        project_anchorage = Project(
+            objective="25x", resin="IP-n162", substrate="*"
+        )
+        structure = Structure(
+            preset=self.preset_anchorage,
+            mesh=self.dummy_mesh,
+            project=project_anchorage,
+        )
 
-    def test_generate_path(self):
-        with open(TEST_IMAGE_PATH, 'rb') as f:
-            file_content = f.read()
-        file_hash = hashlib.md5(file_content).hexdigest()
-        expected_path = f'resources/{file_hash}/{os.path.basename(self.path)}'
+        # Check that the project matches the preset's configuration
+        self.assertEqual(project_anchorage.objective, "25x")
+        self.assertIn("IP-n162", self.preset_anchorage.valid_resins)
+        self.assertEqual(project_anchorage.substrate, "*")
 
-        with patch("builtins.open", mock_open(read_data=file_content)), \
-             patch("os.path.isfile", return_value=True):
-            self.assertEqual(self.resource.generate_path(self.path), expected_path)
+    def test_speed_project_configuration(self):
+        # Project for "speed"
+        project_speed = Project(
+            objective="25x", resin="IP-n162", substrate="*"
+        )
+        structure = Structure(
+            preset=self.preset_speed,
+            mesh=self.dummy_mesh,
+            project=project_speed,
+        )
 
-    def test_generate_path_file_not_found(self):
-        with self.assertRaises(FileNotFoundError):
-            self.resource.generate_path('nonexistent_path.txt')
+        # Check that the project matches the preset's configuration
+        self.assertEqual(project_speed.objective, "25x")
+        self.assertIn("IP-n162", self.preset_speed.valid_resins)
+        self.assertEqual(project_speed.substrate, "*")
 
-    def test_to_dict(self):
-        expected_dict = {
-            "type": self.resource_type,
-            "id": self.resource.id,
-            "name": self.name,
-            "path": self.resource.path,
-            **self.kwargs
-        }
-        self.assertEqual(self.resource.to_dict(), expected_dict)
+    def test_visio_project_configuration(self):
+        # Project for "Visio"
+        project_visio = Project(
+            objective="25x", resin="IP-Visio", substrate="*"
+        )
+        structure = Structure(
+            preset=self.preset_visio,
+            mesh=self.dummy_mesh,
+            project=project_visio,
+        )
 
-class TestImage(unittest.TestCase):
-    def setUp(self):
-        self.path = TEST_IMAGE_PATH
-        self.image = Image(self.path)
+        # Check that the project matches the preset's configuration
+        self.assertEqual(project_visio.objective, "25x")
+        self.assertIn("IP-Visio", self.preset_visio.valid_resins)
+        self.assertEqual(project_visio.substrate, "*")
 
-    def test_init(self):
-        self.assertEqual(self.image._type, 'image_file')
-        self.assertEqual(self.image.name, 'image')
-        self.assertEqual(self.image.fetch_from, self.path)
+    def test_text_project_configuration(self):
+        # Text node configuration with preset "Visio"
+        project_visio = Project(
+            objective="25x", resin="IP-Visio", substrate="*"
+        )
+        text = Text(preset=self.preset_visio, project=project_visio)
 
-    def test_init_file_not_found(self):
-        with self.assertRaises(FileNotFoundError):
-            Image('nonexistent_image.jpg')
+        # Check that the project matches the preset's configuration
+        self.assertEqual(project_visio.objective, "25x")
+        self.assertIn("IP-Visio", self.preset_visio.valid_resins)
 
-class TestMesh(unittest.TestCase):
-    def setUp(self):
-        self.path = TEST_MESH_PATH
-        self.name = 'test_mesh'
-        self.translation = [0, 0, 0]
-        self.auto_center = False
-        self.rotation = [0.0, 0.0, 0.0]
-        self.scale = [1.0, 1.0, 1.0]
-        self.enhance_mesh = True
-        self.simplify_mesh = False
-        self.target_ratio = 100.0
-        self.mesh = Mesh(self.path, self.name, self.translation, self.auto_center, self.rotation, self.scale, self.enhance_mesh, self.simplify_mesh, self.target_ratio)
+    def test_lens_project_configuration(self):
+        # Lens node configuration with preset "speed"
+        project_speed = Project(
+            objective="25x", resin="IP-n162", substrate="*"
+        )
+        lens = Lens(preset=self.preset_speed, project=project_speed)
 
-    @patch('os.path.isfile', return_value=True)
-    @patch('stl.mesh.Mesh.from_file')
-    def test_init(self, mock_from_file, mock_isfile):
-        self.assertEqual(self.mesh._type, 'mesh_file')
-        self.assertEqual(self.mesh.name, self.name)
-        self.assertEqual(self.mesh.fetch_from, self.path)
-        self.assertEqual(self.mesh.translation, self.translation)
-        self.assertEqual(self.mesh.auto_center, self.auto_center)
-        self.assertEqual(self.mesh.rotation, self.rotation)
-        self.assertEqual(self.mesh.scale, self.scale)
-        self.assertEqual(self.mesh.enhance_mesh, self.enhance_mesh)
-        self.assertEqual(self.mesh.simplify_mesh, self.simplify_mesh)
-        self.assertEqual(self.mesh.target_ratio, self.target_ratio)
+        # Check that the project matches the preset's configuration
+        self.assertEqual(project_speed.objective, "25x")
+        self.assertIn("IP-n162", self.preset_speed.valid_resins)
 
-    def test_init_file_not_found(self):
-        with self.assertRaises(FileNotFoundError):
-            Mesh('nonexistent_mesh.stl')
+    # Further validation tests can be added to ensure the correctness of the mesh, size, and preset details
 
-    @patch('os.path.isfile', return_value=True)
-    @patch('stl.mesh.Mesh.from_file')
-    def test_get_triangle_count(self, mock_from_file, mock_isfile):
-        mock_mesh = mock_from_file.return_value
-        mock_mesh.vectors = [1, 2, 3]
-        self.assertEqual(self.mesh._get_triangle_count(self.path), 3)
 
-    @patch('os.path.isfile', return_value=True)
-    @patch('stl.mesh.Mesh.from_file', side_effect=Exception('Error reading STL file'))
-    def test_get_triangle_count_exception(self, mock_from_file, mock_isfile):
-        with self.assertRaises(Exception):
-            self.mesh._get_triangle_count(self.path)
-
-    def test_to_dict(self):
-        resource_dict = self.mesh.to_dict()
-        self.assertIn('properties', resource_dict)
-        self.assertIn('original_triangle_count', resource_dict['properties'])
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

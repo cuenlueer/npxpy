@@ -1,119 +1,117 @@
 import unittest
-from unittest.mock import patch, mock_open
-import uuid
-import os
-import hashlib
-from npxpy.resources import Resource, Image, Mesh
+from npxpy.nodes.space import Scene
+from npxpy.nodes.space import Group
+from npxpy.nodes.space import Array
 
-# Paths to test resources
-TEST_IMAGE_PATH = 'test_resources/78eab7abd2cd201630ba30ed5a7ef4fc/markers.png'
-TEST_MESH_PATH = 'test_resources/5416ba193f0bacf1e37be08d5c249914/combined_file.stl'
 
-class TestResource(unittest.TestCase):
-    def setUp(self):
-        self.resource_type = 'test_type'
-        self.name = 'test_name'
-        self.path = TEST_IMAGE_PATH
-        self.kwargs = {'attr1': 'value1', 'attr2': 'value2'}
-        self.resource = Resource(self.resource_type, self.name, self.path, **self.kwargs)
+class TestNodeSubclasses(unittest.TestCase):
+    # Test Scene class
+    def test_scene_initialization(self):
+        scene = Scene(name="TestScene")
+        self.assertEqual(scene.name, "TestScene")
+        self.assertEqual(scene.position, [0, 0, 0])
+        self.assertEqual(scene.rotation, [0.0, 0.0, 0.0])
+        self.assertTrue(scene.writing_direction_upward)
 
-    def test_init(self):
-        self.assertEqual(self.resource._type, self.resource_type)
-        self.assertEqual(self.resource.name, self.name)
-        self.assertEqual(self.resource.fetch_from, self.path)
-        self.assertEqual(self.resource.unique_attributes, self.kwargs)
-        self.assertTrue(uuid.UUID(self.resource.id))
+    def test_scene_position_rotation_setters(self):
+        scene = Scene()
+        # Valid position and rotation
+        scene.position = [10.0, 20.0, 30.0]
+        scene.rotation = [45.0, 90.0, 180.0]
+        self.assertEqual(scene.position, [10.0, 20.0, 30.0])
+        self.assertEqual(scene.rotation, [45.0, 90.0, 180.0])
 
-    def test_init_empty_name(self):
+        # Invalid position (not a list of 3)
         with self.assertRaises(ValueError):
-            Resource(self.resource_type, '', self.path)
+            scene.position = [10.0, 20.0]  # Length mismatch
+        with self.assertRaises(ValueError):
+            scene.position = "invalid"  # Wrong type
 
-    def test_generate_path(self):
-        with open(TEST_IMAGE_PATH, 'rb') as f:
-            file_content = f.read()
-        file_hash = hashlib.md5(file_content).hexdigest()
-        expected_path = f'resources/{file_hash}/{os.path.basename(self.path)}'
+        # Invalid rotation (not a list of 3)
+        with self.assertRaises(ValueError):
+            scene.rotation = [45.0]  # Length mismatch
 
-        with patch("builtins.open", mock_open(read_data=file_content)), \
-             patch("os.path.isfile", return_value=True):
-            self.assertEqual(self.resource.generate_path(self.path), expected_path)
+    def test_scene_translate_rotate(self):
+        scene = Scene()
+        scene.translate([5.0, 10.0, 15.0])
+        self.assertEqual(scene.position, [5.0, 10.0, 15.0])
 
-    def test_generate_path_file_not_found(self):
-        with self.assertRaises(FileNotFoundError):
-            self.resource.generate_path('nonexistent_path.txt')
+        scene.rotate([90.0, 45.0, 30.0])
+        self.assertEqual(scene.rotation, [90.0, 45.0, 30.0])
 
-    def test_to_dict(self):
-        expected_dict = {
-            "type": self.resource_type,
-            "id": self.resource.id,
-            "name": self.name,
-            "path": self.resource.path,
-            **self.kwargs
-        }
-        self.assertEqual(self.resource.to_dict(), expected_dict)
+        # Invalid translation/rotation
+        with self.assertRaises(ValueError):
+            scene.translate([1.0, 2.0])  # Length mismatch
+        with self.assertRaises(ValueError):
+            scene.rotate("invalid")  # Wrong type
 
-class TestImage(unittest.TestCase):
-    def setUp(self):
-        self.path = TEST_IMAGE_PATH
-        self.image = Image(self.path)
+    # Test Group class
+    def test_group_initialization(self):
+        group = Group(name="TestGroup")
+        self.assertEqual(group.name, "TestGroup")
+        self.assertEqual(group.position, [0, 0, 0])
+        self.assertEqual(group.rotation, [0.0, 0.0, 0.0])
 
-    def test_init(self):
-        self.assertEqual(self.image._type, 'image_file')
-        self.assertEqual(self.image.name, 'image')
-        self.assertEqual(self.image.fetch_from, self.path)
+    def test_group_translate_rotate(self):
+        group = Group()
+        group.translate([5.0, 5.0, 5.0])
+        self.assertEqual(group.position, [5.0, 5.0, 5.0])
 
-    def test_init_file_not_found(self):
-        with self.assertRaises(FileNotFoundError):
-            Image('nonexistent_image.jpg')
+        group.rotate([30.0, 60.0, 90.0])
+        self.assertEqual(group.rotation, [30.0, 60.0, 90.0])
 
-class TestMesh(unittest.TestCase):
-    def setUp(self):
-        self.path = TEST_MESH_PATH
-        self.name = 'test_mesh'
-        self.translation = [0, 0, 0]
-        self.auto_center = False
-        self.rotation = [0.0, 0.0, 0.0]
-        self.scale = [1.0, 1.0, 1.0]
-        self.enhance_mesh = True
-        self.simplify_mesh = False
-        self.target_ratio = 100.0
-        self.mesh = Mesh(self.path, self.name, self.translation, self.auto_center, self.rotation, self.scale, self.enhance_mesh, self.simplify_mesh, self.target_ratio)
+    # Test Array class
+    def test_array_initialization(self):
+        array = Array(name="TestArray")
+        self.assertEqual(array.name, "TestArray")
+        self.assertEqual(array.position, [0, 0, 0])
+        self.assertEqual(array.rotation, [0.0, 0.0, 0.0])
+        self.assertEqual(array.count, [5, 5])
+        self.assertEqual(array.spacing, [100.0, 100.0])
+        self.assertEqual(array.order, "Lexical")
+        self.assertEqual(array.shape, "Rectangular")
 
-    @patch('os.path.isfile', return_value=True)
-    @patch('stl.mesh.Mesh.from_file')
-    def test_init(self, mock_from_file, mock_isfile):
-        self.assertEqual(self.mesh._type, 'mesh_file')
-        self.assertEqual(self.mesh.name, self.name)
-        self.assertEqual(self.mesh.fetch_from, self.path)
-        self.assertEqual(self.mesh.translation, self.translation)
-        self.assertEqual(self.mesh.auto_center, self.auto_center)
-        self.assertEqual(self.mesh.rotation, self.rotation)
-        self.assertEqual(self.mesh.scale, self.scale)
-        self.assertEqual(self.mesh.enhance_mesh, self.enhance_mesh)
-        self.assertEqual(self.mesh.simplify_mesh, self.simplify_mesh)
-        self.assertEqual(self.mesh.target_ratio, self.target_ratio)
+    def test_array_grid_settings(self):
+        array = Array()
+        array.set_grid([10, 10], [50.0, 50.0])
+        self.assertEqual(array.count, [10, 10])
+        self.assertEqual(array.spacing, [50.0, 50.0])
 
-    def test_init_file_not_found(self):
-        with self.assertRaises(FileNotFoundError):
-            Mesh('nonexistent_mesh.stl')
+        # Invalid count and spacing
+        with self.assertRaises(ValueError):
+            array.set_grid([10, -5], [50.0, 50.0])  # Negative count
+        with self.assertRaises(ValueError):
+            array.set_grid([5, 5], [50.0])  # Length mismatch
 
-    @patch('os.path.isfile', return_value=True)
-    @patch('stl.mesh.Mesh.from_file')
-    def test_get_triangle_count(self, mock_from_file, mock_isfile):
-        mock_mesh = mock_from_file.return_value
-        mock_mesh.vectors = [1, 2, 3]
-        self.assertEqual(self.mesh._get_triangle_count(self.path), 3)
+    def test_array_translate_rotate(self):
+        array = Array()
+        array.translate([3.0, 3.0, 3.0])
+        self.assertEqual(array.position, [3.0, 3.0, 3.0])
 
-    @patch('os.path.isfile', return_value=True)
-    @patch('stl.mesh.Mesh.from_file', side_effect=Exception('Error reading STL file'))
-    def test_get_triangle_count_exception(self, mock_from_file, mock_isfile):
-        with self.assertRaises(Exception):
-            self.mesh._get_triangle_count(self.path)
+        array.rotate([45.0, 90.0, 135.0])
+        self.assertEqual(array.rotation, [45.0, 90.0, 135.0])
 
-    def test_to_dict(self):
-        resource_dict = self.mesh.to_dict()
-        self.assertIn('properties', resource_dict)
-        self.assertIn('original_triangle_count', resource_dict['properties'])
+    def test_array_invalid_settings(self):
+        array = Array()
+        with self.assertRaises(ValueError):
+            array.order = "InvalidOrder"
+        with self.assertRaises(ValueError):
+            array.shape = "InvalidShape"
 
-if __name__ == '__main__':
+    def test_array_position_rotation_setters(self):
+        array = Array()
+        array.position = [1.0, 2.0, 3.0]
+        self.assertEqual(array.position, [1.0, 2.0, 3.0])
+
+        array.rotation = [45.0, 90.0, 180.0]
+        self.assertEqual(array.rotation, [45.0, 90.0, 180.0])
+
+        # Invalid position/rotation
+        with self.assertRaises(ValueError):
+            array.position = [1.0, 2.0]  # Length mismatch
+        with self.assertRaises(ValueError):
+            array.rotation = [45.0, 90.0]  # Length mismatch
+
+
+if __name__ == "__main__":
     unittest.main()
