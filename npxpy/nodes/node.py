@@ -74,6 +74,7 @@ class Node:
 
     @name.setter
     def name(self, value: str):
+        value = str(value)
         """Set the name of the node with validation to ensure it is a non-empty string."""
         if not isinstance(value, str) or not value.strip():
             raise ValueError("name must be a non-empty string.")

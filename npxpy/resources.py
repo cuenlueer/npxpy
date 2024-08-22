@@ -17,50 +17,61 @@ import os
 import hashlib
 from typing import Dict, Any, List
 from stl import mesh as stl_mesh
-from pydantic import BaseModel, Field, field_validator
+
 
 class Resource:
     """
-    A class to represent a resource.
+    A class to represent a generic resource.
 
     Attributes:
         id (str): Unique identifier for the resource.
-        type (str): Type of the resource.
         name (str): Name of the resource.
-        path (str): Path where the resource is loaded from.
-        unique_attributes (dict): Additional attributes specific to the resource type.
-        fetch_from (str): Original path from which the resource was fetched.
+        safe_path (str): Path where the resource is stored, based on file hash.
+        file_path (str): Original path from where the resource was loaded.
     """
-    def __init__(self, resource_type: str, name: str, path: str, **kwargs):
+
+    def __init__(self, resource_type: str, name: str, file_path: str):
         """
         Initialize the resource with the specified parameters.
 
         Parameters:
             resource_type (str): Type of the resource.
             name (str): Name of the resource.
-            path (str): Path where the resource is loaded from.
-            **kwargs: Additional keyword arguments for unique attributes.
+            file_path (str): Path where the resource is loaded from.
         """
         if not name or not name.strip():
-            raise ValueError("Resource: The 'name' parameter must not be an empty string.")
-            
-            
+            raise ValueError(
+                "Resource: The 'name' parameter must not be an empty string."
+            )
+
         self.id = str(uuid.uuid4())
         self._type = resource_type
         self.name = name
-        self.path = self.generate_path(path)
-        self.unique_attributes = kwargs
-        self.fetch_from = path
-        
-    def generate_path(self, file_path: str) -> str:
+        self.file_path = file_path
+        self.safe_path = self.generate_safe_path(file_path)
+
+    @property
+    def name(self):
+        """Return the name of the resource."""
+        return self._name
+
+    @name.setter
+    def name(self, value: str):
+        """Set the name of the resource with validation to ensure it is a non-empty string."""
+        value = str(value)
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError("name must be a non-empty string.")
+        self._name = value
+
+    def generate_safe_path(self, file_path: str) -> str:
         """
-        Generate a path for the resource based on the MD5 hash of the file content.
+        Generate a 'safe' path for the resource based on the MD5 hash of the file content.
 
         Parameters:
             file_path (str): Path to the file.
 
         Returns:
-            str: Generated path for the resource.
+            str: Generated safe path for the resource.
 
         Raises:
             FileNotFoundError: If the file at file_path does not exist.
@@ -69,14 +80,14 @@ class Resource:
             raise FileNotFoundError(f"File not found: {file_path}")
 
         md5_hash = hashlib.md5()
-        with open(file_path, 'rb') as file:
+        with open(file_path, "rb") as file:
             for chunk in iter(lambda: file.read(4096), b""):
                 md5_hash.update(chunk)
-        
+
         file_hash = md5_hash.hexdigest()
-        target_path = f'resources/{file_hash}/{os.path.basename(file_path)}'
+        target_path = f"resources/{file_hash}/{os.path.basename(file_path)}"
         return target_path
-        
+
     def to_dict(self) -> Dict[str, Any]:
         """
         Converts the current state of the object into a dictionary representation.
@@ -84,79 +95,66 @@ class Resource:
         Returns:
             dict: Dictionary representation of the current state of the object.
         """
-        resource_dict = {
-            "type": self._type,
+        return {
             "id": self.id,
             "name": self.name,
-            "path": self.path,
-            **self.unique_attributes
+            "type": self._type,
+            "path": self.safe_path,
         }
-        return resource_dict
-    
-    
+
+
 class Image(Resource):
     """
     A class to represent an image resource.
     """
-    def __init__(self, path: str, name: str = 'image'):
+
+    def __init__(self, file_path: str, name: str = "image"):
         """
         Initialize the image resource with the specified parameters.
 
         Parameters:
-            path (str): Path where the image is stored.
+            file_path (str): Path where the image is stored.
             name (str, optional): Name of the image resource. Defaults to 'image'.
         """
-        # Ensure the path is valid
-        if not os.path.isfile(path):
-            raise FileNotFoundError(f"Image file not found: {path}")
+        # Ensure the file_path is valid
+        if not os.path.isfile(file_path):
+            raise FileNotFoundError(f"Image file not found: {file_path}")
 
-        super().__init__(resource_type='image_file', name=name, path=path)
+        super().__init__(
+            resource_type="image_file", name=name, file_path=file_path
+        )
 
-class MeshValidator(BaseModel):
-    path: str
-    resource_type: str = 'mesh_file'
-    name: str = 'mesh'
-    translation: List[float] = Field(default_factory=lambda: [0, 0, 0])
-    auto_center: bool = False
-    rotation: List[float] = Field(default_factory=lambda: [0.0, 0.0, 0.0])
-    scale: List[float] = Field(default_factory=lambda: [1.0, 1.0, 1.0])
-    enhance_mesh: bool = True
-    simplify_mesh: bool = False
-    target_ratio: float = Field(default=100.0, ge=0, le=100)
-
-    @field_validator('path')
-    def check_file_exists(cls, v):
-        if not os.path.isfile(v):
-            raise FileNotFoundError(f"File not found: {v}")
-        return v
-    
-    @field_validator('translation', 'rotation', 'scale')
-    def check_list_length(cls, v):
-        if len(v) != 3:
-            raise ValueError(f"List must have exactly 3 elements, got {len(v)}")
-        return v
 
 class Mesh(Resource):
     """
-    A class to represent a mesh resource.
+    A class to represent a mesh resource with attributes such as translation, rotation, scale, etc.
 
     Attributes:
-        original_triangle_count (int): The original number of triangles in the mesh.
+        translation (List[float]): Translation values [x, y, z].
+        rotation (List[float]): Rotation values [psi, theta, phi].
+        scale (List[float]): Scale values [x, y, z].
+        enhance_mesh (bool): Whether to enhance the mesh.
+        simplify_mesh (bool): Whether to simplify the mesh.
+        target_ratio (float): Target ratio for mesh simplification.
     """
-    def __init__(self, path: str, name: str = 'mesh',
-                 translation: List[float] = [0, 0, 0],  # number in um
-                 auto_center: bool = False,
-                 rotation: List[float] = [0.0, 0.0, 0.0],  # number in deg
-                 scale: List[float] = [1.0, 1.0, 1.0],  # scale number
-                 enhance_mesh: bool = True,
-                 simplify_mesh: bool = False,
-                 target_ratio: float = 100.0):
+
+    def __init__(
+        self,
+        file_path: str,
+        name: str = "mesh",
+        translation: List[float] = [0, 0, 0],
+        auto_center: bool = False,
+        rotation: List[float] = [0.0, 0.0, 0.0],
+        scale: List[float] = [1.0, 1.0, 1.0],
+        enhance_mesh: bool = True,
+        simplify_mesh: bool = False,
+        target_ratio: float = 100.0,
+    ):
         """
         Initialize the mesh resource with the specified parameters.
 
         Parameters:
-            resource_type (str): Type of the resource.
-            path (str): Path where the mesh is stored.
+            file_path (str): Path where the mesh is stored (original file location).
             name (str, optional): Name of the mesh resource. Defaults to 'mesh'.
             translation (List[float], optional): Translation values [x, y, z]. Defaults to [0, 0, 0].
             auto_center (bool, optional): Whether to auto-center the mesh. Defaults to False.
@@ -165,31 +163,77 @@ class Mesh(Resource):
             enhance_mesh (bool, optional): Whether to enhance the mesh. Defaults to True.
             simplify_mesh (bool, optional): Whether to simplify the mesh. Defaults to False.
             target_ratio (float, optional): Target ratio for mesh simplification. Defaults to 100.0.
-
-        Raises:
-            ValueError: If target_ratio is not between 0 and 100.
-            FileNotFoundError: If the mesh file does not exist.
         """
-        # Validate inputs using MeshValidator
-        validated_data = MeshValidator(
-            path=path, name=name, translation=translation, auto_center=auto_center,
-            rotation=rotation, scale=scale, enhance_mesh=enhance_mesh,
-            simplify_mesh=simplify_mesh, target_ratio=target_ratio
-        ).dict()
-        
-        # Initialize the Resource part
-        super().__init__(**validated_data)
+        super().__init__(
+            resource_type="mesh_file", name=name, file_path=file_path
+        )
 
-        # Assign validated attributes to self
-        self.translation = validated_data['translation']
-        self.auto_center = validated_data['auto_center']
-        self.rotation = validated_data['rotation']
-        self.scale = validated_data['scale']
-        self.enhance_mesh = validated_data['enhance_mesh']
-        self.simplify_mesh = validated_data['simplify_mesh']
-        self.target_ratio = validated_data['target_ratio']
+        # Set attributes with validation
+        self.translation = translation
+        self.auto_center = auto_center
+        self.rotation = rotation
+        self.scale = scale
+        self.enhance_mesh = enhance_mesh
+        self.simplify_mesh = simplify_mesh
+        self.target_ratio = target_ratio
+        self.original_triangle_count = self._get_triangle_count(file_path)
 
-        self.original_triangle_count = self._get_triangle_count(self.fetch_from)
+    @property
+    def translation(self):
+        return self._translation
+
+    @translation.setter
+    def translation(self, value: List[Any]):
+        if len(value) != 3:
+            raise ValueError(
+                "Translation must have exactly 3 elements [x, y, z]"
+            )
+        try:
+            self._translation = [float(v) for v in value]
+        except ValueError:
+            raise ValueError("Translation elements must be numeric values.")
+
+    @property
+    def rotation(self):
+        return self._rotation
+
+    @rotation.setter
+    def rotation(self, value: List[Any]):
+        if len(value) != 3:
+            raise ValueError(
+                "Rotation must have exactly 3 elements [psi, theta, phi]"
+            )
+        try:
+            self._rotation = [float(v) for v in value]
+        except ValueError:
+            raise ValueError("Rotation elements must be numeric values.")
+
+    @property
+    def scale(self):
+        return self._scale
+
+    @scale.setter
+    def scale(self, value: List[Any]):
+        if len(value) != 3:
+            raise ValueError("Scale must have exactly 3 elements [x, y, z]")
+        try:
+            self._scale = [float(v) for v in value]
+        except ValueError:
+            raise ValueError("Scale elements must be numeric values.")
+
+    @property
+    def target_ratio(self):
+        return self._target_ratio
+
+    @target_ratio.setter
+    def target_ratio(self, value: Any):
+        try:
+            value = float(value)
+        except ValueError:
+            raise ValueError("Target ratio must be a numeric value.")
+        if not (0 <= value <= 100):
+            raise ValueError("Target ratio must be between 0 and 100")
+        self._target_ratio = value
 
     def _get_triangle_count(self, path: str) -> int:
         """
@@ -222,5 +266,18 @@ class Mesh(Resource):
             dict: Dictionary representation of the current state of the object.
         """
         resource_dict = super().to_dict()
-        resource_dict['properties'] = {'original_triangle_count': self.original_triangle_count}
+        resource_dict.update(
+            {
+                "translation": self.translation,
+                "auto_center": self.auto_center,
+                "rotation": self.rotation,
+                "scale": self.scale,
+                "enhance_mesh": self.enhance_mesh,
+                "simplify_mesh": self.simplify_mesh,
+                "target_ratio": self.target_ratio,
+                "properties": {
+                    "original_triangle_count": self.original_triangle_count
+                },
+            }
+        )
         return resource_dict

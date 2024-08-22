@@ -205,8 +205,8 @@ class Project(Node):
 
             # Add the resources to the zip file
             for resource in self._resources:
-                src_path = resource.fetch_from
-                arcname = resource.path
+                src_path = resource.file_path
+                arcname = resource.safe_path
                 if os.path.isfile(src_path):
                     self._add_file_to_zip(nano_zip, src_path, arcname)
                 else:

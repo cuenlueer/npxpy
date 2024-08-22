@@ -25,8 +25,8 @@ class TestProjectClass(unittest.TestCase):
             valid_resins=["IP-Visio"],
         )
 
-        self.image = Image(path=TEST_IMAGE_PATH)
-        self.mesh = Mesh(path=TEST_MESH_PATH)
+        self.image = Image(file_path=TEST_IMAGE_PATH)
+        self.mesh = Mesh(file_path=TEST_MESH_PATH)
 
     def test_project_initialization(self):
         # Create a valid project

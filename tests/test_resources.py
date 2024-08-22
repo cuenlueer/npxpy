@@ -18,16 +18,12 @@ class TestResource(unittest.TestCase):
         self.resource_type = "test_type"
         self.name = "test_name"
         self.path = TEST_IMAGE_PATH
-        self.kwargs = {"attr1": "value1", "attr2": "value2"}
-        self.resource = Resource(
-            self.resource_type, self.name, self.path, **self.kwargs
-        )
+        self.resource = Resource(self.resource_type, self.name, self.path)
 
     def test_init(self):
         self.assertEqual(self.resource._type, self.resource_type)
         self.assertEqual(self.resource.name, self.name)
-        self.assertEqual(self.resource.fetch_from, self.path)
-        self.assertEqual(self.resource.unique_attributes, self.kwargs)
+        self.assertEqual(self.resource.file_path, self.path)
         self.assertTrue(uuid.UUID(self.resource.id))
 
     def test_init_empty_name(self):
@@ -44,20 +40,19 @@ class TestResource(unittest.TestCase):
             "os.path.isfile", return_value=True
         ):
             self.assertEqual(
-                self.resource.generate_path(self.path), expected_path
+                self.resource.generate_safe_path(self.path), expected_path
             )
 
     def test_generate_path_file_not_found(self):
         with self.assertRaises(FileNotFoundError):
-            self.resource.generate_path("nonexistent_path.txt")
+            self.resource.generate_safe_path("nonexistent_path.txt")
 
     def test_to_dict(self):
         expected_dict = {
             "type": self.resource_type,
             "id": self.resource.id,
             "name": self.name,
-            "path": self.resource.path,
-            **self.kwargs,
+            "path": self.resource.safe_path,
         }
         self.assertEqual(self.resource.to_dict(), expected_dict)
 
@@ -70,7 +65,7 @@ class TestImage(unittest.TestCase):
     def test_init(self):
         self.assertEqual(self.image._type, "image_file")
         self.assertEqual(self.image.name, "image")
-        self.assertEqual(self.image.fetch_from, self.path)
+        self.assertEqual(self.image.file_path, self.path)
 
     def test_init_file_not_found(self):
         with self.assertRaises(FileNotFoundError):
@@ -105,7 +100,7 @@ class TestMesh(unittest.TestCase):
     def test_init(self, mock_from_file, mock_isfile):
         self.assertEqual(self.mesh._type, "mesh_file")
         self.assertEqual(self.mesh.name, self.name)
-        self.assertEqual(self.mesh.fetch_from, self.path)
+        self.assertEqual(self.mesh.file_path, self.path)
         self.assertEqual(self.mesh.translation, self.translation)
         self.assertEqual(self.mesh.auto_center, self.auto_center)
         self.assertEqual(self.mesh.rotation, self.rotation)

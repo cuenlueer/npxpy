@@ -12,7 +12,7 @@ TEST_IMAGE_PATH = "test_resources/78eab7abd2cd201630ba30ed5a7ef4fc/markers.png"
 
 class TestAligners(unittest.TestCase):
     def setUp(self):
-        self.image = Image(path=TEST_IMAGE_PATH)
+        self.image = Image(file_path=TEST_IMAGE_PATH)
 
     def test_coarse_aligner_initialization(self):
         coarse_aligner = CoarseAligner(residual_threshold=5.0)
@@ -52,7 +52,7 @@ class TestAligners(unittest.TestCase):
         )
         self.assertEqual(marker_aligner.marker_size, [10.0, 10.0])
         self.assertEqual(
-            marker_aligner.image.path,
+            marker_aligner.image.safe_path,
             "resources/" + TEST_IMAGE_PATH.split("/")[1] + "/markers.png",
         )
 

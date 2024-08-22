@@ -11,7 +11,7 @@ import npxpy as n
 project = n.Project(objective="25x", resin="IP-n162", substrate="FuSi")
 
 edit_presets = {
-    "writing_speed": 220000.0,
+    "writing_speed": "220000.0",
     "writing_power": 50.0,
     "slicing_spacing": 0.8,
     "hatching_spacing": 0.3,
@@ -28,12 +28,12 @@ preset = n.Preset(name="supervalidname", **edit_presets)
 
 resource_mesh = n.Mesh(
     name=" .",
-    path="test_resources/5416ba193f0bacf1e37be08d5c249914/combined_file.stl",
+    file_path="test_resources/5416ba193f0bacf1e37be08d5c249914/combined_file.stl",
     rotation=[25, 85, "20"],
 )
 resource_image = n.Image(
     name=".",
-    path="test_resources/78eab7abd2cd201630ba30ed5a7ef4fc/markers.png",
+    file_path="test_resources/78eab7abd2cd201630ba30ed5a7ef4fc/markers.png",
 )
 
 

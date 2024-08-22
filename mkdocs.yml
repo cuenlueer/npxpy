@@ -54,6 +54,7 @@ markdown_extensions:
   - pymdownx.superfences
   - pymdownx.details
   - pymdownx.tasklist
+  - pymdownx.highlight
 
 #extra_css:
 #  - 'stylesheets/custom.css'

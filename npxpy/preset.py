@@ -8,21 +8,24 @@ Neuromorphic Quantumphotonics
 Heidelberg University
 E-Mail:	caghan.uenlueer@kip.uni-heidelberg.de
 
-This file is part of npxpy (formerly nanoAPI), which is licensed under the GNU Lesser General Public License v3.0.
-You can find a copy of this license at https://www.gnu.org/licenses/lgpl-3.0.html
+This file is part of npxpy (formerly nanoAPI), which is licensed under the GNU
+Lesser General Public License v3.0. You can find a copy of this license at
+https://www.gnu.org/licenses/lgpl-3.0.html
 """
 import toml
 import uuid
 import os
 import copy
 from typing import Dict, Any, List
-from pydantic import BaseModel, Field, ValidationError, model_validator
 
-class Preset(BaseModel):
+
+class Preset:
     """
-    A class to represent a preset with various parameters related to writing and hatching settings.
-    
+    A class to represent a preset with various parameters related to writing
+    and hatching settings.
+
     Attributes:
+        id (str): Unique identifier for the preset.
         name (str): Name of the preset.
         valid_objectives (List[str]): Valid objectives for the preset.
         valid_resins (List[str]): Valid resins for the preset.
@@ -37,91 +40,283 @@ class Preset(BaseModel):
         hatching_offset_increment (float): Hatching offset increment.
         hatching_back_n_forth (bool): Whether hatching is back and forth.
         mesh_z_offset (float): Mesh Z offset.
-        grayscale_layer_profile_nr_layers (float): Number of layers for grayscale layer profile.
-        grayscale_writing_power_minimum (float): Minimum writing power for grayscale.
+        grayscale_multilayer_enabled (bool): Whether grayscale multilayer is
+        enabled.
+        grayscale_layer_profile_nr_layers (float): Number of layers for
+        grayscale layer profile.
+        grayscale_writing_power_minimum (float): Minimum writing power for
+        grayscale.
         grayscale_exponent (float): Grayscale exponent.
-        unique_attributes (Dict[str, Any]): Additional dynamic attributes.
     """
-    class Config:
-        extra = 'allow'
-    
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    name: str = '25x_IP-n162'
-    valid_objectives: List[str] = Field(default_factory=lambda: ["25x"])
-    valid_resins: List[str] = Field(default_factory=lambda: ["IP-n162"])
-    valid_substrates: List[str] = Field(default_factory=lambda: ["*"])
-    writing_speed: float = Field(gt=0, default=250000.0)
-    writing_power: float = Field(ge=0, default=50.0)
-    slicing_spacing: float = Field(gt=0, default=0.8)
-    hatching_spacing: float = Field(gt=0, default=0.3)
-    hatching_angle: float = 0.0
-    hatching_angle_increment: float = 0.0
-    hatching_offset: float = 0.0
-    hatching_offset_increment: float = 0.0
-    hatching_back_n_forth: bool = True
-    mesh_z_offset: float = 0.0
-    grayscale_multilayer_enabled: bool = False
-    grayscale_layer_profile_nr_layers: float = Field(ge=0, default=6)
-    grayscale_writing_power_minimum: float = Field(ge=0, default=0.0)
-    grayscale_exponent: float = Field(gt=0, default=1.0)
-    unique_attributes: Dict[str, Any] = Field(default_factory=dict)
 
-    @model_validator(mode='before')
-    def validate_list(cls, values):
-        for key in ['valid_objectives', 'valid_resins', 'valid_substrates']:
-            if isinstance(values.get(key), str):
-                values[key] = [values[key]]
-        return values
+    def __init__(
+        self,
+        name: str = "25x_IP-n162",
+        valid_objectives: List[str] = None,
+        valid_resins: List[str] = None,
+        valid_substrates: List[str] = None,
+        writing_speed: float = 250000.0,
+        writing_power: float = 50.0,
+        slicing_spacing: float = 0.8,
+        hatching_spacing: float = 0.3,
+        hatching_angle: float = 0.0,
+        hatching_angle_increment: float = 0.0,
+        hatching_offset: float = 0.0,
+        hatching_offset_increment: float = 0.0,
+        hatching_back_n_forth: bool = True,
+        mesh_z_offset: float = 0.0,
+        grayscale_multilayer_enabled: bool = False,
+        grayscale_layer_profile_nr_layers: float = 6,
+        grayscale_writing_power_minimum: float = 0.0,
+        grayscale_exponent: float = 1.0,
+    ):
 
-    @model_validator(mode='after')
-    def validate_values(cls, values):
-        valid_objectives = {'25x', '63x', '*'}
-        valid_resins = {'IP-PDMS', 'IPX-S', 'IP-L', 'IP-n162', 'IP-Dip2', 'IP-Dip', 'IP-S', 'IP-Visio', '*'}
-        valid_substrates = {'*', 'FuSi', 'Si'}
+        # Default lists for valid_objectives, valid_resins, valid_substrates
+        self._valid_objectives = None
+        self._valid_resins = None
+        self._valid_substrates = None
 
-        if not set(values.valid_objectives).issubset(valid_objectives):
-            raise ValueError(f"Invalid valid_objectives: {values.valid_objectives}")
-        if not set(values.valid_resins).issubset(valid_resins):
-            raise ValueError(f"Invalid valid_resins: {values.valid_resins}")
-        if not set(values.valid_substrates).issubset(valid_substrates):
-            raise ValueError(f"Invalid valid_substrates: {values.valid_substrates}")
-
-        return values
-
-    def set_grayscale_multilayer(
-        self, 
-        grayscale_layer_profile_nr_layers: float = 6.0, 
-        grayscale_writing_power_minimum: float = 0.0, 
-        grayscale_exponent: float = 1.0
-    ) -> 'Preset':
-        """
-        Enable grayscale multilayer and set the related attributes.
-
-        Parameters:
-            grayscale_layer_profile_nr_layers (float): Number of layers for grayscale layer profile.
-            grayscale_writing_power_minimum (float): Minimum writing power for grayscale.
-            grayscale_exponent (float): Grayscale exponent.
-
-        Returns:
-            Preset: The instance with updated grayscale multilayer settings.
-
-        Raises:
-            ValueError: If any of the parameters are invalid.
-        """
-        if grayscale_layer_profile_nr_layers < 0:
-            raise ValueError("grayscale_layer_profile_nr_layers must be greater or equal to 0.")
-        if grayscale_writing_power_minimum < 0:
-            raise ValueError("grayscale_writing_power_minimum must be greater or equal to 0.")
-        if grayscale_exponent <= 0:
-            raise ValueError("grayscale_exponent must be greater than 0.")
-
-        self.grayscale_multilayer_enabled = True
-        self.grayscale_layer_profile_nr_layers = grayscale_layer_profile_nr_layers
+        # Set attributes via setters
+        self.name = name
+        self.valid_objectives = (
+            valid_objectives if valid_objectives else ["25x"]
+        )
+        self.valid_resins = valid_resins if valid_resins else ["IP-n162"]
+        self.valid_substrates = valid_substrates if valid_substrates else ["*"]
+        self.writing_speed = writing_speed
+        self.writing_power = writing_power
+        self.slicing_spacing = slicing_spacing
+        self.hatching_spacing = hatching_spacing
+        self.hatching_angle = hatching_angle
+        self.hatching_angle_increment = hatching_angle_increment
+        self.hatching_offset = hatching_offset
+        self.hatching_offset_increment = hatching_offset_increment
+        self.hatching_back_n_forth = hatching_back_n_forth
+        self.mesh_z_offset = mesh_z_offset
+        self.grayscale_multilayer_enabled = grayscale_multilayer_enabled
+        self.grayscale_layer_profile_nr_layers = (
+            grayscale_layer_profile_nr_layers
+        )
         self.grayscale_writing_power_minimum = grayscale_writing_power_minimum
         self.grayscale_exponent = grayscale_exponent
+        self.id = str(uuid.uuid4())
+
+    # Setters and validation logic for all attributes
+    @property
+    def name(self):
+        return self._name
+
+    @name.setter
+    def name(self, value: str):
+        value = str(value)
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError("name must be a non-empty string.")
+        self._name = value
+
+    @property
+    def valid_objectives(self):
+        return self._valid_objectives
+
+    @valid_objectives.setter
+    def valid_objectives(self, value):
+        valid_objectives_set = {"25x", "63x", "*"}
+        if not set(value).issubset(valid_objectives_set):
+            raise ValueError(f"Invalid valid_objectives: {value}")
+        self._valid_objectives = value
+
+    @property
+    def valid_resins(self):
+        return self._valid_resins
+
+    @valid_resins.setter
+    def valid_resins(self, value):
+        valid_resins_set = {
+            "IP-PDMS",
+            "IPX-S",
+            "IP-L",
+            "IP-n162",
+            "IP-Dip2",
+            "IP-Dip",
+            "IP-S",
+            "IP-Visio",
+            "*",
+        }
+        if not set(value).issubset(valid_resins_set):
+            raise ValueError(f"Invalid valid_resins: {value}")
+        self._valid_resins = value
+
+    @property
+    def valid_substrates(self):
+        return self._valid_substrates
+
+    @valid_substrates.setter
+    def valid_substrates(self, value):
+        valid_substrates_set = {"*", "FuSi", "Si"}
+        if not set(value).issubset(valid_substrates_set):
+            raise ValueError(f"Invalid valid_substrates: {value}")
+        self._valid_substrates = value
+
+    @property
+    def writing_speed(self):
+        return self._writing_speed
+
+    @writing_speed.setter
+    def writing_speed(self, value):
+        value = float(value)  # Type coercion
+        if value <= 0:
+            raise ValueError(
+                f"writing_speed must be greater than 0. Got {value}"
+            )
+        self._writing_speed = value
+
+    @property
+    def writing_power(self):
+        return self._writing_power
+
+    @writing_power.setter
+    def writing_power(self, value):
+        value = float(value)  # Type coercion
+        if value < 0:
+            raise ValueError(
+                f"writing_power must be greater or equal to 0. Got {value}"
+            )
+        self._writing_power = value
+
+    @property
+    def slicing_spacing(self):
+        return self._slicing_spacing
+
+    @slicing_spacing.setter
+    def slicing_spacing(self, value):
+        value = float(value)
+        if value <= 0:
+            raise ValueError(
+                f"slicing_spacing must be greater than 0. Got {value}"
+            )
+        self._slicing_spacing = value
+
+    @property
+    def hatching_spacing(self):
+        return self._hatching_spacing
+
+    @hatching_spacing.setter
+    def hatching_spacing(self, value):
+        value = float(value)
+        if value <= 0:
+            raise ValueError(
+                f"hatching_spacing must be greater than 0. Got {value}"
+            )
+        self._hatching_spacing = value
+
+    @property
+    def hatching_angle(self):
+        return self._hatching_angle
+
+    @hatching_angle.setter
+    def hatching_angle(self, value):
+        self._hatching_angle = float(value)
+
+    @property
+    def hatching_angle_increment(self):
+        return self._hatching_angle_increment
+
+    @hatching_angle_increment.setter
+    def hatching_angle_increment(self, value):
+        self._hatching_angle_increment = float(value)
+
+    @property
+    def hatching_offset(self):
+        return self._hatching_offset
+
+    @hatching_offset.setter
+    def hatching_offset(self, value):
+        self._hatching_offset = float(value)
+
+    @property
+    def hatching_offset_increment(self):
+        return self._hatching_offset_increment
+
+    @hatching_offset_increment.setter
+    def hatching_offset_increment(self, value):
+        self._hatching_offset_increment = float(value)
+
+    @property
+    def hatching_back_n_forth(self):
+        return self._hatching_back_n_forth
+
+    @hatching_back_n_forth.setter
+    def hatching_back_n_forth(self, value):
+        if not isinstance(value, bool):
+            raise ValueError(
+                f"hatching_back_n_forth must be a boolean. Got {type(value).__name__}"
+            )
+        self._hatching_back_n_forth = value
+
+    @property
+    def mesh_z_offset(self):
+        return self._mesh_z_offset
+
+    @mesh_z_offset.setter
+    def mesh_z_offset(self, value):
+        self._mesh_z_offset = float(value)
+
+    @property
+    def grayscale_layer_profile_nr_layers(self):
+        return self._grayscale_layer_profile_nr_layers
+
+    @grayscale_layer_profile_nr_layers.setter
+    def grayscale_layer_profile_nr_layers(self, value):
+        value = float(value)
+        if value < 0:
+            raise ValueError(
+                f"grayscale_layer_profile_nr_layers must be greater or equal to 0. Got {value}"
+            )
+        self._grayscale_layer_profile_nr_layers = value
+
+    @property
+    def grayscale_writing_power_minimum(self):
+        return self._grayscale_writing_power_minimum
+
+    @grayscale_writing_power_minimum.setter
+    def grayscale_writing_power_minimum(self, value):
+        value = float(value)
+        if value < 0:
+            raise ValueError(
+                f"grayscale_writing_power_minimum must be greater or equal to 0. Got {value}"
+            )
+        self._grayscale_writing_power_minimum = value
+
+    @property
+    def grayscale_exponent(self):
+        return self._grayscale_exponent
+
+    @grayscale_exponent.setter
+    def grayscale_exponent(self, value):
+        value = float(value)
+        if value <= 0:
+            raise ValueError(
+                f"grayscale_exponent must be greater than 0. Got {value}"
+            )
+        self._grayscale_exponent = value
+
+    def set_grayscale_multilayer(
+        self,
+        grayscale_layer_profile_nr_layers: float = 6.0,
+        grayscale_writing_power_minimum: float = 0.0,
+        grayscale_exponent: float = 1.0,
+    ) -> "Preset":
+        """
+        Enable grayscale multilayer and set the related attributes.
+        """
+        self.grayscale_layer_profile_nr_layers = (
+            grayscale_layer_profile_nr_layers
+        )
+        self.grayscale_writing_power_minimum = grayscale_writing_power_minimum
+        self.grayscale_exponent = grayscale_exponent
+        self.grayscale_multilayer_enabled = True
         return self
 
-    def duplicate(self) -> 'Preset':
+    def duplicate(self) -> "Preset":
         """
         Create a duplicate of the current preset instance.
 
@@ -133,9 +328,10 @@ class Preset(BaseModel):
         return duplicate
 
     @classmethod
-    def load_single(cls, file_path: str, fresh_id: bool = True) -> 'Preset':
+    def load_single(cls, file_path: str, fresh_id: bool = True) -> "Preset":
         """
-        Load a single preset from a .toml file.
+        Load a single preset from a valid .toml file containing
+        preset data only.
 
         Parameters:
             file_path (str): The path to the .toml file.
@@ -151,33 +347,61 @@ class Preset(BaseModel):
         if not os.path.isfile(file_path):
             raise FileNotFoundError(f"File not found: {file_path}")
 
-        with open(file_path, 'r') as toml_file:
+        with open(file_path, "r") as toml_file:
             data = toml.load(toml_file)
 
-        # Get the valid fields of the model
-        valid_fields = cls.__fields__.keys()
-
-        # Filter out invalid keys from data
-        valid_data = {key: value for key, value in data.items() if key in valid_fields}
-
-        if 'name' not in valid_data:
-            # Extract the file name without the extension if not in .toml
-            name = os.path.splitext(os.path.basename(file_path))[0]
-        else:
-            name = valid_data.pop('name')
-
+        # Create a new Preset instance using the setters
         try:
-            cls_instance = cls(name=name, **valid_data)
-        except ValidationError as e:
-            raise ValidationError(model=cls, errors=e.errors())
+            instance = cls(
+                name=data.get(
+                    "name", os.path.splitext(os.path.basename(file_path))[0]
+                ),
+                valid_objectives=data.get("valid_objectives", ["25x"]),
+                valid_resins=data.get("valid_resins", ["IP-n162"]),
+                valid_substrates=data.get("valid_substrates", ["*"]),
+                writing_speed=data.get("writing_speed", 250000.0),
+                writing_power=data.get("writing_power", 50.0),
+                slicing_spacing=data.get("slicing_spacing", 0.8),
+                hatching_spacing=data.get("hatching_spacing", 0.3),
+                hatching_angle=data.get("hatching_angle", 0.0),
+                hatching_angle_increment=data.get(
+                    "hatching_angle_increment", 0.0
+                ),
+                hatching_offset=data.get("hatching_offset", 0.0),
+                hatching_offset_increment=data.get(
+                    "hatching_offset_increment", 0.0
+                ),
+                hatching_back_n_forth=data.get("hatching_back_n_forth", True),
+                mesh_z_offset=data.get("mesh_z_offset", 0.0),
+                grayscale_multilayer_enabled=data.get(
+                    "grayscale_multilayer_enabled", False
+                ),
+                grayscale_layer_profile_nr_layers=data.get(
+                    "grayscale_layer_profile_nr_layers", 6
+                ),
+                grayscale_writing_power_minimum=data.get(
+                    "grayscale_writing_power_minimum", 0.0
+                ),
+                grayscale_exponent=data.get("grayscale_exponent", 1.0),
+            )
+        except Exception as e:
+            raise ValueError(
+                f"Error creating Preset from file {file_path}: {e}"
+            )
 
+        # Optionally assign a new ID if fresh_id is True
         if not fresh_id:
-            cls_instance.id = data.get('id', cls_instance.id)
+            instance.id = data.get("id", instance.id)
 
-        return cls_instance
+        return instance
 
     @classmethod
-    def load_multiple(cls, directory_path: str, print_names: bool = False, fresh_id: bool = True) -> List['Preset']:
+    def load_multiple(
+        cls,
+        directory_path: str,
+        print_names: bool = False,
+        fresh_id: bool = True,
+    ) -> List["Preset"]:
         """
         Load multiple presets from a directory containing .toml files.
 
@@ -197,7 +421,7 @@ class Preset(BaseModel):
 
         presets = []
         for file_name in sorted(os.listdir(directory_path)):
-            if file_name.endswith('.toml'):
+            if file_name.endswith(".toml"):
                 file_path = os.path.join(directory_path, file_name)
                 preset = cls.load_single(file_path, fresh_id)
                 presets.append(preset)
@@ -207,13 +431,29 @@ class Preset(BaseModel):
 
     def to_dict(self) -> Dict[str, Any]:
         """
-        Convert the preset and its unique attributes to a dictionary format.
+        Convert the preset to a dictionary format.
 
         Returns:
-            Dict[str, Any]: Dictionary representation of the preset.
+            Dict[str, Any]: Dictionary representation of the preset, including
+                            attributes starting with '_', but excluding attributes with '__'.
+                            Leading '_' is removed from keys in the resulting dictionary.
         """
-        preset_dict = self.dict(exclude={'unique_attributes'})
-        preset_dict.update(self.unique_attributes)
+        preset_dict = {}
+
+        for attr_name, attr_value in self.__dict__.items():
+            # Skip attributes that start with two underscores
+            # Ensures functional backend implementations via self.__interals
+            if attr_name.startswith("__"):
+                continue
+
+            # Remove leading single underscore if present
+            if attr_name.startswith("_"):
+                key = attr_name[1:]  # Remove the leading '_'
+            else:
+                key = attr_name
+
+            preset_dict[key] = attr_value
+
         return preset_dict
 
     def export(self, file_path: str = None) -> None:
@@ -229,10 +469,10 @@ class Preset(BaseModel):
         """
         if file_path is None:
             file_path = f"{self.name}.toml"
-        elif not file_path.endswith('.toml'):
-            file_path += '.toml'
+        elif not file_path.endswith(".toml"):
+            file_path += ".toml"
 
         data = self.to_dict()
 
-        with open(file_path, 'w') as toml_file:
+        with open(file_path, "w") as toml_file:
             toml.dump(data, toml_file)

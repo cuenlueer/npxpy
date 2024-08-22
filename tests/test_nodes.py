@@ -19,8 +19,8 @@ TEST_MESH_PATH = (
 class TestNodeMethods(unittest.TestCase):
     def setUp(self):
         # Set up common resources for testing
-        self.test_image = Image(path=TEST_IMAGE_PATH, name="Test Image")
-        self.test_mesh = Mesh(path=TEST_MESH_PATH, name="Test Mesh")
+        self.test_image = Image(file_path=TEST_IMAGE_PATH, name="Test Image")
+        self.test_mesh = Mesh(file_path=TEST_MESH_PATH, name="Test Mesh")
 
     def test_add_child(self):
         # Test the add_child method across node types

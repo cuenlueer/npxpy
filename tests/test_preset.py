@@ -122,12 +122,6 @@ class TestPreset(unittest.TestCase):
         self.assertEqual(presets[1], "25x_IP-n162_speed")
         self.assertEqual(presets[2], "25x_IP-Visio")
 
-    def test_to_dict(self):
-        self.preset.unique_attributes = {"custom_attr": "value"}
-        preset_dict = self.preset.to_dict()
-        self.assertIn("custom_attr", preset_dict)
-        self.assertEqual(preset_dict["custom_attr"], "value")
-
     @patch("builtins.open", new_callable=mock_open)
     def test_export(self, mock_open_file):
         file_path = "preset_export.toml"
