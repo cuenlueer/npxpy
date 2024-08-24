@@ -1,6 +1,6 @@
 # npxpy/__init__.py
-
 import sys
+import warnings
 
 # Importing from npxpy module files
 from .preset import Preset
@@ -11,31 +11,51 @@ from .nodes.project import Project
 from .nodes.space import Scene, Group, Array
 from .nodes.structures import Structure, Text, Lens
 from .nodes.aligners import (
-    CoarseAligner, InterfaceAligner, FiberAligner, MarkerAligner, EdgeAligner
+    CoarseAligner,
+    InterfaceAligner,
+    FiberAligner,
+    MarkerAligner,
+    EdgeAligner,
 )
 from .nodes.misc import DoseCompensation, Capture, StageMove, Wait
 
 # Define what should be available when importing npxpy
 __all__ = [
-    'Preset', 'Image', 'Mesh',
-    'Project', 'Scene', 'Group', 'Array',
-    'Structure', 'Text', 'Lens',
-    'CoarseAligner', 'InterfaceAligner', 'FiberAligner', 'MarkerAligner', 'EdgeAligner',
-    'DoseCompensation', 'Capture', 'StageMove', 'Wait'
+    "Preset",
+    "Image",
+    "Mesh",
+    "Project",
+    "Scene",
+    "Group",
+    "Array",
+    "Structure",
+    "Text",
+    "Lens",
+    "CoarseAligner",
+    "InterfaceAligner",
+    "FiberAligner",
+    "MarkerAligner",
+    "EdgeAligner",
+    "DoseCompensation",
+    "Capture",
+    "StageMove",
+    "Wait",
 ]
 
 # Version info
-__version__ = '0.1.0'
-version_info = (0, 1, 0)
+__version__ = "1.0.0"
+version_info = (1, 0, 0)
 
 # Metadata
-__author__ = 'Caghan Uenlueer'
-__license__ = 'LGPLv3'
-__email__ = 'caghan.uenlueer@kip.uni-heidelberg.com'
+__author__ = "Caghan Uenlueer"
+__license__ = "LGPLv3"
+__email__ = (
+    "caghan.uenlueer@kip.uni-heidelberg.de"  # Assumed full email address
+)
 
 # Python version check
-if sys.version_info < (3, 5, 0):
+if sys.version_info < (3, 7, 0):
     warnings.warn(
-        'The installed Python version reached its end-of-life. Please upgrade to a newer Python version for receiving '
-        'further npxpy updates.', Warning
+        "The installed Python version is outdated. Please upgrade to Python 3.7 or newer for continued npxpy updates.",
+        Warning,
     )
