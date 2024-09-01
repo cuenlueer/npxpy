@@ -44,18 +44,16 @@ __all__ = [
 
 # Version info
 __version__ = "1.0.0"
-version_info = (1, 0, 0)
 
 # Metadata
 __author__ = "Caghan Uenlueer"
 __license__ = "LGPLv3"
-__email__ = (
-    "caghan.uenlueer@kip.uni-heidelberg.de"  # Assumed full email address
-)
+__email__ = "caghan.uenlueer@kip.uni-heidelberg.de"
 
 # Python version check
 if sys.version_info < (3, 7, 0):
     warnings.warn(
-        "The installed Python version is outdated. Please upgrade to Python 3.7 or newer for continued npxpy updates.",
+        "The installed Python version is outdated. Please upgrade to"
+        " Python 3.7 or newer for continued npxpy updates.",
         Warning,
     )

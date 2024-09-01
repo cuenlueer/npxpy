@@ -3,7 +3,7 @@ from os import path
 import npxpy
 
 with open(
-    path.join(path.abspath(path.dirname(__file__)), "README.md"),
+    path.join(path.abspath(path.dirname(__file__)), "docs/README.md"),
     encoding="utf-8",
 ) as f:
     long_description = f.read()
@@ -22,13 +22,15 @@ setup(
     platforms="All",
     python_requires=">=3.5",
     license="LGPLv3",
-    description="Python package for creating NANO projects for the Nanoscribe QX.",
+    description="Python based open source text-only project preparation"
+    " framework for Nanoscribe’s two-photon 3D lithography"
+    " system Quantum X align.",
     long_description=long_description,
     long_description_content_type="text/markdown",
     install_requires=["toml", "numpy-stl"],
     test_suite="tests",
     classifiers=[
-        "Development Status :: 4 - Beta",
+        "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Science/Research",
         "Topic :: Scientific/Engineering :: Aligned 2-Photon 3D Lithography",
         "Topic :: Scientific/Engineering :: Physics",
