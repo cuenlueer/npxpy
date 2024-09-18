@@ -120,7 +120,7 @@ group1.add_child(interface_aligner2)
 
 
 marker_aligner1 = n.MarkerAligner(image=resource_image, marker_size=[8, 8])
-# marker_aligner1.add_marker('label', 0, [0,0,0])
+marker_aligner1.add_marker("label", 0, [0, 0, 0])
 interface_aligner1.add_child(marker_aligner1)
 
 

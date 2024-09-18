@@ -970,10 +970,10 @@ class MarkerAligner(Node):
             raise TypeError("orientation must be a float or an int.")
         if (
             not isinstance(position, list)
-            or len(position) != 2
+            or len(position) != 3
             or not all(isinstance(val, (float, int)) for val in position)
         ):
-            raise TypeError("position must be a list of two numbers.")
+            raise TypeError("position must be a list of three numbers.")
 
         self.alignment_anchors.append(
             {"label": label, "position": position, "rotation": orientation}
@@ -1004,10 +1004,12 @@ class MarkerAligner(Node):
         for position in positions:
             if (
                 not isinstance(position, list)
-                or len(position) != 2
+                or len(position) != 3
                 or not all(isinstance(val, (float, int)) for val in position)
             ):
-                raise TypeError("All positions must be lists of two numbers.")
+                raise TypeError(
+                    "All positions must be lists of three numbers."
+                )
 
         for label, orientation, position in zip(
             labels, orientations, positions
