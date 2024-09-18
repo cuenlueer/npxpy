@@ -70,8 +70,8 @@ edit_presets = {"writing_speed" : 220000.0,
 preset_from_args = npxpy.Preset(name = 'preset_from_args', **edit_presets)
 
 #  Load your resources simply via path to their directories. 
-stl_mesh = npxpy.Mesh(path = './example_mesh.stl', name = 'stl_structure_0')
-marker = npxpy.Image(path = './example_marker.png', name = 'marker_image')
+stl_mesh = npxpy.Mesh(file_path = './example_mesh.stl', name = 'stl_structure_0')
+marker = npxpy.Image(file_path = './example_marker.png', name = 'marker_image')
 
 #  Initialize your project and load your presets and resources into it.
 project = npxpy.Project(objective = '25x', resin = 'IP-n162', substrate = 'FuSi')
