@@ -18,6 +18,7 @@ from .nodes.aligners import (
     EdgeAligner,
 )
 from .nodes.misc import DoseCompensation, Capture, StageMove, Wait
+from ._version import __version__
 
 # Define what should be available when importing npxpy
 __all__ = [
@@ -41,9 +42,6 @@ __all__ = [
     "StageMove",
     "Wait",
 ]
-
-# Version info
-__version__ = "1.0.0"
 
 # Metadata
 __author__ = "Caghan Uenlueer"
