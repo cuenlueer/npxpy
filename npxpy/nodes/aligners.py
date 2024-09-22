@@ -460,6 +460,10 @@ class InterfaceAligner(Node):
                   alignment anchors, grid settings, and signal properties.
         """
         node_dict = super().to_dict()
+        if self.signal_type == "auto" or self.detector_type == "camera_legacy":
+            node_dict["interface_finder_type"] = self.signal_type
+        else:
+            node_dict["interface_finder_type"] = f"{self.signal_type}_{self.detector_type}"
         node_dict["properties"] = {
             "signal_type": self.signal_type,
             "detector_type": self.detector_type,
