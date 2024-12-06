@@ -55,7 +55,7 @@ class Project(Node):
         self.project_info = {
             "author": os.getlogin(),
             "objective": objective,
-            "resin": resin,
+            "resist": resin,
             "substrate": substrate,
             "creation_date": datetime.now().replace(microsecond=0).isoformat(),
         }
