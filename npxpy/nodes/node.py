@@ -112,6 +112,24 @@ class Node:
 
         child_node.parents_nodes.append(self)
         self.children_nodes.append(child_node)
+        # Update descendants list of parent
+        self.all_descendants += [child_node] + child_node.all_ancestors
+
+        for child in [child_node] + child_node.all_ancestors:
+            child.all_ancestors = (
+                child._generate_all_ancestors()
+            )  # Update ancestors list (_generate_all_ancestors() inexpensive and easy!)
+
+        for (
+            ancestor
+        ) in (
+            self.all_ancestors
+        ):  # Update descendants for the parent's ancestors
+            ancestor.all_descendants += [
+                child_node
+            ] + child_node.all_descendants
+
+        """ Deprecated?
         self.all_descendants = (
             self._generate_all_descendants()
         )  # Update descendants list
@@ -124,7 +142,7 @@ class Node:
         ):  # Update for the whole batch of nodes their ancestors and descendants
             i.all_descendants = i._generate_all_descendants()
             i.all_ancestors = i._generate_all_ancestors()
-
+        """
         if child_node._type == "structure":
             if (
                 not "scene" in [i._type for i in self.all_ancestors]
@@ -362,7 +380,7 @@ class Node:
             "rotation": self.rotation,
             "children": self.children,
             "properties": self.properties,
-            "geometry": self.geometry,
+            # "geometry": self.geometry                      Deprecated(?)
         }
 
         return node_dict
