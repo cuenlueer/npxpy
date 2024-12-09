@@ -113,9 +113,10 @@ class Node:
         child_node.parents_nodes.append(self)
         self.children_nodes.append(child_node)
         # Update descendants list of parent
-        self.all_descendants += [child_node] + child_node.all_ancestors
 
-        for child in [child_node] + child_node.all_ancestors:
+        self.all_descendants += [child_node] + child_node.all_descendants
+
+        for child in [child_node] + child_node.all_descendants:
             child.all_ancestors = (
                 child._generate_all_ancestors()
             )  # Update ancestors list (_generate_all_ancestors() inexpensive and easy!)
@@ -129,7 +130,8 @@ class Node:
                 child_node
             ] + child_node.all_descendants
 
-        """ Deprecated?
+        """
+        # Deprecated?
         self.all_descendants = (
             self._generate_all_descendants()
         )  # Update descendants list
@@ -380,7 +382,7 @@ class Node:
             "rotation": self.rotation,
             "children": self.children,
             "properties": self.properties,
-            # "geometry": self.geometry                      Deprecated(?)
+            # "geometry": self.geometry,
         }
 
         return node_dict
