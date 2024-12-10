@@ -61,7 +61,7 @@ markdown_extensions:
 
 nav:
   - Home: README.md
-  - Documentation:
+  - API Reference:
     - Overview: 
         - "Where to start?": overview.md
     - "npxypy.nodes":

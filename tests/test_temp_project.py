@@ -194,4 +194,4 @@ fiberaligner2 = n.FiberAligner(
 ).measure_tilt([50, 150], 11, 10)
 project.add_child(fiberaligner2)
 project.add_child(fiberaligner1)
-project.nano("testmeplease")
+project.nano("test_temp_project")

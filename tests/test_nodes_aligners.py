@@ -57,7 +57,7 @@ class TestAligners(unittest.TestCase):
         )
 
         # Test marker addition
-        marker_aligner.add_marker("Marker 1", 90.0, [0, 0])
+        marker_aligner.add_marker("Marker 1", 90.0, [0, 0, 0])
         self.assertEqual(len(marker_aligner.alignment_anchors), 1)
 
     def test_edge_aligner_initialization(self):
