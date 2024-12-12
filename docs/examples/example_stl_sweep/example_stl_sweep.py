@@ -101,9 +101,13 @@ interface_aligner_positions = [
     [0.0, -50.0],
 ]
 
-interface_aligner = npxpy.InterfaceAligner(name="Interface Aligner")
+interface_aligner = npxpy.InterfaceAligner(
+    name="Interface Aligner",
+    measure_tilt=True,
+)
 interface_aligner.set_interface_anchors_at(
-    labels=interface_aligner_labels, positions=interface_aligner_positions
+    labels=interface_aligner_labels,
+    positions=interface_aligner_positions,
 )
 
 # ------------------------------------------------------------------------------

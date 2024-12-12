@@ -27,7 +27,7 @@ setup(
     " system Quantum X align.",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    install_requires=["toml", "numpy-stl"],
+    install_requires=["pytomlpp", "numpy-stl", "pyvista", "pyvistaqt", "numpy"],
     test_suite="tests",
     classifiers=[
         "Development Status :: 5 - Production/Stable",
