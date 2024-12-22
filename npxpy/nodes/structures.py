@@ -54,6 +54,7 @@ class Structure(Node):
         expose_individually: bool = False,
         position: List[Union[float, int]] = [0, 0, 0],
         rotation: List[Union[float, int]] = [0.0, 0.0, 0.0],
+        color="#16506B",
     ):
         """
         Initialize a Structure node.
@@ -93,6 +94,7 @@ class Structure(Node):
         self.size = size
         self.position = position
         self.rotation = rotation
+        self.color = color
 
         self._mesh = True
 
@@ -243,6 +245,19 @@ class Structure(Node):
             )
         self._rotation = value
 
+    @property
+    def color(self):
+        """The color of the structure inside the viewport."""
+        return self._color
+
+    @color.setter
+    def color(self, value: str):
+        if not isinstance(value, str):
+            raise TypeError(
+                "color must be a string. A non-valid string will default to black."
+            )
+        self._color = value
+
     def position_at(
         self,
         position: List[Union[float, int]] = [0, 0, 0],
@@ -327,6 +342,7 @@ class Structure(Node):
             }
         node_dict = super().to_dict()
         node_dict["preset"] = self.preset.id if self.preset else None
+        node_dict["properties"] = {"color": self.color}
         node_dict["geometry"] = self.geometry
         return node_dict
 
