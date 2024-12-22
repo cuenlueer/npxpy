@@ -53,6 +53,7 @@ positions = [
 coarse_aligner1 = n.CoarseAligner(residual_threshold=8).set_coarse_anchors_at(
     labels, positions
 )
+coarse_aligner_rot = n.CoarseAligner().set_coarse_anchors_at(labels, positions)
 scene1 = n.Scene(writing_direction_upward=False).position_at(
     [10, 10, 10], [45, 45, 45]
 )
@@ -121,7 +122,7 @@ group1.add_child(interface_aligner2)
 
 marker_aligner1 = n.MarkerAligner(image=resource_image, marker_size=[8, 8])
 # marker_aligner1.add_marker("label", 1, [2, 4, 5])
-marker_aligner1.set_markers_at(["label"], [3], [[6, 7, 8]])
+marker_aligner1.set_markers_at(["label"], [45], [[6, 7, 8]])
 interface_aligner1.add_child(marker_aligner1)
 
 
@@ -131,8 +132,10 @@ structure = n.Structure(
     project,
     auto_load_presets=True,
     auto_load_resources=True,
+    color="pink",
 )
 marker_aligner1.add_child(structure)
+marker_aligner1.add_child(coarse_aligner_rot)
 
 text1 = n.Text(preset, priority=1)
 lens1 = (
