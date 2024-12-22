@@ -38,7 +38,7 @@ def generate_menger_sponge_positions(order=3, smallest_cube_size=10.0):
     return positions
 
 
-menger_sponge_order = 1
+menger_sponge_order = 3
 voxel_cube_size = 1  # in micrometer
 
 #  Initialize the presets and resources that you want to use in this project.
@@ -90,7 +90,13 @@ for pos in menger_sponge_voxel_positions:
     voxel_cube_structure = npxpy.Structure(
         mesh=voxel_cube, preset=preset, name=f"{voxel_cube.name}_{pos}"
     ).position_at(position=list(pos))
-    voxel_cube_structure.translate([-121.5, -121.5, 0])
+    voxel_cube_structure.translate(
+        [
+            -(voxel_cube_size * 3**menger_sponge_order) / 2,
+            -(voxel_cube_size * 3**menger_sponge_order) / 2,
+            0,
+        ]
+    )
     interface_aligner.add_child(voxel_cube_structure)
 
 
