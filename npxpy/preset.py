@@ -12,7 +12,7 @@ This file is part of npxpy (formerly nanoAPI), which is licensed under the GNU
 Lesser General Public License v3.0. You can find a copy of this license at
 https://www.gnu.org/licenses/lgpl-3.0.html
 """
-import toml
+import pytomlpp as toml
 import uuid
 import os
 import copy
