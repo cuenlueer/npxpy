@@ -80,7 +80,11 @@ class Scene(Node):
             raise ValueError("writing_direction_upward must be a boolean.")
         self._writing_direction_upward = value
 
-    def position_at(self, position: List[float], rotation: List[float]):
+    def position_at(
+        self,
+        position: List[float] = [0.0, 0.0, 0.0],
+        rotation: List[float] = [0.0, 0.0, 0.0],
+    ):
         """
         Set the position and rotation of the scene.
 
