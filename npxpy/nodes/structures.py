@@ -371,6 +371,7 @@ class Text(Structure):
         expose_individually: bool = False,
         position: List[Union[float, int]] = [0, 0, 0],
         rotation: List[Union[float, int]] = [0.0, 0.0, 0.0],
+        color="lightblue",
     ):
         """
         Initialize a Text node.
@@ -402,6 +403,7 @@ class Text(Structure):
             expose_individually=expose_individually,
             position=position,
             rotation=rotation,
+            color=color,
         )
 
         # Setters for validation
@@ -501,6 +503,7 @@ class Lens(Structure):
         expose_individually: bool = False,
         position: List[Union[float, int]] = [0.0, 0.0, 0.0],
         rotation: List[Union[float, int]] = [0.0, 0.0, 0.0],
+        color="lightblue",
     ):
         """
         Initialize a Lens node with optical properties.
@@ -536,6 +539,7 @@ class Lens(Structure):
             expose_individually=expose_individually,
             rotation=rotation,
             position=position,
+            color=color,
         )
 
         # Setters for validation

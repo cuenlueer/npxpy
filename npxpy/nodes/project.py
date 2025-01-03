@@ -12,9 +12,6 @@ This file is part of npxpy (formerly nanoAPI), which is licensed under the GNU L
 You can find a copy of this license at https://www.gnu.org/licenses/lgpl-3.0.html
 """
 import pytomlpp as toml
-import pyvista as pv
-from pyvistaqt import BackgroundPlotter
-import numpy as np
 import json
 from datetime import datetime
 import os
@@ -23,6 +20,11 @@ import zipfile
 from npxpy.nodes.node import Node
 from npxpy.resources import Resource
 from npxpy.preset import Preset
+from npxpy.nodes._viewport_helpers import (
+    _GroupedPlotter,
+    _apply_transforms,
+    _meshbuilder,
+)
 
 
 class Project(Node):
@@ -236,9 +238,11 @@ class Project(Node):
         self,
         title: str = "Project",
         disable_visibility: Optional[Union[str, List[str]]] = None,
+        block_render: Optional[Union[str, List[str]]] = [],
     ):
         """
         Opens a PyVista viewport visualizing the print scenes in this project.
+        Does not visualize multiplications caused by Arrays.
 
         Parameters
         ----------
@@ -246,6 +250,10 @@ class Project(Node):
             Title to display in the PyVista window. Default is "Project".
         disable_visibility : str or list of str, optional
             One or more group names whose visibility should be disabled.
+            E.g., "scene" or ["scene", "coarse_alignment"].
+        block_render : str or list of str, optional
+            One or more group names whose initial rendering should be disabled
+            when calling the method.
             E.g., "scene" or ["scene", "coarse_alignment"].
 
         Returns
@@ -296,87 +304,60 @@ class Project(Node):
             position=(0.84, 0.86),
         )
 
+        # init the meshbuilder
+        meshbuilder = _meshbuilder()
+
         for node in self.all_descendants:
             all_rotations = [
                 getattr(ancestor, "rotation", [0, 0, 0])
                 for ancestor in node.all_ancestors
             ]
             all_rotations.reverse()
-            # if node._type == "structure":
-            #  print(all_rotations)
 
             ancestor_positions = [
                 getattr(ancestor, "position", [0, 0, 0])
                 for ancestor in node.all_ancestors
             ]
-            total_position = [
-                sum(elements) for elements in zip(*ancestor_positions)
-            ]
-            print(total_position)
-            if node._type == "scene":
+            all_positions = ancestor_positions
+            all_positions.reverse()
+
+            if node._type == "scene" and node._type not in block_render:
                 scene = node
-                # Decide on circle radius
-                circle_radius = 280 if self.objective == "25x" else 139
-
-                circle_center = np.add(scene.position, total_position)
-
                 # Create the circle representing the scene
-                scene_view = pv.Circle(radius=circle_radius, resolution=100)
 
+                scene_mesh, scene_mesh_dict = _meshbuilder.scene_mesh(
+                    self.objective
+                )
                 # apply first all_ancestors' rots
 
-                final_basis = _apply_transforms(
-                    mesh=scene_view,
-                    vector_x=np.array([1.0, 0.0, 0.0]),
-                    vector_y=np.array([0.0, 1.0, 0.0]),
-                    vector_z=np.array([0.0, 0.0, 1.0]),
-                    all_rotations=all_rotations,
-                    position=[0, 0, 0],
-                )
-
                 _apply_transforms(
-                    scene_view,
-                    position=circle_center,
-                    all_rotations=[scene.rotation],
-                    vector_x=final_basis[0],
-                    vector_y=final_basis[1],
-                    vector_z=final_basis[2],
+                    scene_mesh,
+                    all_positions=all_positions + [scene.position],
+                    all_rotations=all_rotations + [scene.rotation],
                 )
 
                 # Add to plotter as 'scene' group
-                plotter.add_mesh(
-                    scene_view,
-                    color="lightgrey",
-                    line_width=2,
-                    style="wireframe",
-                    opacity=0.1,
-                    group=scene._type,
-                )
-
-            if node._type == "structure" and node._mesh:
+                plotter.add_mesh(scene_mesh, **scene_mesh_dict)
+            # Structure
+            if (
+                node._type == "structure"
+                and node._mesh
+                and node._type not in block_render
+            ):
                 structure = node
-                loaded_mesh = pv.read(structure.mesh.file_path)
-
-                total_struct_position = np.add(
-                    structure.position, total_position
-                )
-
+                loaded_mesh = _meshbuilder.load_mesh(structure.mesh.file_path)
+                # apply initial mesh transformation
                 _apply_transforms(
                     mesh=loaded_mesh,
+                    all_positions=[structure.mesh.translation],
                     all_rotations=[structure.mesh.rotation],
-                    vector_x=np.array([1.0, 0.0, 0.0]),
-                    vector_y=np.array([0.0, 1.0, 0.0]),
-                    vector_z=np.array([0.0, 0.0, 1.0]),
                 )
 
-                # apply all_ancestors' rots and afterwards mesh rotation
-                _ = _apply_transforms(
+                # apply all_ancestors' rots and afterwards structure rotation
+                _apply_transforms(
                     mesh=loaded_mesh,
-                    vector_x=np.array([1.0, 0.0, 0.0]),
-                    vector_y=np.array([0.0, 1.0, 0.0]),
-                    vector_z=np.array([0.0, 0.0, 1.0]),
                     all_rotations=all_rotations + [structure.rotation],
-                    position=total_struct_position,
+                    all_positions=all_positions + [structure.position],
                 )
 
                 # Add to plotter
@@ -384,85 +365,180 @@ class Project(Node):
                     loaded_mesh, color=structure.color, group=structure._type
                 )
 
-            # Marker aligners (in-plane rotation only)
-            if node._type == "marker_alignment":
-                marker_aligner = node
-                marker_image = pv.read_texture(marker_aligner.image.file_path)
+            # Text (structure)
+            if (
+                node._type == "structure"
+                and hasattr(node, "font_size")
+                and node._type + "_text" not in block_render
+            ):
+                text_node = node
+                text_mesh, text_mesh_dict = _meshbuilder.txt_mesh(text_node)
+                # apply all_ancestors' rots and afterwards structure rotation
+                _apply_transforms(
+                    mesh=text_mesh,
+                    all_rotations=all_rotations + [text_node.rotation],
+                    all_positions=all_positions + [text_node.position],
+                )
 
-                for marker_i in marker_aligner.alignment_anchors:
-                    marker_i_total_position = np.add(
-                        marker_i["position"], total_position
-                    )
+                plotter.add_mesh(text_mesh, **text_mesh_dict)
 
-                    # Create the plane for each marker
-                    plane = pv.Plane(
-                        center=(0, 0, 0),
-                        direction=(0, 0, 1),
-                        i_size=marker_aligner.marker_size[0],
-                        j_size=marker_aligner.marker_size[1],
-                        i_resolution=1,
-                        j_resolution=1,
-                    )
-                    # apply all_ancestors' rots
-                    final_basis = _apply_transforms(
-                        mesh=plane,
-                        vector_x=np.array([1.0, 0.0, 0.0]),
-                        vector_y=np.array([0.0, 1.0, 0.0]),
-                        vector_z=np.array([0.0, 0.0, 1.0]),
-                        all_rotations=all_rotations,
-                        position=[0, 0, 0],
-                    )
+            # Lens (structure)
+            elif (
+                node._type == "structure"
+                and not node._mesh
+                and node._type + "_lens" not in block_render
+            ):
+                lens = node
+                geometry = lens.__dict__["geometry"].copy()
+                del (
+                    geometry["type"],
+                    geometry["nr_radial_segments"],
+                    geometry["nr_phi_segments"],
+                )
+                lens_mesh = meshbuilder.lens_mesh(**geometry)
 
-                    _apply_transforms(
-                        plane,
-                        position=marker_i_total_position,
-                        all_rotations=[[0, 0, marker_i["rotation"]]],
-                        vector_x=final_basis[0],
-                        vector_y=final_basis[1],
-                        vector_z=final_basis[2],
-                    )
+                _apply_transforms(
+                    mesh=lens_mesh,
+                    all_rotations=all_rotations + [lens.rotation],
+                    all_positions=all_positions + [lens.position],
+                )
 
-                    plotter.add_mesh(
-                        plane,
-                        texture=marker_image,
-                        smooth_shading=True,
-                        group=marker_aligner._type,
-                    )
+                plotter.add_mesh(lens_mesh, color=lens.color, group=lens._type)
 
             # Coarse aligners
-            if node._type == "coarse_alignment":
+            if (
+                node._type == "coarse_alignment"
+                and node._type not in block_render
+            ):
                 coarse_aligner = node
-                for anchor_i in coarse_aligner.alignment_anchors:
-                    # Create a line from (0,0,0) to (0,0,100), then transform
-                    coarse_anchor_mesh = pv.Line((0, 0, 0), (0, 0, 100))
-                    anchor_pos = np.add(anchor_i["position"], total_position)
+                coarse_anchor_mesh, coarse_anchor_mesh_dict = (
+                    _meshbuilder.ca_mesh(coarse_aligner)
+                )
+                # for coarse_anchor_mesh in coarse_anchor_meshes:
+                # apply all_ancestors' rots and afterwards mesh rotation
+                _apply_transforms(
+                    mesh=coarse_anchor_mesh,
+                    all_rotations=all_rotations,
+                    all_positions=all_positions,
+                )
+
+                plotter.add_mesh(coarse_anchor_mesh, **coarse_anchor_mesh_dict)
+            # interface aligners
+            if (
+                node._type == "interface_alignment"
+                and node._type not in block_render
+            ):
+                interface_aligner = node
+
+                ia_mesh, ia_mesh_dict = meshbuilder.ia_mesh(
+                    interface_aligner_node=interface_aligner
+                )
+
+                _apply_transforms(
+                    mesh=ia_mesh,
+                    all_rotations=all_rotations,
+                    all_positions=all_positions,
+                )
+
+                plotter.add_mesh(ia_mesh, **ia_mesh_dict)
+            # fiber aligners
+            if (
+                node._type == "fiber_core_alignment"
+                and node._type not in block_render
+            ):
+                fiber_aligner = node
+                fa_mesh, fa_mesh_dict = meshbuilder.fa_mesh(fiber_aligner)
+
+                _apply_transforms(
+                    mesh=fa_mesh,
+                    all_rotations=all_rotations,
+                    all_positions=all_positions,
+                )
+
+                plotter.add_mesh(fa_mesh, **fa_mesh_dict)
+            # Marker aligners
+            if (
+                node._type == "marker_alignment"
+                and node._type not in block_render
+            ):
+                marker_aligner = node
+                ma_meshes, ma_mesh_dict = _meshbuilder.ma_mesh(marker_aligner)
+
+                for ma_mesh in ma_meshes:
+
+                    # apply all_ancestors' rots
+                    _apply_transforms(
+                        mesh=ma_mesh,
+                        all_rotations=all_rotations,
+                        all_positions=all_positions,
+                    )
+
+                    plotter.add_mesh(ma_mesh, **ma_mesh_dict)
+
+            #  Edge aligners
+            if (
+                node._type == "edge_alignment"
+                and node._type not in block_render
+            ):
+                edge_aligner = node
+                edge_aligner_meshes, edge_aligner_meshes_dicts = (
+                    _meshbuilder.ea_mesh(edge_aligner)
+                )
+
+                for mesh, mesh_dict in zip(
+                    edge_aligner_meshes, edge_aligner_meshes_dicts
+                ):
 
                     _apply_transforms(
-                        coarse_anchor_mesh,
-                        position=anchor_pos,
-                        all_rotations=[[0, 0, 0]],
-                        vector_x=np.array([1, 0, 0]),
-                        vector_y=np.array([0, 1, 0]),
-                        vector_z=np.array([0, 0, 1]),
+                        mesh,
+                        all_positions=[edge_aligner.edge_location + [0]],
+                        all_rotations=[
+                            [0, 0, edge_aligner.edge_orientation]
+                        ],  # (in-plane rotation only)
                     )
 
-                    # apply all_ancestors' rots and afterwards mesh rotation
-                    final_basis = _apply_transforms(
-                        mesh=coarse_anchor_mesh,
-                        vector_x=np.array([1.0, 0.0, 0.0]),
-                        vector_y=np.array([0.0, 1.0, 0.0]),
-                        vector_z=np.array([0.0, 0.0, 1.0]),
+                    # apply all_ancestors' rots
+                    _apply_transforms(
+                        mesh,
                         all_rotations=all_rotations,
-                        position=[0, 0, 0],
+                        all_positions=all_positions,
                     )
 
-                    plotter.add_mesh(
-                        coarse_anchor_mesh,
-                        color="orange",
-                        line_width=10,
-                        opacity=0.5,
-                        group=coarse_aligner._type,
+                    plotter.add_mesh(mesh, **mesh_dict)
+
+            # Dose compensation
+            if (
+                node._type == "dose_compensation"
+                and node._type not in block_render
+            ):
+                dose_compensation = node
+
+                for mesh, kwargs in _meshbuilder.dc_meshes(
+                    dose_compensation.domain_size
+                ):
+                    _apply_transforms(
+                        mesh=mesh,
+                        all_rotations=all_rotations
+                        + [[0, 0, dose_compensation.edge_orientation]],
+                        all_positions=all_positions
+                        + [dose_compensation.edge_location],
                     )
+
+                    plotter.add_mesh(mesh, **kwargs)
+
+            # Capture
+            if node._type == "capture" and node._type not in block_render:
+                capture = node
+
+                capt_mesh, capt_mesh_dict = _meshbuilder.capture_mesh(capture)
+
+                _apply_transforms(
+                    mesh=capt_mesh,
+                    all_rotations=all_rotations,
+                    all_positions=all_positions,
+                )
+
+                plotter.add_mesh(capt_mesh, **capt_mesh_dict)
 
         # Disable visibility for certain groups if requested
         self._visibility_in_plotter_disabled = disable_visibility
@@ -471,6 +547,7 @@ class Project(Node):
 
         # Show the viewport
         plotter.show()
+
         return plotter
 
     def to_dict(self) -> Dict:
@@ -486,143 +563,3 @@ class Project(Node):
             }
         )
         return node_dict
-
-
-class _GroupedPlotter(BackgroundPlotter):
-    """
-    A custom PyVista BackgroundPlotter that supports grouping of actors,
-    enabling group-based visibility toggling.
-
-    Methods
-    -------
-    add_mesh(mesh, group=None, **kwargs)
-        Adds mesh to the plotter and stores actor in group.
-    disable_visibility(group)
-        Disables visibility of all actors in the specified group.
-    enable_visibility(group)
-        Enables visibility of all actors in the specified group.
-    set_group_visibility(group, visible=True)
-        Sets visibility for all actors in a given group.
-    """
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.actor_groups = {}  # dictionary to store lists of actors by group
-
-    def add_mesh(self, mesh, group=None, **kwargs):
-        """
-        A wrapper around plotter.add_mesh that also associates the actor with a group.
-        """
-        actor = super().add_mesh(mesh, **kwargs)  # get the actor from PyVista
-        if group is not None:
-            if group not in self.actor_groups:
-                self.actor_groups[group] = []
-            self.actor_groups[group].append(actor)
-        return actor
-
-    def set_group_visibility(self, group, visible=True):
-        """
-        Toggle visibility of all actors in a given group.
-        """
-        if group not in self.actor_groups:
-            return  # group doesn't exist, do nothing
-        for actor in self.actor_groups[group]:
-            actor.SetVisibility(visible)
-        self.render()
-
-    def disable_visibility(self, group):
-        self.set_group_visibility(group, visible=False)
-
-    def enable_visibility(self, group):
-        self.set_group_visibility(group, visible=True)
-
-
-def _apply_transforms(
-    mesh: pv.DataSet,
-    all_rotations: [np.ndarray],
-    vector_x: np.ndarray,
-    vector_y: np.ndarray,
-    vector_z: np.ndarray,
-    position: Optional[np.ndarray] = [0, 0, 0],
-    pivot: Optional[np.ndarray] = [0, 0, 0],
-    in_plane_only: bool = False,
-) -> None:
-    """
-    Applies rotations around a pivot (if provided) and then translates a PyVista mesh.
-
-    Parameters
-    ----------
-    mesh : pv.DataSet
-        The PyVista mesh or dataset to be transformed.
-    position : np.ndarray
-        The final translation to be applied. Typically the object's position.
-    rotation : np.ndarray
-        Rotation angles [rot_x, rot_y, rot_z], in degrees, to be applied.
-    pivot : np.ndarray, optional
-        The point around which to rotate. If None, rotation occurs around the origin (0,0,0).
-    in_plane_only : bool, default=False
-        If True, only rotate around the Z-axis (e.g., for markers that only rotate in-plane).
-    """
-
-    # Rotate about all axes
-    # Start with initial triad: e_x, e_y, e_z
-    e_x = vector_x
-    e_y = vector_y
-    e_z = vector_z
-
-    for rotation in all_rotations:
-
-        mesh.rotate_vector(
-            vector=e_y,
-            angle=rotation[1],
-            point=pivot,
-            inplace=True,
-            # transform_all_input_vectors=True,
-        )
-
-        # 2) Rotate about updated e_y by ry
-        e_x = _rodrigues_rotation(e_x, e_y, rotation[1])
-        e_z = _rodrigues_rotation(e_z, e_y, rotation[1])
-        # e_y remains unchanged when rotating around e_y
-
-        mesh.rotate_vector(
-            vector=e_x,
-            angle=rotation[0],
-            point=pivot,
-            inplace=True,
-            # transform_all_input_vectors=True,
-        )
-
-        # 1) Rotate about current e_x by rx
-        e_y = _rodrigues_rotation(e_y, e_x, rotation[0])
-        e_z = _rodrigues_rotation(e_z, e_x, rotation[0])
-        # e_x itself remains unchanged when rotating around e_x
-
-        mesh.rotate_vector(
-            vector=e_z,
-            angle=rotation[2],
-            point=pivot,
-            inplace=True,
-            # transform_all_input_vectors=True,
-        )
-
-        # 3) Rotate about updated e_z by rz
-        e_x = _rodrigues_rotation(e_x, e_z, rotation[2])
-        e_y = _rodrigues_rotation(e_y, e_z, rotation[2])
-        # e_z remains unchanged when rotating around e_z
-
-    mesh.translate(position, inplace=True)
-    return (e_x, e_y, e_z)
-
-
-def _rodrigues_rotation(v, k, theta_deg):
-    """
-    Rotate a vector v about a (normalized) axis k by theta_deg (degrees),
-    using Rodrigues' rotation formula.
-    """
-    theta = np.deg2rad(theta_deg)
-    k = k / np.linalg.norm(k)  # ensure axis is normalized
-    cos_t = np.cos(theta)
-    sin_t = np.sin(theta)
-    # Rodrigues formula: v' = v*cosθ + (k x v)*sinθ + k*(k·v)*(1 - cosθ)
-    return v * cos_t + np.cross(k, v) * sin_t + k * np.dot(k, v) * (1 - cos_t)
