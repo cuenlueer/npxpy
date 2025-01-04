@@ -222,7 +222,7 @@ marker_aligner1.add_child(
 marker_aligner1.add_child(lens1)
 text1 = n.Text(preset, priority=1)
 
-
+scene0 = scene1.deepcopy_node()
 # structure.add_child(text1)
 
 
@@ -268,8 +268,8 @@ children = [
     n.Wait(wait_time=88),
     text1,
 ]
-for child in children:
-    project.add_child(child)
+
+project.add_child(*children)
 
 array1.add_child(
     n.Capture("my confocal").confocal(1.1, [55, 111], [121, 121]),

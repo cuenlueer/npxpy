@@ -59,11 +59,40 @@ class _GroupedPlotter(BackgroundPlotter):
             actor.SetVisibility(visible)
         self.render()
 
-    def disable_visibility(self, group):
+    def disable(self, group):
         self.set_group_visibility(group, visible=False)
 
-    def enable_visibility(self, group):
+    def enable(self, group):
         self.set_group_visibility(group, visible=True)
+
+    def _add_custom_axes(self):
+        x_axis_dict = {
+            "color": "red",
+            "group": "axes",
+            "line_width": 2,
+        }
+        y_axis_dict = {
+            "color": "green",
+            "group": "axes",
+            "line_width": 2,
+        }
+        z_axis_dict = {
+            "color": "blue",
+            "group": "axes",
+            "line_width": 2,
+        }
+
+        xmax = xmax = self.bounds[1] if self.bounds[1] > 100 else 100
+        ymax = ymax = self.bounds[3] if self.bounds[3] > 100 else 100
+        zmax = zmax = self.bounds[5] if self.bounds[5] > 100 else 100
+
+        x_axis = pv.Line(pointa=(0, 0, 0), pointb=(xmax, 0, 0))
+        y_axis = pv.Line(pointa=(0, 0, 0), pointb=(0, ymax, 0))
+        z_axis = pv.Line(pointa=(0, 0, 0), pointb=(0, 0, zmax))
+
+        self.add_mesh(x_axis, **x_axis_dict)
+        self.add_mesh(y_axis, **y_axis_dict)
+        self.add_mesh(z_axis, **z_axis_dict)
 
 
 def _apply_transforms(
@@ -164,10 +193,7 @@ def _rodrigues_rotation(v, k, theta_deg):
 
 class _meshbuilder:
     @staticmethod
-    def scene_mesh(objective):
-        # Decide on circle radius
-        circle_radius = 280 if objective == "25x" else 139
-
+    def scene_mesh(objective, ronin_node=False):
         scene_mesh_dict = {
             "color": "lightgrey",
             "line_width": 2,
@@ -175,7 +201,20 @@ class _meshbuilder:
             "opacity": 0.1,
             "group": "scene",
         }
-        return pv.Circle(radius=circle_radius, resolution=100), scene_mesh_dict
+        # Decide on circle radius
+        if not ronin_node:
+            circle_radius = 280 if objective == "25x" else 139
+
+            return (
+                pv.Circle(radius=circle_radius, resolution=100),
+                scene_mesh_dict,
+            )
+        else:
+            both_circles = pv.PolyData()
+            both_circles += pv.Circle(radius=280, resolution=100) + pv.Circle(
+                radius=139, resolution=100
+            )
+            return both_circles, scene_mesh_dict
 
     @staticmethod
     def ca_mesh(coarse_aligner):
@@ -649,8 +688,8 @@ class _meshbuilder:
             center=(0, 0, z_base_disc),
             inner=0,
             outer=disc_radius,
-            r_res=nr_radial_segments,
-            c_res=nr_phi_segments,
+            r_res=nr_radial_segments + 500,
+            c_res=nr_phi_segments + 360,
         )
 
         # Extrude disc upward until it intersects or "trims" against the main surface
@@ -899,7 +938,14 @@ class _meshbuilder:
             "smooth_shading": True,
             "group": marker_aligner._type,
         }
+        ma_label_dict = {
+            "color": "black",
+            "opacity": 0.1,
+            "group": marker_aligner._type,
+        }
+
         ma_meshes = []
+        ma_label_meshes = []
         for marker_i in marker_aligner.alignment_anchors:
             # marker_i_total_position = np.add(
             #    marker_i["position"], total_position
@@ -914,6 +960,13 @@ class _meshbuilder:
                 i_resolution=1,
                 j_resolution=1,
             )
+            # Add the label as a Text3D below it
+            label_mesh = pv.Text3D(
+                marker_i["label"],
+                depth=0,
+                height=2.5,
+                center=(0, -0.5 * (marker_aligner.marker_size[1] + 5), 0),
+            )
 
             _apply_transforms(
                 plane,
@@ -922,9 +975,19 @@ class _meshbuilder:
                     [0, 0, marker_i["rotation"]]
                 ],  # (in-plane rotation only)
             )
-            ma_meshes.append(plane)
 
-        return ma_meshes, ma_mesh_dict
+            _apply_transforms(
+                label_mesh,
+                all_positions=[marker_i["position"]],
+                all_rotations=[
+                    [0, 0, marker_i["rotation"]]
+                ],  # (in-plane rotation only)
+            )
+
+            ma_meshes.append(plane)
+            ma_label_meshes.append(label_mesh)
+
+        return ma_meshes, ma_label_meshes, ma_mesh_dict, ma_label_dict
 
     @staticmethod
     def capture_mesh(capture):
