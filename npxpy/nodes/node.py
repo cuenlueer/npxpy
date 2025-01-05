@@ -16,11 +16,6 @@ import uuid
 import copy
 import os
 from typing import Dict, Any, List, Tuple, Optional, Union
-from npxpy.nodes._viewport_helpers import (
-    _GroupedPlotter,
-    _apply_transforms,
-    _meshbuilder,
-)
 
 
 class Node:
@@ -383,6 +378,11 @@ class Node:
             depth += 1
         return depth
 
+    def _lazy_import_wrapper(self):
+        from . import _viewport_helpers
+
+        return _viewport_helpers._lazy_import()
+
     def viewport(
         self,
         title: Optional[str] = None,
@@ -421,6 +421,10 @@ class Node:
         >>> # Disable visibility for scenes and coarse alignments
         >>> node.viewport(disable_visibility=["scene", "coarse_alignment"])
         """
+        _GroupedPlotter, _apply_transforms, _meshbuilder = (
+            self._lazy_import_wrapper()
+        )
+
         if disable_visibility is None:
             disable_visibility = []
         if title is None:
@@ -581,7 +585,9 @@ class Node:
                     all_positions=all_positions + [lens.position],
                 )
 
-                plotter.add_mesh(lens_mesh, color=lens.color, group=lens._type)
+                plotter.add_mesh(
+                    lens_mesh, color=lens.color, group=lens._type + "_lens"
+                )
 
             # Coarse aligners
             if (

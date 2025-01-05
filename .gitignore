@@ -8,3 +8,6 @@ README_finalversion.md
 adjusthashes.py
 docs/images/desktop.ini
 
+/.spyproject
+/venv
+/venv-light
