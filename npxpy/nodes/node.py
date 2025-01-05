@@ -255,14 +255,13 @@ class Node:
         for child in node.children_nodes:
             self._reset_ids(child)
 
-    def grab_node(
-        self, node_types_with_indices: List[Tuple[str, int]]
-    ) -> "Node":
+    def grab_node(self, *node_types_with_indices: Tuple[str, int]) -> "Node":
         """
         Grab nodes based on the specified types and indices.
 
         Parameters:
-            node_types_with_indices (List[Tuple[str, int]]): List of tuples containing node type and index.
+            node_types_with_indices (Tuple[str, int]):
+            Tuples of arbitrary amount containing node type and index.
 
         Returns:
             Node: The node found based on the specified types and indices.
