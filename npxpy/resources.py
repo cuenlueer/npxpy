@@ -178,6 +178,13 @@ class Mesh(Resource):
         self.target_ratio = target_ratio
         self.original_triangle_count = self._get_triangle_count(file_path)
 
+        # Load the mesh data
+        self.mesh_data = stl_mesh.Mesh.from_file(file_path)
+
+        # Apply auto-centering if enabled
+        if self.auto_center:
+            self._auto_center()
+
     @property
     def translation(self):
         return self._translation
@@ -234,6 +241,35 @@ class Mesh(Resource):
         if not (0 <= value <= 100):
             raise ValueError("Target ratio must be between 0 and 100")
         self._target_ratio = value
+
+    def _auto_center(self):
+        """
+        Auto-center the mesh by translating it so the bounding box center aligns with the origin
+        in the x and y axes, and the lowest z coordinate is set to 0.
+        """
+        all_vertices = self.mesh_data.vectors.reshape(-1, 3)
+
+        # Calculate the min and max coordinates for bounding box
+        min_coords = all_vertices.min(axis=0)
+        max_coords = all_vertices.max(axis=0)
+
+        # Center x and y by calculating the bounding box center
+        bounding_box_center = (min_coords + max_coords) / 2.0
+        bounding_box_center[2] = min_coords[2]  # For z, use the lowest point
+
+        # Calculate the translation
+        translation = -bounding_box_center
+        translation[2] = -min_coords[
+            2
+        ]  # Translate only enough to set the lowest z to 0
+
+        # Apply the translation to the mesh
+        self.mesh_data.translate(translation)
+
+        # Update translation property to reflect the applied translation
+        self.translation = [
+            t + c for t, c in zip(self.translation, translation)
+        ]
 
     def _get_triangle_count(self, path: str) -> int:
         """
