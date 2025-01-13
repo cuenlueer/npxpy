@@ -491,11 +491,11 @@ class Node:
             if node._type == "scene" and node._type not in block_render:
                 scene = node
                 # Create the circle representing the scene
-                if len(self.all_ancestors) != 0 and hasattr(
-                    self.all_ancestors[-1], "objective"
+                if len(scene.all_ancestors) != 0 and hasattr(
+                    scene.all_ancestors[-1], "objective"
                 ):
                     ronin_node = False
-                    objective = self.all_ancestors[-1].objective
+                    objective = scene.all_ancestors[-1].objective
                 else:
                     print(
                         (
