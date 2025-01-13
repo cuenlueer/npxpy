@@ -959,7 +959,7 @@ def _lazy_import():
             }
             ma_label_dict = {
                 "color": "black",
-                "opacity": 0.1,
+                "opacity": 0.5,
                 "group": marker_aligner._type,
             }
 
