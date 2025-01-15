@@ -154,7 +154,7 @@ class Node:
                 ):
                     print("WARNING: Structures have to be inside Scene nodes!")
 
-            return self
+        return self
 
     def _has_ancestor_of_type(self, node_type: str) -> bool:
         """
@@ -333,7 +333,7 @@ class Node:
 
     def append_node(self, node_to_append: "Node"):
         """
-        Append a node to the deepest descendant.
+        Append a node to the deepest descendant on the highest branch.
 
         Parameters:
             node_to_append (Node): The node to append.
