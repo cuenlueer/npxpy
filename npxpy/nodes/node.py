@@ -65,7 +65,7 @@ class Node:
         self.children_nodes: List[Node] = []
         self.all_descendants: List[Node] = self._generate_all_descendants()
 
-        self.parents_nodes: List[Node] = []
+        self.parent_node: List[Node] = []
         self.all_ancestors: List[Node] = []
 
     @property
@@ -112,7 +112,7 @@ class Node:
                     "This node cannot be added since it is a ancestor to the current node!"
                 )
 
-            child_node.parents_nodes.append(self)
+            child_node.parent_node.append(self)
             self.children_nodes.append(child_node)
             # Update descendants list of parent
 
@@ -215,7 +215,7 @@ class Node:
                 prefix=new_prefix,
             )
 
-    def deepcopy_node(self, copy_children: bool = True) -> "Node":
+    def deepcopy_node(self, copy_children: bool = True, name = None) -> "Node":
         """
         Create a deep copy of the node.
 
@@ -225,10 +225,13 @@ class Node:
         Returns:
             Node: A deep copy of the current node.
         """
+        
+        """ Deprecated?
         if copy_children:
             copied_node = copy.deepcopy(self)
             self._reset_ids(copied_node)
             copied_node.all_ancestors = []
+            copied_node.parent_node = []
             for descendant_node in copied_node.all_descendants:
                 index_of_copied_node = descendant_node.all_ancestors.index(
                     copied_node
@@ -242,6 +245,22 @@ class Node:
             copied_node.children_nodes = []
             copied_node.all_descendants = []
             copied_node.all_ancestors = []
+            copied_node.parent_node = []
+        """
+        
+        copied_node = copy.copy(self)
+        copied_node.id = str(uuid.uuid4())
+        copied_node.children_nodes = []
+        copied_node.all_descendants = []
+        copied_node.parent_node = []
+        copied_node.all_ancestors = []
+        
+        if copy_children:
+            copied_children = [child.deepcopy_node() for child in self.children_nodes]
+            copied_node.add_child(*copied_children) 
+        
+        if name != None:
+            copied_node.name = name
         return copied_node
 
     def _reset_ids(self, node: "Node"):
@@ -306,8 +325,8 @@ class Node:
         nodes_to_check = [self]
         while nodes_to_check:
             current_node = nodes_to_check.pop()
-            ancestors.extend(current_node.parents_nodes)
-            nodes_to_check.extend(current_node.parents_nodes)
+            ancestors.extend(current_node.parent_node)
+            nodes_to_check.extend(current_node.parent_node)
         return ancestors
 
     def grab_all_nodes_bfs(self, node_type: str) -> List["Node"]:
