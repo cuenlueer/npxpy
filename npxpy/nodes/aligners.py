@@ -100,7 +100,7 @@ class CoarseAligner(Node):
         )
 
     def set_coarse_anchors_at(
-        self, labels: List[str], positions: List[List[Union[float, int]]]
+        self, positions: List[List[Union[float, int]]], labels: List[str] = None, 
     ):
         """
         Create multiple coarse anchors at specified positions.
@@ -116,6 +116,8 @@ class CoarseAligner(Node):
             ValueError: If the number of labels does not match the number of positions.
             TypeError: If any label is not a string or any position is not a list of numbers.
         """
+        if labels is None:
+            labels = [f"anchor_{i}" for i in range(len(positions))]
         if len(labels) != len(positions):
             raise ValueError(
                 "The number of labels must match the number of positions."
@@ -406,6 +408,17 @@ class InterfaceAligner(Node):
             ValueError: If position does not contain exactly two elements.
             TypeError: If label is not a string or elements in position or scan_area_size are not numbers.
         """
+        if not isinstance(position, list) or len(position) != 2:
+            try:
+                position = list(position)
+                position = position[:2]    
+            except:
+                raise ValueError("position must be a list of two elements.")
+        if not all(isinstance(p, (float, int)) for p in position):
+            try:
+                position = [float(p) for p in position]
+            except:
+                raise TypeError("All position elements must be numbers.")
         if scan_area_size is None:
             scan_area_size = [10.0, 10.0]
 
@@ -420,8 +433,8 @@ class InterfaceAligner(Node):
 
     def set_interface_anchors_at(
         self,
-        labels: List[str],
         positions: List[List[float]],
+        labels: List[str] = None,
         scan_area_sizes: List[List[float]] = None,
     ):
         """
@@ -442,8 +455,9 @@ class InterfaceAligner(Node):
             TypeError: If elements in labels, positions, or scan_area_sizes are not of the correct types.
         """
         if scan_area_sizes is None:
-            scan_area_sizes = [[10.0, 10.0]] * len(labels)
-
+            scan_area_sizes = [[10.0, 10.0]] * len(positions)
+        if labels is None:
+            labels = [f"anchor_{i}" for i in range(len(positions))]
         for label, position, scan_area_size in zip(
             labels, positions, scan_area_sizes
         ):
@@ -985,13 +999,17 @@ class MarkerAligner(Node):
 
     def set_markers_at(
         self,
-        labels: List[str],
-        orientations: List[float],
         positions: List[List[float]],
+        orientations: List[float] = None,
+        labels: List[str] = None,
     ):
         """
         Creates multiple markers at specified positions with given orientations.
         """
+        if labels is None:
+            labels = [f"marker_{i}" for i in range(len(positions))]
+        if orientations is None:
+            orientations=[0 for i in range(len(positions))]
         if len(labels) != len(positions) or len(labels) != len(orientations):
             raise ValueError(
                 "The number of labels, positions, and orientations must match."
@@ -1239,13 +1257,15 @@ class EdgeAligner(Node):
 
     def set_measurements_at(
         self,
-        labels: List[str],
         offsets: List[Union[float, int]],
         scan_area_sizes: List[List[Union[float, int]]],
+        labels: List[str] = None,
     ):
         """
         Set multiple measurements at specified positions.
         """
+        if labels is None:
+            labels = [f"marker_{i}" for i in range(len(offsets))]
         if len(labels) != len(scan_area_sizes) or len(labels) != len(offsets):
             raise ValueError(
                 "The number of labels, offsets, and scan_area_sizes must match."
