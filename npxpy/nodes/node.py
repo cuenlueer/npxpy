@@ -350,15 +350,16 @@ class Node:
             )  # Enqueue children
         return result
 
-    def append_node(self, node_to_append: "Node"):
+    def append_node(self, *nodes_to_append: "Node"):
         """
         Append a node to the deepest descendant on the highest branch.
 
         Parameters:
             node_to_append (Node): The node to append.
         """
-        grandest_grandchild = self._find_grandest_grandchild(self)
-        grandest_grandchild.add_child(node_to_append)
+        for node_to_append in nodes_to_append:
+            grandest_grandchild = self._find_grandest_grandchild(self)
+            grandest_grandchild.add_child(node_to_append)
 
     def _find_grandest_grandchild(self, current_node: "Node") -> "Node":
         """
@@ -410,34 +411,49 @@ class Node:
     ):
         """
         Opens a PyVista viewport visualizing the attached objects in this node.
-        Notes: - Does not visualize multiplications caused by Arrays yet.
-               - Lenses might not be displayed correctly/accurately.
-                 However, the printed result will not be affected by this.
+        Notes
+        -----
+        - Does not visualize multiplications caused by Arrays yet.
+        - Lenses might not be displayed accurately in the viewport visualization.
+          However, this does not affect the final printed output.
+        - Supports multiple node types such as `scene`, `structure`, `coarse_alignment`,
+          `interface_alignment`, `fiber_core_alignment`, `marker_alignment`, `edge_alignment`,
+          and `dose_compensation`.
 
         Parameters
         ----------
         title : str, optional
-            Title to display in the PyVista window. Default is name of calling node.
+            Title to display in the PyVista window. Defaults to the name of the calling node.
         disable_visibility : str or list of str, optional
-            One or more group names whose visibility should be disabled.
-            E.g., "scene" or ["scene", "coarse_alignment"].
+            One or more group names to disable visibility for. These groups will not be visible
+            in the viewport. For example, `"scene"` or `["scene", "coarse_alignment"]`.
         block_render : str or list of str, optional
-            One or more group names whose initial rendering should be disabled
-            when calling the method.
-            E.g., "scene" or ["scene", "coarse_alignment"].
+            One or more group names to disable rendering for. These groups will not be rendered
+            initially. Defaults to an empty list.
+        include_ancestor_transforms : bool, optional
+            Whether to apply transformations (position and rotation) from ancestor nodes to the
+            visualized objects. Defaults to `True`.
 
         Returns
         -------
         _GroupedPlotter
-            The customized plotter instance after drawing all meshes.
+            A customized plotter instance after rendering all meshes, including any
+            transformations or visibility settings applied.
 
         Examples
         --------
         >>> # Basic usage without disabling any groups
         >>> node.viewport()
-
-        >>> # Disable visibility for scenes and coarse alignments
+        
+        >>> # Disable visibility for "scene" and "coarse_alignment" groups
         >>> node.viewport(disable_visibility=["scene", "coarse_alignment"])
+        
+        >>> # Disable rendering for "text" group
+        >>> node.viewport(block_render="text")
+        
+        >>> # Exclude transformations from ancestor nodes
+        >>> node.viewport(include_ancestor_transforms=False)
+
         """
         _GroupedPlotter, _apply_transforms, _meshbuilder = (
             self._lazy_import_wrapper()
@@ -569,7 +585,7 @@ class Node:
             if (
                 node._type == "structure"
                 and hasattr(node, "font_size")
-                and node._type + "_text" not in block_render
+                and "text" not in block_render
             ):
                 text_node = node
                 text_mesh, text_mesh_dict = _meshbuilder.txt_mesh(text_node)
@@ -585,8 +601,8 @@ class Node:
             # Lens (structure)
             elif (
                 node._type == "structure"
-                and not node._mesh
-                and node._type + "_lens" not in block_render
+                and not node._mesh and not hasattr(node, "font_size")
+                and "lens" not in block_render
             ):
                 lens = node
                 geometry = lens.to_dict()["geometry"]
@@ -754,7 +770,7 @@ class Node:
         # Disable visibility for certain groups if requested
         self._visibility_in_plotter_disabled = disable_visibility
         for grp in self._visibility_in_plotter_disabled:
-            plotter.disable_visibility(grp)
+            plotter.disable(grp)
 
         plotter._add_custom_axes()
         # Show the viewport
