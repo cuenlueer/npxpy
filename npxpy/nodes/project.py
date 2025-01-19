@@ -136,33 +136,35 @@ class Project(Node):
         # Optionally convert it to a list if it's, say, a tuple or another iterable
         self.__visibility_in_plotter_disabled = list(value)
 
-    def load_resources(self, resources: Union[Resource, List[Resource]]):
+    def load_resources(self, *resourcess: Union[Resource, List[Resource]]):
         """
         Adds resources to the resources list.
         """
-        if not isinstance(resources, list):
-            resources = [resources]
+        for resources in resourcess:
+            if not isinstance(resources, list):
+                resources = [resources]
+    
+            if not all(isinstance(resource, Resource) for resource in resources):
+                raise TypeError(
+                    "All resources must be instances of the Resource class or its subclasses."
+                )
+    
+            self._resources.extend(resources)  # Modifies the internal _resources
 
-        if not all(isinstance(resource, Resource) for resource in resources):
-            raise TypeError(
-                "All resources must be instances of the Resource class or its subclasses."
-            )
-
-        self._resources.extend(resources)  # Modifies the internal _resources
-
-    def load_presets(self, presets: Union[Preset, List[Preset]]):
+    def load_presets(self, *presetss: Union[Preset, List[Preset]]):
         """
         Adds presets to the presets list.
         """
-        if not isinstance(presets, list):
-            presets = [presets]
-
-        if not all(isinstance(preset, Preset) for preset in presets):
-            raise TypeError(
-                "All presets must be instances of the Preset class."
-            )
-
-        self._presets.extend(presets)  # Modifies the internal _presets
+        for presets in presetss:
+            if not isinstance(presets, list):
+                presets = [presets]
+    
+            if not all(isinstance(preset, Preset) for preset in presets):
+                raise TypeError(
+                    "All presets must be instances of the Preset class."
+                )
+    
+            self._presets.extend(presets)  # Modifies the internal _presets
 
     def _create_toml_data(
         self, presets: List[Any], resources: List[Any], nodes: List[Node]
