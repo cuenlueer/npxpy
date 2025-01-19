@@ -52,9 +52,9 @@ positions = [
 
 
 coarse_aligner1 = n.CoarseAligner(residual_threshold=8).set_coarse_anchors_at(
-    labels, positions
+    positions,labels, 
 )
-coarse_aligner_rot = n.CoarseAligner().set_coarse_anchors_at(labels, positions)
+coarse_aligner_rot = n.CoarseAligner().set_coarse_anchors_at(positions, labels, )
 scene1 = n.Scene(writing_direction_upward=False).position_at(
     [1000, 100, 300], [45, 45, 45]
 )
@@ -113,7 +113,7 @@ interface_aligner2 = n.InterfaceAligner(
     scan_area_res_factors=[0.9, 0.9],
     scan_z_sample_distance=0.3,
     scan_z_sample_count=29,
-).set_interface_anchors_at(labels, positions, scan_area_sizes)
+).set_interface_anchors_at(positions,labels,  scan_area_sizes)
 
 coarse_aligner1.add_child(scene1)
 scene1.add_child(group1)
@@ -133,7 +133,7 @@ positions = [
     [-100, -100, 0],
     [-100, 100, 0],
 ]
-marker_aligner1.set_markers_at(labels, orientations, positions)
+marker_aligner1.set_markers_at(positions,orientations, labels,  )
 
 interface_aligner1.add_child(marker_aligner1)
 
