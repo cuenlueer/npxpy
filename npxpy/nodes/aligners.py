@@ -100,7 +100,9 @@ class CoarseAligner(Node):
         )
 
     def set_coarse_anchors_at(
-        self, positions: List[List[Union[float, int]]], labels: List[str] = None, 
+        self,
+        positions: List[List[Union[float, int]]],
+        labels: List[str] = None,
     ):
         """
         Create multiple coarse anchors at specified positions.
@@ -411,7 +413,8 @@ class InterfaceAligner(Node):
         if not isinstance(position, list) or len(position) != 2:
             try:
                 position = list(position)
-                position = position[:2]    
+                position = position[:2]
+                assert len(position) == 2
             except:
                 raise ValueError("position must be a list of two elements.")
         if not all(isinstance(p, (float, int)) for p in position):
@@ -477,7 +480,9 @@ class InterfaceAligner(Node):
         if self.signal_type == "auto" or self.detector_type == "camera_legacy":
             node_dict["interface_finder_type"] = self.signal_type
         else:
-            node_dict["interface_finder_type"] = f"{self.signal_type}_{self.detector_type}"
+            node_dict["interface_finder_type"] = (
+                f"{self.signal_type}_{self.detector_type}"
+            )
         node_dict["properties"] = {
             "signal_type": self.signal_type,
             "detector_type": self.detector_type,
@@ -1009,7 +1014,7 @@ class MarkerAligner(Node):
         if labels is None:
             labels = [f"marker_{i}" for i in range(len(positions))]
         if orientations is None:
-            orientations=[0 for i in range(len(positions))]
+            orientations = [0 for i in range(len(positions))]
         if len(labels) != len(positions) or len(labels) != len(orientations):
             raise ValueError(
                 "The number of labels, positions, and orientations must match."
