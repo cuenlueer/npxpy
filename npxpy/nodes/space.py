@@ -109,8 +109,10 @@ class Scene(Node):
         Raises:
             ValueError: If translation does not have exactly 3 elements.
         """
-        if len(translation) != 3 or not all(
-            isinstance(t, (int, float)) for t in translation
+        if (
+            len(translation) != 3
+            or not all(isinstance(t, (int, float)) for t in translation)
+            or not isinstance(translation, list)
         ):
             raise ValueError(
                 "Translation must be a list of three numeric elements."
