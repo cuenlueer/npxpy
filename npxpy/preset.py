@@ -40,18 +40,11 @@ class Preset:
         hatching_offset_increment (float): Hatching offset increment.
         hatching_back_n_forth (bool): Whether hatching is back and forth.
         mesh_z_offset (float): Mesh Z offset.
-        grayscale_multilayer_enabled (bool): Whether grayscale multilayer is
-        enabled.
-        grayscale_layer_profile_nr_layers (float): Number of layers for
-        grayscale layer profile.
-        grayscale_writing_power_minimum (float): Minimum writing power for
-        grayscale.
-        grayscale_exponent (float): Grayscale exponent.
     """
 
     def __init__(
         self,
-        name: str = "25x_IP-n162",
+        name: str = "25x_IP-n162_default",
         valid_objectives: List[str] = None,
         valid_resins: List[str] = None,
         valid_substrates: List[str] = None,
@@ -65,10 +58,6 @@ class Preset:
         hatching_offset_increment: float = 0.0,
         hatching_back_n_forth: bool = True,
         mesh_z_offset: float = 0.0,
-        grayscale_multilayer_enabled: bool = False,
-        grayscale_layer_profile_nr_layers: float = 6,
-        grayscale_writing_power_minimum: float = 0.0,
-        grayscale_exponent: float = 1.0,
     ):
 
         # Default lists for valid_objectives, valid_resins, valid_substrates
@@ -93,12 +82,10 @@ class Preset:
         self.hatching_offset_increment = hatching_offset_increment
         self.hatching_back_n_forth = hatching_back_n_forth
         self.mesh_z_offset = mesh_z_offset
-        self.grayscale_multilayer_enabled = grayscale_multilayer_enabled
-        self.grayscale_layer_profile_nr_layers = (
-            grayscale_layer_profile_nr_layers
-        )
-        self.grayscale_writing_power_minimum = grayscale_writing_power_minimum
-        self.grayscale_exponent = grayscale_exponent
+        self.grayscale_multilayer_enabled = False
+        self.grayscale_layer_profile_nr_layers = 6
+        self.grayscale_writing_power_minimum = 0.0
+        self.grayscale_exponent = 1.0
         self.id = str(uuid.uuid4())
 
     # Setters and validation logic for all attributes
@@ -307,6 +294,11 @@ class Preset:
     ) -> "Preset":
         """
         Enable grayscale multilayer and set the related attributes.
+        grayscale_layer_profile_nr_layers (float): Number of layers for
+            grayscale layer profile.
+        grayscale_writing_power_minimum (float): Minimum writing power for
+            grayscale.
+        grayscale_exponent (float): Grayscale exponent.
         """
         self.grayscale_layer_profile_nr_layers = (
             grayscale_layer_profile_nr_layers
@@ -373,17 +365,19 @@ class Preset:
                 ),
                 hatching_back_n_forth=data.get("hatching_back_n_forth", True),
                 mesh_z_offset=data.get("mesh_z_offset", 0.0),
-                grayscale_multilayer_enabled=data.get(
-                    "grayscale_multilayer_enabled", False
-                ),
-                grayscale_layer_profile_nr_layers=data.get(
-                    "grayscale_layer_profile_nr_layers", 6
-                ),
-                grayscale_writing_power_minimum=data.get(
-                    "grayscale_writing_power_minimum", 0.0
-                ),
-                grayscale_exponent=data.get("grayscale_exponent", 1.0),
             )
+
+            instance.grayscale_multilayer_enabled = data.get(
+                "grayscale_multilayer_enabled", False
+            )
+            instance.grayscale_layer_profile_nr_layers = data.get(
+                "grayscale_layer_profile_nr_layers", 6
+            )
+            instance.grayscale_writing_power_minimum = data.get(
+                "grayscale_writing_power_minimum", 0.0
+            )
+            instance.grayscale_exponent = data.get("grayscale_exponent", 1.0)
+
         except Exception as e:
             raise ValueError(
                 f"Error creating Preset from file {file_path}: {e}"
