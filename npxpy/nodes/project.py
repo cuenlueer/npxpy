@@ -122,20 +122,6 @@ class Project(Node):
         """Get the list of resources."""
         return self._resources
 
-    @property
-    def _visibility_in_plotter_disabled(self):
-        return self.__visibility_in_plotter_disabled
-
-    @_visibility_in_plotter_disabled.setter
-    def _visibility_in_plotter_disabled(self, value):
-        # Check if value is already an iterable (but not a string!)
-        # If it's not an iterable (or is just a single string), wrap it in a list.
-        if isinstance(value, str) or not hasattr(value, "__iter__"):
-            value = [value]
-
-        # Optionally convert it to a list if it's, say, a tuple or another iterable
-        self.__visibility_in_plotter_disabled = list(value)
-
     def load_resources(self, *resourcess: Union[Resource, List[Resource]]):
         """
         Adds resources to the resources list.
@@ -143,13 +129,17 @@ class Project(Node):
         for resources in resourcess:
             if not isinstance(resources, list):
                 resources = [resources]
-    
-            if not all(isinstance(resource, Resource) for resource in resources):
+
+            if not all(
+                isinstance(resource, Resource) for resource in resources
+            ):
                 raise TypeError(
                     "All resources must be instances of the Resource class or its subclasses."
                 )
-    
-            self._resources.extend(resources)  # Modifies the internal _resources
+
+            self._resources.extend(
+                resources
+            )  # Modifies the internal _resources
 
     def load_presets(self, *presetss: Union[Preset, List[Preset]]):
         """
@@ -158,12 +148,12 @@ class Project(Node):
         for presets in presetss:
             if not isinstance(presets, list):
                 presets = [presets]
-    
+
             if not all(isinstance(preset, Preset) for preset in presets):
                 raise TypeError(
                     "All presets must be instances of the Preset class."
                 )
-    
+
             self._presets.extend(presets)  # Modifies the internal _presets
 
     def _create_toml_data(

@@ -81,6 +81,20 @@ class Node:
             raise ValueError("name must be a non-empty string.")
         self._name = value
 
+    @property
+    def _visibility_in_plotter_disabled(self):
+        return self.__visibility_in_plotter_disabled
+
+    @_visibility_in_plotter_disabled.setter
+    def _visibility_in_plotter_disabled(self, value):
+        # Check if value is already an iterable (but not a string!)
+        # If it's not an iterable (or is just a single string), wrap it in a list.
+        if isinstance(value, str) or not hasattr(value, "__iter__"):
+            value = [value]
+
+        # Optionally convert it to a list if it's, say, a tuple or another iterable
+        self.__visibility_in_plotter_disabled = list(value)
+
     def add_child(self, *child_nodes: "Node"):
         """
         Add child node(s) to the current node.
@@ -215,7 +229,7 @@ class Node:
                 prefix=new_prefix,
             )
 
-    def deepcopy_node(self, copy_children: bool = True, name = None) -> "Node":
+    def deepcopy_node(self, copy_children: bool = True, name=None) -> "Node":
         """
         Create a deep copy of the node.
 
@@ -225,7 +239,7 @@ class Node:
         Returns:
             Node: A deep copy of the current node.
         """
-        
+
         """ Deprecated?
         if copy_children:
             copied_node = copy.deepcopy(self)
@@ -247,18 +261,20 @@ class Node:
             copied_node.all_ancestors = []
             copied_node.parent_node = []
         """
-        
+
         copied_node = copy.copy(self)
         copied_node.id = str(uuid.uuid4())
         copied_node.children_nodes = []
         copied_node.all_descendants = []
         copied_node.parent_node = []
         copied_node.all_ancestors = []
-        
+
         if copy_children:
-            copied_children = [child.deepcopy_node() for child in self.children_nodes]
-            copied_node.add_child(*copied_children) 
-        
+            copied_children = [
+                child.deepcopy_node() for child in self.children_nodes
+            ]
+            copied_node.add_child(*copied_children)
+
         if name != None:
             copied_node.name = name
         return copied_node
@@ -444,13 +460,13 @@ class Node:
         --------
         >>> # Basic usage without disabling any groups
         >>> node.viewport()
-        
+
         >>> # Disable visibility for "scene" and "coarse_alignment" groups
         >>> node.viewport(disable_visibility=["scene", "coarse_alignment"])
-        
+
         >>> # Disable rendering for "text" group
         >>> node.viewport(block_render="text")
-        
+
         >>> # Exclude transformations from ancestor nodes
         >>> node.viewport(include_ancestor_transforms=False)
 
@@ -601,7 +617,8 @@ class Node:
             # Lens (structure)
             elif (
                 node._type == "structure"
-                and not node._mesh and not hasattr(node, "font_size")
+                and not node._mesh
+                and not hasattr(node, "font_size")
                 and "lens" not in block_render
             ):
                 lens = node
