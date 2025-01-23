@@ -12,11 +12,15 @@ This file is part of npxpy (formerly nanoAPI), which is licensed under the GNU
 Lesser General Public License v3.0. You can find a copy of this license at
 https://www.gnu.org/licenses/lgpl-3.0.html
 """
-from typing import List, Optional, Union
+from typing import List, Optional, Union, TypeVar
 from npxpy.nodes.node import Node
 from npxpy.resources import Mesh
 from npxpy.preset import Preset
 from npxpy.nodes.project import Project
+
+Struct = TypeVar(
+    "Struct", bound="Structure"
+)  # Define a type variable for the class
 
 
 class Structure(Node):
@@ -26,9 +30,8 @@ class Structure(Node):
     Attributes:
         preset (Preset): The preset associated with the structure.
         mesh (Mesh): The mesh object used for the structure.
-        project (Project): The project context for auto-loading resources.
-        auto_load_presets (bool): Flag to auto-load presets.
-        auto_load_resources (bool): Flag to auto-load resources.
+        load_preset (bool): Flag to auto-load presets.
+        load_mesh (bool): Flag to auto-load resources.
         size (List[Union[float, int]]): The size (scaling) of the structure.
         name (str): The name of the structure.
         slicing_origin (str): The origin for slicing.
@@ -43,9 +46,6 @@ class Structure(Node):
         self,
         preset: Optional[Preset] = None,
         mesh: Optional[Mesh] = None,
-        project: Optional[Project] = None,
-        auto_load_presets: bool = False,
-        auto_load_resources: bool = False,
         size: List[Union[float, int]] = [100.0, 100.0, 100.0],
         name: str = "Structure",
         slicing_origin: str = "scene_bottom",
@@ -62,9 +62,8 @@ class Structure(Node):
         Parameters:
             preset (Optional[Preset]): The preset associated with the structure.
             mesh (Optional[Mesh]): The mesh object to be used for the structure.
-            project (Optional[Project]): The project context.
-            auto_load_presets (bool): Flag to auto-load presets.
-            auto_load_resources (bool): Flag to auto-load resources.
+            load_preset (bool): Flag to auto-load presets.
+            load_mesh (bool): Flag to auto-load resources.
             size (List[Union[float, int]]): The size of the structure in micrometers [x, y, z].
             name (str): The name of the structure.
             slicing_origin (str): The origin for slicing. Must be one of
@@ -88,18 +87,13 @@ class Structure(Node):
         self.expose_individually = expose_individually
         self.preset = preset
         self.mesh = mesh
-        self.project = project
-        self.auto_load_presets = auto_load_presets
-        self.auto_load_resources = auto_load_resources
+        self.project = None
         self.size = size
         self.position = position
         self.rotation = rotation
         self.color = color
 
         self._mesh = True
-
-        if (auto_load_presets or auto_load_resources) and project:
-            self._load_resources()
 
     @property
     def slicing_origin(self):
@@ -183,26 +177,26 @@ class Structure(Node):
         self._project = value
 
     @property
-    def auto_load_presets(self):
+    def load_preset(self):
         """Flag to determine whether presets are auto-loaded."""
-        return self._auto_load_presets
+        return self._load_preset
 
-    @auto_load_presets.setter
-    def auto_load_presets(self, value: bool):
+    @load_preset.setter
+    def load_preset(self, value: bool):
         if not isinstance(value, bool):
-            raise TypeError("auto_load_presets must be a boolean.")
-        self._auto_load_presets = value
+            raise TypeError("load_preset must be a boolean.")
+        self._load_preset = value
 
     @property
-    def auto_load_resources(self):
+    def load_mesh(self):
         """Flag to determine whether resources are auto-loaded."""
-        return self._auto_load_resources
+        return self._load_mesh
 
-    @auto_load_resources.setter
-    def auto_load_resources(self, value: bool):
+    @load_mesh.setter
+    def load_mesh(self, value: bool):
         if not isinstance(value, bool):
-            raise TypeError("auto_load_resources must be a boolean.")
-        self._auto_load_resources = value
+            raise TypeError("load_mesh must be a boolean.")
+        self._load_mesh = value
 
     @property
     def size(self):
@@ -309,19 +303,29 @@ class Structure(Node):
             (r + delta) % 360 for r, delta in zip(self.rotation, rotation)
         ]
 
-    def _load_resources(self) -> None:
+    def auto_load(
+        self: Struct,
+        project: Project,
+        load_mesh: bool = True,
+        load_preset: bool = True,
+    ) -> Struct:
         """
-        Load presets and resources if the flags are set.
+        Load passed presets and meshes to passed project if the flags are set.
         """
-        if self.auto_load_presets:
+        self.project = project
+        self.load_mesh = load_mesh
+        self.load_preset = load_preset
+
+        if self.load_preset:
             self.project.load_presets(self.preset)
 
-        if self.auto_load_resources:
+        if self.load_mesh:
             if self.mesh._type != "mesh_file":
                 raise TypeError(
                     "Images are used only for MarkerAligner class."
                 )
             self.project.load_resources(self.mesh)
+        return self
 
     def to_dict(self) -> dict:
         """
@@ -360,7 +364,6 @@ class Text(Structure):
     def __init__(
         self,
         preset: Optional[Preset] = None,
-        project: Optional[Project] = None,
         name: str = "Text",
         text: str = "Text",
         font_size: Union[float, int] = 10.0,
@@ -394,7 +397,6 @@ class Text(Structure):
         """
         super().__init__(
             preset=preset,
-            project=project,
             mesh=None,
             name=name,
             slicing_origin=slicing_origin,
@@ -410,6 +412,9 @@ class Text(Structure):
         self.text = text
         self.font_size = font_size
         self.height = height
+
+        self.load_mesh = False
+        self.load_preset = True
 
         #  This guy sits in Structure. Ensures no mesh is passed.
         self._mesh = False
@@ -446,6 +451,26 @@ class Text(Structure):
         if not isinstance(value, (float, int)) or value <= 0:
             raise ValueError("height must be a positive number.")
         self._height = value
+
+    def auto_load(
+        self,
+        project: Project,
+    ):
+        """
+        Load passed presets to passed project if the flags are set.
+        """
+        self.project = project
+
+        if self.load_preset:
+            self.project.load_presets(self.preset)
+
+        if self.load_mesh:
+            if self.mesh._type != "mesh_file":
+                raise TypeError(
+                    "Images are used only for MarkerAligner class."
+                )
+            self.project.load_resources(self.mesh)
+        return self
 
     def to_dict(self) -> dict:
         """
@@ -485,7 +510,6 @@ class Lens(Structure):
     def __init__(
         self,
         preset: Optional[Preset] = None,
-        project: Optional[Project] = None,
         name: str = "Lens",
         radius: Union[float, int] = 100.0,
         height: Union[float, int] = 50.0,
@@ -531,7 +555,6 @@ class Lens(Structure):
         """
         super().__init__(
             preset=preset,
-            project=project,
             name=name,
             slicing_origin=slicing_origin,
             slicing_offset=slicing_offset,
@@ -560,6 +583,9 @@ class Lens(Structure):
 
         self.surface_compensation_factors = []
         self.surface_compensation_factors_y = []
+
+        self.load_mesh = False
+        self.load_preset = True
 
         #  This guy sits in Structure. Ensures no mesh is passed.
         self._mesh = False
@@ -795,6 +821,26 @@ class Lens(Structure):
             self.surface_compensation_factors_y = (
                 surface_compensation_factors_y  # Use setter for validation
             )
+        return self
+
+    def auto_load(
+        self,
+        project: Project,
+    ):
+        """
+        Load passed presets to passed project if the flags are set.
+        """
+        self.project = project
+
+        if self.load_preset:
+            self.project.load_presets(self.preset)
+
+        if self.load_mesh:
+            if self.mesh._type != "mesh_file":
+                raise TypeError(
+                    "Images are used only for MarkerAligner class."
+                )
+            self.project.load_resources(self.mesh)
         return self
 
     def to_dict(self) -> dict:
