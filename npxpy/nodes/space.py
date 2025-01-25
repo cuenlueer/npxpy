@@ -8,15 +8,99 @@ Neuromorphic Quantumphotonics
 Heidelberg University
 E-Mail:	caghan.uenlueer@kip.uni-heidelberg.de
 
-This file is part of npxpy (formerly nanoAPI), which is licensed under the GNU
-Lesser General Public License v3.0. You can find a copy of this license at
-https://www.gnu.org/licenses/lgpl-3.0.html
+This file is part of npxpy, which is licensed under the MIT License.
 """
 from typing import Dict, List
 from npxpy.nodes.node import Node
 
 
-class Scene(Node):
+class _space_ops_space(Node):
+    def position_at(
+        self,
+        position: List[float] = [0.0, 0.0, 0.0],
+        rotation: List[float] = None,
+    ):
+        """
+        Set the position and rotation of the scene/group/array.
+
+        Parameters:
+            position (List[float]): The new position [x, y, z].
+            rotation (List[float]): The new rotation [psi, theta, phi].
+
+        Returns:
+            Acene/Group/Array: The updated object.
+        """
+        if rotation is not None:
+            self.position = position
+            self.rotation = rotation
+        else:
+            self.position = position
+        return self
+
+    def translate(
+        self,
+        translation: List[float] = [
+            0.0,
+            0.0,
+            0.0,
+        ],
+    ):
+        """
+        Translate the current position by the specified values.
+
+        Parameters:
+            translation (List[float]): The translation values [dx, dy, dz].
+
+        Raises:
+            ValueError: If translation does not have exactly 3 elements.
+
+        Returns:
+            Acene/Group/Array: The updated object.
+        """
+        if (
+            len(translation) != 3
+            or not all(isinstance(t, (int, float)) for t in translation)
+            or not isinstance(translation, list)
+        ):
+            raise ValueError(
+                "Translation must be a list of three numeric elements."
+            )
+        self.position = [p + t for p, t in zip(self.position, translation)]
+        return self
+
+    def rotate(
+        self,
+        rotation: List[float] = [
+            0.0,
+            0.0,
+            0.0,
+        ],
+    ):
+        """
+        Rotate the scene/group/array by specified angles.
+
+        Parameters:
+            rotation (List[float]): The rotation values [d_psi, d_theta, d_phi].
+
+        Raises:
+            ValueError: If rotation does not have exactly 3 elements.
+
+        Returns:
+            Acene/Group/Array: The updated object.
+        """
+        if len(rotation) != 3 or not all(
+            isinstance(r, (int, float)) for r in rotation
+        ):
+            raise ValueError(
+                "Rotation must be a list of three numeric elements."
+            )
+        self.rotation = [
+            (r + delta) % 360 for r, delta in zip(self.rotation, rotation)
+        ]
+        return self
+
+
+class Scene(_space_ops_space):
     """
     Class representing a scene node.
 
@@ -80,65 +164,6 @@ class Scene(Node):
             raise ValueError("writing_direction_upward must be a boolean.")
         self._writing_direction_upward = value
 
-    def position_at(
-        self,
-        position: List[float] = [0.0, 0.0, 0.0],
-        rotation: List[float] = [0.0, 0.0, 0.0],
-    ):
-        """
-        Set the position and rotation of the scene.
-
-        Parameters:
-            position (List[float]): The new position [x, y, z].
-            rotation (List[float]): The new rotation [psi, theta, phi].
-
-        Returns:
-            Scene: The updated Scene object.
-        """
-        self.position = position
-        self.rotation = rotation
-        return self
-
-    def translate(self, translation: List[float]):
-        """
-        Translate the current position by the specified values.
-
-        Parameters:
-            translation (List[float]): The translation values [dx, dy, dz].
-
-        Raises:
-            ValueError: If translation does not have exactly 3 elements.
-        """
-        if (
-            len(translation) != 3
-            or not all(isinstance(t, (int, float)) for t in translation)
-            or not isinstance(translation, list)
-        ):
-            raise ValueError(
-                "Translation must be a list of three numeric elements."
-            )
-        self.position = [p + t for p, t in zip(self.position, translation)]
-
-    def rotate(self, rotation: List[float]):
-        """
-        Rotate the scene by specified angles.
-
-        Parameters:
-            rotation (List[float]): The rotation values [d_psi, d_theta, d_phi].
-
-        Raises:
-            ValueError: If rotation does not have exactly 3 elements.
-        """
-        if len(rotation) != 3 or not all(
-            isinstance(r, (int, float)) for r in rotation
-        ):
-            raise ValueError(
-                "Rotation must be a list of three numeric elements."
-            )
-        self.rotation = [
-            (r + delta) % 360 for r, delta in zip(self.rotation, rotation)
-        ]
-
     def to_dict(self) -> Dict:
         """
         Convert the Scene object into a dictionary.
@@ -150,7 +175,7 @@ class Scene(Node):
         return node_dict
 
 
-class Group(Node):
+class Group(_space_ops_space):
     """
     Class representing a group node.
 
@@ -197,59 +222,6 @@ class Group(Node):
             )
         self._rotation = value
 
-    def position_at(self, position: List[float], rotation: List[float]):
-        """
-        Set the position and rotation of the group.
-
-        Parameters:
-            position (List[float]): The new position [x, y, z].
-            rotation (List[float]): The new rotation [psi, theta, phi].
-
-        Returns:
-            Group: The updated Group object.
-        """
-        self.position = position
-        self.rotation = rotation
-        return self
-
-    def translate(self, translation: List[float]):
-        """
-        Translate the current position by the specified values [dx, dy, dz].
-
-        Parameters:
-            translation (List[float]): The translation values [dx, dy, dz].
-
-        Raises:
-            ValueError: If translation does not have exactly 3 elements.
-        """
-        if len(translation) != 3 or not all(
-            isinstance(t, (int, float)) for t in translation
-        ):
-            raise ValueError(
-                "Translation must be a list of three numeric elements."
-            )
-        self.position = [p + t for p, t in zip(self.position, translation)]
-
-    def rotate(self, rotation: List[float]):
-        """
-        Rotate the group by specified angles.
-
-        Parameters:
-            rotation (List[float]): The rotation values [d_psi, d_theta, d_phi].
-
-        Raises:
-            ValueError: If rotation does not have exactly 3 elements.
-        """
-        if len(rotation) != 3 or not all(
-            isinstance(r, (int, float)) for r in rotation
-        ):
-            raise ValueError(
-                "Rotation must be a list of three numeric elements."
-            )
-        self.rotation = [
-            (r + delta) % 360 for r, delta in zip(self.rotation, rotation)
-        ]
-
     def to_dict(self) -> Dict:
         """
         Convert the Group object into a dictionary.
@@ -260,7 +232,7 @@ class Group(Node):
         return node_dict
 
 
-class Array(Node):
+class Array(_space_ops_space):
     """
     Class representing an array node with additional attributes.
 
@@ -372,7 +344,9 @@ class Array(Node):
             raise ValueError("shape must be either 'Rectangular' or 'Round'.")
         self._shape = value
 
-    def set_grid(self, count: List[int], spacing: List[float]):
+    def set_grid(
+        self, count: List[int] = count, spacing: List[float] = spacing
+    ):
         """
         Set the count and spacing of the array grid.
 
@@ -386,59 +360,6 @@ class Array(Node):
         self.count = count
         self.spacing = spacing
         return self
-
-    def position_at(self, position: List[float], rotation: List[float]):
-        """
-        Set the position and rotation of the array.
-
-        Parameters:
-            position (List[float]): The new position [x, y, z].
-            rotation (List[float]): The new rotation [psi, theta, phi].
-
-        Returns:
-            Array: The updated Array object.
-        """
-        self.position = position
-        self.rotation = rotation
-        return self
-
-    def translate(self, translation: List[float]):
-        """
-        Translate the current position by the specified values.
-
-        Parameters:
-            translation (List[float]): The translation values [dx, dy, dz].
-
-        Raises:
-            ValueError: If translation does not have exactly 3 elements.
-        """
-        if len(translation) != 3 or not all(
-            isinstance(t, (int, float)) for t in translation
-        ):
-            raise ValueError(
-                "Translation must be a list of three numeric elements."
-            )
-        self.position = [p + t for p, t in zip(self.position, translation)]
-
-    def rotate(self, rotation: List[float]):
-        """
-        Rotate the array by specified angles.
-
-        Parameters:
-            rotation (List[float]): The rotation values [d_psi, d_theta, d_phi].
-
-        Raises:
-            ValueError: If rotation does not have exactly 3 elements.
-        """
-        if len(rotation) != 3 or not all(
-            isinstance(r, (int, float)) for r in rotation
-        ):
-            raise ValueError(
-                "Rotation must be a list of three numeric elements."
-            )
-        self.rotation = [
-            (r + delta) % 360 for r, delta in zip(self.rotation, rotation)
-        ]
 
     def to_dict(self) -> Dict:
         """

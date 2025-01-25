@@ -8,9 +8,7 @@ Neuromorphic Quantumphotonics
 Heidelberg University
 E-Mail:	caghan.uenlueer@kip.uni-heidelberg.de
 
-This file is part of npxpy (formerly nanoAPI), which is licensed under the GNU
-Lesser General Public License v3.0. You can find a copy of this license at
-https://www.gnu.org/licenses/lgpl-3.0.html
+This file is part of npxpy, which is licensed under the MIT License.
 """
 from typing import List, Optional, Union, TypeVar
 from npxpy.nodes.node import Node
@@ -255,7 +253,7 @@ class Structure(Node):
     def position_at(
         self,
         position: List[Union[float, int]] = [0, 0, 0],
-        rotation: List[Union[float, int]] = [0.0, 0.0, 0.0],
+        rotation: List[Union[float, int]] = None,
     ):
         """
         Set the current position and rotation of the structure.
@@ -267,8 +265,11 @@ class Structure(Node):
         Returns:
             self: The updated Structure object.
         """
-        self.position = position
-        self.rotation = rotation
+        if rotation is not None:
+            self.position = position
+            self.rotation = rotation
+        else:
+            self.position = position
         return self
 
     def translate(self, translation: List[Union[float, int]]):
@@ -285,6 +286,7 @@ class Structure(Node):
                 "Translation must be a list of three numeric elements."
             )
         self.position = [p + t for p, t in zip(self.position, translation)]
+        return self
 
     def rotate(self, rotation: List[Union[float, int]]):
         """
@@ -302,6 +304,7 @@ class Structure(Node):
         self.rotation = [
             (r + delta) % 360 for r, delta in zip(self.rotation, rotation)
         ]
+        return self
 
     def auto_load(
         self: Struct,
