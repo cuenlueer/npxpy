@@ -419,8 +419,7 @@ class Node:
     def viewport(
         self,
         title: Optional[str] = None,
-        disable_visibility: Optional[Union[str, List[str]]] = None,
-        block_render: Optional[Union[str, List[str]]] = [],
+        disable: Optional[Union[str, List[str]]] = None,
         include_ancestor_transforms: Optional[bool] = True,
     ):
         """
@@ -438,12 +437,9 @@ class Node:
         ----------
         title : str, optional
             Title to display in the PyVista window. Defaults to the name of the calling node.
-        disable_visibility : str or list of str, optional
+        disable : str or list of str, optional
             One or more group names to disable visibility for. These groups will not be visible
             in the viewport. For example, `"scene"` or `["scene", "coarse_alignment"]`.
-        block_render : str or list of str, optional
-            One or more group names to disable rendering for. These groups will not be rendered
-            initially. Defaults to an empty list.
         include_ancestor_transforms : bool, optional
             Whether to apply transformations (position and rotation) from ancestor nodes to the
             visualized objects. Defaults to `True`.
@@ -460,21 +456,20 @@ class Node:
         >>> node.viewport()
 
         >>> # Disable visibility for "scene" and "coarse_alignment" groups
-        >>> node.viewport(disable_visibility=["scene", "coarse_alignment"])
-
-        >>> # Disable rendering for "text" group
-        >>> node.viewport(block_render="text")
+        >>> node.viewport(disable=["scene", "coarse_alignment"])
 
         >>> # Exclude transformations from ancestor nodes
         >>> node.viewport(include_ancestor_transforms=False)
 
         """
-        _GroupedPlotter, _apply_transforms, _meshbuilder = (
+        _GroupedPlotter, _apply_transforms, _meshbuilder, blocks = (
             self._lazy_import_wrapper()
         )
 
-        if disable_visibility is None:
-            disable_visibility = []
+        block_dicts_list = []
+
+        if disable is None:
+            disable = []
         if title is None:
             title = self.name
         # Create the plotter
@@ -537,7 +532,7 @@ class Node:
                     all_positions = [[0, 0, 0]]
                     all_rotations = [[0, 0, 0]]
 
-            if node._type == "scene" and node._type not in block_render:
+            if node._type == "scene":
                 scene = node
                 # Create the circle representing the scene
                 if len(scene.all_ancestors) != 0 and hasattr(
@@ -568,12 +563,10 @@ class Node:
 
                 # Add to plotter as 'scene' group
                 plotter.add_mesh(scene_mesh, **scene_mesh_dict)
+                # blocks.append(scene_mesh)
+                # block_dicts_list.append(scene_mesh_dict)
             # Structure
-            if (
-                node._type == "structure"
-                and node._mesh
-                and node._type not in block_render
-            ):
+            if node._type == "structure" and node._mesh:
                 structure = node
                 loaded_mesh = _meshbuilder.load_mesh(structure.mesh.file_path)
                 # apply initial mesh transformation
@@ -594,13 +587,12 @@ class Node:
                 plotter.add_mesh(
                     loaded_mesh, color=structure.color, group=structure._type
                 )
-
+                # blocks.append(loaded_mesh)
+                # block_dicts_list.append(
+                #    {"color": structure.color, "group": structure._type}
+                # )
             # Text (structure)
-            if (
-                node._type == "structure"
-                and hasattr(node, "font_size")
-                and "text" not in block_render
-            ):
+            if node._type == "structure" and hasattr(node, "font_size"):
                 text_node = node
                 text_mesh, text_mesh_dict = _meshbuilder.txt_mesh(text_node)
                 # apply all_ancestors' rots and afterwards structure rotation
@@ -611,13 +603,13 @@ class Node:
                 )
 
                 plotter.add_mesh(text_mesh, **text_mesh_dict)
-
+                # blocks.append(text_mesh)
+                # block_dicts_list.append(text_mesh_dict)
             # Lens (structure)
             elif (
                 node._type == "structure"
                 and not node._mesh
                 and not hasattr(node, "font_size")
-                and "lens" not in block_render
             ):
                 lens = node
                 geometry = lens.to_dict()["geometry"]
@@ -639,12 +631,10 @@ class Node:
                     "group": "structure_lens",
                 }
                 plotter.add_mesh(lens_mesh, **lens_mesh_dict)
-
+                # blocks.append(lens_mesh)
+                # block_dicts_list.append(lens_mesh_dict)
             # Coarse aligners
-            if (
-                node._type == "coarse_alignment"
-                and node._type not in block_render
-            ):
+            if node._type == "coarse_alignment":
                 coarse_aligner = node
                 coarse_anchor_mesh, coarse_anchor_mesh_dict = (
                     _meshbuilder.ca_mesh(coarse_aligner)
@@ -658,11 +648,10 @@ class Node:
                 )
 
                 plotter.add_mesh(coarse_anchor_mesh, **coarse_anchor_mesh_dict)
+                # blocks.append(coarse_anchor_mesh)
+                # block_dicts_list.append(coarse_anchor_mesh_dict)
             # interface aligners
-            if (
-                node._type == "interface_alignment"
-                and node._type not in block_render
-            ):
+            if node._type == "interface_alignment":
                 interface_aligner = node
 
                 ia_mesh, ia_mesh_dict = meshbuilder.ia_mesh(
@@ -676,11 +665,10 @@ class Node:
                 )
 
                 plotter.add_mesh(ia_mesh, **ia_mesh_dict)
+                # blocks.append(ia_mesh)
+                # block_dicts_list.append(ia_mesh_dict)
             # fiber aligners
-            if (
-                node._type == "fiber_core_alignment"
-                and node._type not in block_render
-            ):
+            if node._type == "fiber_core_alignment":
                 fiber_aligner = node
                 fa_mesh, fa_mesh_dict = meshbuilder.fa_mesh(fiber_aligner)
 
@@ -691,11 +679,10 @@ class Node:
                 )
 
                 plotter.add_mesh(fa_mesh, **fa_mesh_dict)
+                # blocks.append(fa_mesh)
+                # block_dicts_list.append(fa_mesh_dict)
             # Marker aligners
-            if (
-                node._type == "marker_alignment"
-                and node._type not in block_render
-            ):
+            if node._type == "marker_alignment":
                 marker_aligner = node
                 ma_meshes, ma_label_meshes, ma_mesh_dict, ma_label_dict = (
                     _meshbuilder.ma_mesh(marker_aligner)
@@ -717,13 +704,14 @@ class Node:
                     )
 
                     plotter.add_mesh(ma_mesh, **ma_mesh_dict)
+                    # blocks.append(ma_mesh)
+                    # block_dicts_list.append(ma_mesh_dict)
                     plotter.add_mesh(ma_label_mesh, **ma_label_dict)
+                    # blocks.append(ma_label_mesh)
+                    # block_dicts_list.append(ma_label_dict)
 
             #  Edge aligners
-            if (
-                node._type == "edge_alignment"
-                and node._type not in block_render
-            ):
+            if node._type == "edge_alignment":
                 edge_aligner = node
                 edge_aligner_meshes, edge_aligner_meshes_dicts = (
                     _meshbuilder.ea_mesh(edge_aligner)
@@ -749,12 +737,10 @@ class Node:
                     )
 
                     plotter.add_mesh(mesh, **mesh_dict)
-
+                    # blocks.append(mesh)
+                    # block_dicts_list.append(mesh_dict)
             # Dose compensation
-            if (
-                node._type == "dose_compensation"
-                and node._type not in block_render
-            ):
+            if node._type == "dose_compensation":
                 dose_compensation = node
 
                 for mesh, kwargs in _meshbuilder.dc_meshes(
@@ -769,9 +755,10 @@ class Node:
                     )
 
                     plotter.add_mesh(mesh, **kwargs)
-
+                    # blocks.append(mesh)
+                    # block_dicts_list.append(kwargs)
             # Capture
-            if node._type == "capture" and node._type not in block_render:
+            if node._type == "capture":
                 capture = node
 
                 capt_mesh, capt_mesh_dict = _meshbuilder.capture_mesh(capture)
@@ -783,9 +770,16 @@ class Node:
                 )
 
                 plotter.add_mesh(capt_mesh, **capt_mesh_dict)
+                # blocks.append(capt_mesh)
+                # block_dicts_list.append(capt_mesh_dict)
+
+        actor, mapper = plotter.add_composite(blocks)
+        for idx, block_dict in enumerate(block_dicts_list, start=1):
+            for key, value in block_dict.items():
+                setattr(mapper.block_attr[idx], key, value)
 
         # Disable visibility for certain groups if requested
-        self._visibility_in_plotter_disabled = disable_visibility
+        self._visibility_in_plotter_disabled = disable
         for grp in self._visibility_in_plotter_disabled:
             plotter.disable(grp)
 

@@ -45,6 +45,9 @@ def _lazy_import():
             self.actor_groups = (
                 {}
             )  # dictionary to store lists of actors by group
+            self.block_groups = (
+                {}
+            )  # e.g. {group_name: [block_idx1, block_idx2...]}
 
         def add_mesh(self, mesh, group=None, **kwargs):
             """
@@ -59,14 +62,43 @@ def _lazy_import():
                 self.actor_groups[group].append(actor)
             return actor
 
+        def add_composite(self, dataset, group=None, **kwargs):
+            """
+            Add a composite dataset (e.g. MultiBlock) as a single actor,
+            optionally associating all blocks in the dataset with a group name.
+
+            Returns
+            -------
+            actor : vtkActor or vtkCompositePolyDataMapper2
+                The composite actor used for rendering the dataset.
+            """
+            # Use PyVista's built-in logic for composite data
+            actor = super().add_composite(dataset, **kwargs)
+
+            if group is not None:
+                # If we want the entire MultiBlock to be considered one 'group',
+                # we store all block indices in self.block_groups[group].
+                n_blocks = dataset.n_blocks()
+                for i in range(n_blocks):
+                    self.block_groups.setdefault(group, []).append(i)
+
+            return actor
+
         def set_group_visibility(self, group, visible=True):
             """
-            Toggle visibility of all actors in a given group.
+            Toggle visibility of all actors and/or blocks in a given group.
             """
-            if group not in self.actor_groups:
-                return  # group doesn't exist, do nothing
-            for actor in self.actor_groups[group]:
-                actor.SetVisibility(visible)
+            # 1) Toggle any standard actors in self.actor_groups
+            if group in self.actor_groups:
+                for actor in self.actor_groups[group]:
+                    actor.SetVisibility(visible)
+
+            # 2) Toggle any block indices in self.block_groups (Does not work)
+            if group in self.block_groups:
+                for block_idx in self.block_groups[group]:  # (Does not work)
+                    # PyVista provides set_block_visibility(block_idx, bool)
+                    self.set_block_visibility(block_idx, visible)
+
             self.render()
 
         def disable(self, *groups):
@@ -78,6 +110,7 @@ def _lazy_import():
                 self.set_group_visibility(group, visible=True)
 
         def _add_custom_axes(self):
+            # your existing logic for custom axes, unchanged
             x_axis_dict = {
                 "color": "red",
                 "group": "axes",
@@ -94,14 +127,15 @@ def _lazy_import():
                 "line_width": 2,
             }
 
-            xmax = xmax = self.bounds[1] if self.bounds[1] > 100 else 100
-            ymax = ymax = self.bounds[3] if self.bounds[3] > 100 else 100
-            zmax = zmax = self.bounds[5] if self.bounds[5] > 100 else 100
+            xmax = self.bounds[1] if self.bounds[1] > 100 else 100
+            ymax = self.bounds[3] if self.bounds[3] > 100 else 100
+            zmax = self.bounds[5] if self.bounds[5] > 100 else 100
 
             x_axis = pv.Line(pointa=(0, 0, 0), pointb=(xmax, 0, 0))
             y_axis = pv.Line(pointa=(0, 0, 0), pointb=(0, ymax, 0))
             z_axis = pv.Line(pointa=(0, 0, 0), pointb=(0, 0, zmax))
 
+            # add_mesh calls for axes are fine (they are separate actors)
             self.add_mesh(x_axis, **x_axis_dict)
             self.add_mesh(y_axis, **y_axis_dict)
             self.add_mesh(z_axis, **z_axis_dict)
@@ -1060,4 +1094,4 @@ def _lazy_import():
 
             return capture_rect, capture_mesh_dict
 
-    return _GroupedPlotter, _apply_transforms, _meshbuilder
+    return _GroupedPlotter, _apply_transforms, _meshbuilder, pv.MultiBlock()
