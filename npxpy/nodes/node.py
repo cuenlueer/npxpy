@@ -8,9 +8,7 @@ Neuromorphic Quantumphotonics
 Heidelberg University
 E-Mail:	caghan.uenlueer@kip.uni-heidelberg.de
 
-This file is part of npxpy (formerly nanoAPI), which is licensed under the GNU
-Lesser General Public License v3.0. You can find a copy of this license at
-https://www.gnu.org/licenses/lgpl-3.0.html
+This file is part of npxpy, which is licensed under the MIT License.
 """
 import uuid
 import copy
@@ -275,7 +273,7 @@ class Node:
             ]
             copied_node.add_child(*copied_children)
 
-        if name != None:
+        if name is not None:
             copied_node.name = name
         return copied_node
 
@@ -636,9 +634,11 @@ class Node:
                     all_positions=all_positions + [lens.position],
                 )
 
-                plotter.add_mesh(
-                    lens_mesh, color=lens.color, group=lens._type + "_lens"
-                )
+                lens_mesh_dict = {
+                    "color": lens.color,
+                    "group": "structure_lens",
+                }
+                plotter.add_mesh(lens_mesh, **lens_mesh_dict)
 
             # Coarse aligners
             if (

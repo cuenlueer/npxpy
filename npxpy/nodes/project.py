@@ -8,8 +8,7 @@ Neuromorphic Quantumphotonics
 Heidelberg University
 E-Mail:	caghan.uenlueer@kip.uni-heidelberg.de
 
-This file is part of npxpy (formerly nanoAPI), which is licensed under the GNU Lesser General Public License v3.0.
-You can find a copy of this license at https://www.gnu.org/licenses/lgpl-3.0.html
+This file is part of npxpy, which is licensed under the MIT License.
 """
 import pytomlpp as toml
 import json
