@@ -71,7 +71,7 @@ class CoarseAligner(Node):
         """Get the list of alignment anchors."""
         return self._alignment_anchors
 
-    def add_coarse_anchor(self, label: str, position: List[Union[float, int]]):
+    def add_coarse_anchor(self, position: List[Union[float, int]], label: str):
         """
         Add a single coarse anchor with a label and position.
 
@@ -96,6 +96,7 @@ class CoarseAligner(Node):
                 "position": position,
             }
         )
+        return self
 
     def set_coarse_anchors_at(
         self,
@@ -136,7 +137,7 @@ class CoarseAligner(Node):
                 raise TypeError("All position elements must be numbers.")
 
         for label, position in zip(labels, positions):
-            self.add_coarse_anchor(label, position)
+            self.add_coarse_anchor(position, label)
 
         return self
 
@@ -392,8 +393,8 @@ class InterfaceAligner(Node):
 
     def add_interface_anchor(
         self,
-        label: str,
         position: List[float],
+        label: str,
         scan_area_size: List[float] = None,
     ):
         """
@@ -431,6 +432,7 @@ class InterfaceAligner(Node):
                 "scan_area_size": scan_area_size,
             }
         )
+        return self
 
     def set_interface_anchors_at(
         self,
@@ -462,7 +464,7 @@ class InterfaceAligner(Node):
         for label, position, scan_area_size in zip(
             labels, positions, scan_area_sizes
         ):
-            self.add_interface_anchor(label, position, scan_area_size)
+            self.add_interface_anchor(position, label, scan_area_size)
 
         return self
 
@@ -980,7 +982,7 @@ class MarkerAligner(Node):
         self._measure_z = value
 
     def add_marker(
-        self, label: str, orientation: float, position: List[float]
+        self, position: List[float], orientation: float, label: str
     ):
         """
         Adds a marker to the alignment anchors.
@@ -999,6 +1001,7 @@ class MarkerAligner(Node):
         self.alignment_anchors.append(
             {"label": label, "position": position, "rotation": orientation}
         )
+        return self
 
     def set_markers_at(
         self,
@@ -1039,7 +1042,7 @@ class MarkerAligner(Node):
         for label, orientation, position in zip(
             labels, orientations, positions
         ):
-            self.add_marker(label, orientation, position)
+            self.add_marker(position, orientation, label)
         return self
 
     def to_dict(self) -> Dict:
@@ -1224,9 +1227,9 @@ class EdgeAligner(Node):
 
     def add_measurement(
         self,
-        label: str,
         offset: Union[float, int],
         scan_area_size: List[Union[float, int]],
+        label: str,
     ):
         """
         Add a measurement with a label, offset, and scan area size.
@@ -1257,16 +1260,19 @@ class EdgeAligner(Node):
                 "scan_area_size": scan_area_size,
             }
         )
+        return self
 
     def set_measurements_at(
         self,
         offsets: List[Union[float, int]],
-        scan_area_sizes: List[List[Union[float, int]]],
+        scan_area_sizes: List[List[Union[float, int]]] = None,
         labels: List[str] = None,
     ):
         """
         Set multiple measurements at specified positions.
         """
+        if scan_area_sizes is None:
+            scan_area_sizes = [[50.0, 10.0]] * len(offsets)
         if labels is None:
             labels = [f"marker_{i}" for i in range(len(offsets))]
         if len(labels) != len(scan_area_sizes) or len(labels) != len(offsets):
@@ -1305,7 +1311,7 @@ class EdgeAligner(Node):
         for label, offset, scan_area_size in zip(
             labels, offsets, scan_area_sizes
         ):
-            self.add_measurement(label, offset, scan_area_size)
+            self.add_measurement(offset, scan_area_size, label)
         return self
 
     def to_dict(self) -> Dict[str, Any]:
