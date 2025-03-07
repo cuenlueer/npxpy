@@ -990,7 +990,10 @@ class MarkerAligner(Node):
         if not isinstance(label, str):
             raise TypeError("label must be a string.")
         if not isinstance(orientation, (float, int)):
-            raise TypeError("orientation must be a float or an int.")
+            try:
+                float(orientation)
+            except:
+                raise TypeError("orientation must be a float or an int.")
         if (
             not isinstance(position, list)
             or len(position) != 3
@@ -1024,10 +1027,6 @@ class MarkerAligner(Node):
         for label in labels:
             if not isinstance(label, str):
                 raise TypeError("All labels must be strings.")
-
-        for orientation in orientations:
-            if not isinstance(orientation, (float, int)):
-                raise TypeError("All orientations must be float or int.")
 
         for position in positions:
             if (
