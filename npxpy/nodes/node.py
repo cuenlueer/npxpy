@@ -71,6 +71,11 @@ class Node:
         """Return the name of the node."""
         return self._name
 
+    @property
+    def node_type(self):
+        """Return the type of the node."""
+        return self._type
+
     @name.setter
     def name(self, value: str):
         value = str(value)
