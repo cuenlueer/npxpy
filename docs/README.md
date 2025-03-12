@@ -2,8 +2,9 @@
 # npxpy
 
 npxpy is a versatile open source Python package that enables you to build projects (NANO files) for the 3D direct laser 
-lithography system **Nanoscribe Quantum X align** (**QXa**) via CLI/Scripts. It is designed such that it emulates the logic of Nanoscribe's
-GUI software *nanoPrintX*, making the application additionally user-friendly to experienced users of the **QXa**.
+lithography system **Nanoscribe Quantum X align** (**QXa**) via CLI/Scripts. It is designed such that it adheres to the
+same workflow logic as Nanoscribe's GUI software *nanoPrintX*, making the application additionally user-friendly to
+experienced users of the **QXa**.
 
 ## Table of Contents
 - [Installation](#installation)
@@ -13,10 +14,16 @@ GUI software *nanoPrintX*, making the application additionally user-friendly to 
 - [License](#license)
 
 ## Installation
-You can install ```npxpy``` via ```pip```:
+It is recommended to install ```npxpy``` in a virtual environment to prevent dependency issues.\
+You can install ```npxpy``` via ```pip``` together with all features (recommended) :
+```
+pip install npxpy[all]
+```
+If you are interested in a light-weight installation you are able to install only the core of ```npxpy``` via:
 ```
 pip install npxpy
 ```
+Beware that the light-weight installation lacks features like the 3D-viewport or GDS-parsing.
 
 ## Features and Usage
 npxpy comes implemented with all core elements known from *nanoPrintX*:
@@ -179,19 +186,26 @@ Out: scene_0 (scene)
                 └──structure_0 (structure)
 ```
 ## [Documentation](heregoesthelink!)
-To see more functionalities and examples of npxpy, make sure to check the provided [documentation](heregoesthelink!).
+To view more functionalities and use case examples of npxpy, refer to the the provided [documentation](heregoesthelink!).
 
 ## License
 
-This project is licensed under the GNU Lesser General Public License v3.0 (LGPL-3.0) - see the [LICENSE](https://github.com/cuenlueer/nanoAPI/blob/main/LICENSE) file for details.
+This project is licensed under the MIT License - see the [LICENSE](https://github.com/cuenlueer/nanoAPI/blob/main/LICENSE)
+file for details.\
+**TL;DR:** You may use, modify, and distribute this software freely, provided the license and copyright notice are included.
 ### What This Means for Users and Contributors
 
-- **Freedom to Use:** You are free to use this software in your projects, commercial or otherwise, as long as you comply with the LGPL-3.0 terms.
+- **Freedom to Use:** You are free to use this software in any project (commercial, personal, or otherwise) without
+restrictions, as long as the MIT License terms are met.
 
-- **Modifying the Library:** If you modify this library, you must distribute your modifications under the same LGPL-3.0 license. Your modifications must be documented, and the modified library must be available for users to access, use, and link against.
+- **Modifications and Derivatives:** You may modify the code, create derivative works, and distribute them under any
+license of your choice. The only requirements are:
+  - Include the original MIT License and copyright notice with your distribution.
+  - Clearly state any significant changes made to the original code.
+- **Linking and Distribution:** You may link this software with proprietary code or other open-source projects without
+restrictions. No obligations apply to the proprietary components of your project.
 
-- **Linking to Proprietary Code:** You can link this library with proprietary code, forming a combined work. The proprietary code will not be subject to the terms of LGPL, provided the LGPL library is not modified and is used as a dynamically linked module.
-
-- **Contribution and Distribution:** If you contribute to this project, your contributions will be under the same LGPL-3.0 license. If you distribute this library, either in original or modified form, you must do so under the LGPL-3.0, ensuring that recipients have access to the source code of the library and the rights to modify it.
+- **Contribution:** By contributing to this project, you agree that your contributions will be licensed under the
+MIT License. This ensures your changes remain freely usable by others under the same terms.
 
 For more details on your rights and responsibilities under this license, please review the [LICENSE](https://github.com/cuenlueer/nanoAPI/blob/main/LICENSE) file.
