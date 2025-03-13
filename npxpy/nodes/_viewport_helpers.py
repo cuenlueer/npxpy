@@ -15,6 +15,7 @@ This file is part of npxpy, which is licensed under the MIT License.
 def _lazy_import():
     try:
         import pyvista as pv
+        pv.global_theme.allow_empty_mesh = True
         from pyvistaqt import BackgroundPlotter
         import numpy as np
         from typing import Optional
