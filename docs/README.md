@@ -143,7 +143,7 @@ Project (project)
                 └──Marker Aligner (marker_alignment)
                     └──structure_1 (structure)
 ```
-```
+```python
 >>> #  Export your project to a .nano-file.
 >>> project.nano(project_name="my_project")
 ```
