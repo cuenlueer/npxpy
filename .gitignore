@@ -1,12 +1,7 @@
-
 *.nano
 *.pyc
 /npxpy.egg-info
-todo_go_here.md
-README_finalversion.md
 adjusthashes.py
 docs/images/desktop.ini
-
 /.spyproject
-/venv
-/venv-light
+
