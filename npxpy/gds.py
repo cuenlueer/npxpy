@@ -857,6 +857,7 @@ class GDSParser:
             [-cell_origin_offset[0], -cell_origin_offset[1], 0]
         )
 
+    # TODO: Consider exchanging marker part with get_marker_aligner()
     @verbose_output()
     def _marker_aligned_printing(
         self,
