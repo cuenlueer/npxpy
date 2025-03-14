@@ -42,11 +42,12 @@ __all__ = [
     "Capture",
     "StageMove",
     "Wait",
+    "GDSParser"
 ]
 
 # Metadata
 __author__ = "Caghan Uenlueer"
-__license__ = "LGPLv3"
+__license__ = "MIT"
 __email__ = "caghan.uenlueer@kip.uni-heidelberg.de"
 
 # Python version check
