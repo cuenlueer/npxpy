@@ -35,6 +35,6 @@ setup(
         "Topic :: Scientific/Engineering :: Aligned 2-Photon 3D Lithography",
         "Topic :: Scientific/Engineering :: Physics",
         "Programming Language :: Python :: 3",
-        "License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)",
+        "License :: OSI Approved :: MIT License",
     ],
 )

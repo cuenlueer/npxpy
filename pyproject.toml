@@ -1,0 +1,80 @@
+[build-system]
+requires = ["setuptools>=45", "wheel", "setuptools_scm[toml]>=6.2", "build"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "npxpy"
+version = "0.0.1"
+authors = [
+    {name = "Caghan Ünlüer"},
+    {name = "Simone Ferrari"},
+    {name = "Wolfram Pernice"}
+]
+description = "Python based open source text-only project preparation framework for Nanoscribe's two-photon 3D lithography system Quantum X align."
+readme = "docs/README.md"
+requires-python = ">=3.7"
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Topic :: Scientific/Engineering :: Chemistry",
+    "Topic :: Scientific/Engineering :: Medical Science Apps.",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "pytomlpp",
+    "numpy-stl",
+]
+
+[project.optional-dependencies]
+all = [
+    "pyvistaqt",
+    "pyvista", # Probably redundant due to pyvistaqt
+    "numpy",
+    "PyQt5",
+    "klayout",
+    "numpy",
+    "shapely",
+    "trimesh",
+    "pillow",
+]
+viewport = [
+    "pyvistaqt",
+    "pyvista", # Probably redundant due to pyvistaqt
+    "numpy",
+    "PyQt5",
+]
+gds = [
+    "klayout==0.29.11",
+    "numpy",
+    "shapely",
+    "trimesh",
+    "pillow",
+]
+
+[project.urls]
+"Bug Tracker" = "https://github.com/cuenlueer/npxpy/issues"
+"Source Code" = "https://github.com/cuenlueer/npxpy"
+
+[tool.setuptools]
+packages = ["npxpy"]
+
+[tool.semantic_release]
+version_variables = ["npxpy/_version.py:__version__"]
+version_toml = ["pyproject.toml:project.version"]
+version_source = "commit"
+branch = "main"
+upload_to_pypi = false
+upload_to_release = true
+build_command = "pip install build && python3 -m build"
+
+[tool.semantic_release.changelog]
+changelog_file = "docs/CHANGELOG.md"
