@@ -96,7 +96,7 @@ ma_positions = [
 ...     measure_tilt=True,
 ... )
 >>> 
->>> #  Initiale printing scene
+>>> #  Initialize printing scene
 >>> scene = npxpy.Scene(name="scene", writing_direction_upward=True)
 >>> 
 >>> #  Initialize structure with desired preset and mesh defined above.
