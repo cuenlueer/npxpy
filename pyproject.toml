@@ -34,6 +34,11 @@ dependencies = [
     "numpy-stl",
 ]
 
+[tool.setuptools.package-data]
+my_package = [
+    "npxpy/images/logo.png",
+]
+
 [project.optional-dependencies]
 all = [
     "pyvistaqt",
@@ -41,9 +46,8 @@ all = [
     "numpy",
     "PyQt5",
     "klayout",
-    "numpy",
-    "shapely",
-    "trimesh",
+    "shapely>=1.8.0",
+    "trimesh[easy]",
     "pillow",
 ]
 viewport = [
@@ -53,10 +57,10 @@ viewport = [
     "PyQt5",
 ]
 gds = [
-    "klayout==0.29.11",
+    "klayout",
     "numpy",
-    "shapely",
-    "trimesh",
+    "shapely>=1.8.0",
+    "trimesh[easy]",
     "pillow",
 ]
 

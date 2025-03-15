@@ -14,6 +14,7 @@ import uuid
 import copy
 import os
 from typing import Dict, Any, List, Tuple, Optional, Union
+from importlib.resources import files
 
 
 class Node:
@@ -500,15 +501,13 @@ class Node:
         plotter.set_background("white")
 
         # Add logo widget
-        HERE = os.path.dirname(__file__)
-        TWO_LEVELS_UP = os.path.abspath(os.path.join(HERE, "..", ".."))
+        logo_path = str(files("npxpy.images").joinpath("logo.png"))
         plotter.add_logo_widget(
-            logo=os.path.join(TWO_LEVELS_UP, "docs/images/logo.png"),
+            logo=logo_path,
             opacity=0.75,
             size=(0.15, 0.15),
             position=(0.84, 0.86),
         )
-
         # init the meshbuilder
         meshbuilder = _meshbuilder()
 
