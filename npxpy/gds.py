@@ -1,18 +1,22 @@
 # -*- coding: utf-8 -*-
 """
+npxpy.gds
 Created on Fri Feb 21 15:54:24 2025
 
-@author: CU
+@author: Caghan Uenlueer
+Neuromorphic Quantumphotonics
+Heidelberg University
+E-Mail:	caghan.uenlueer@kip.uni-heidelberg.de
+
+This file is part of npxpy, which is licensed under the MIT License.
 """
 import os
 import math
-import pya
-from typing import List, Dict, Tuple
-import numpy as np
-from shapely.geometry import Polygon, MultiPolygon, box
-from shapely.affinity import translate, rotate
-from shapely.ops import unary_union
-import trimesh
+import sys
+from typing import List, Dict, Tuple, Optional, Callable
+from io import StringIO
+from functools import wraps
+from inspect import signature
 from npxpy import (
     Scene,
     Project,
@@ -25,65 +29,185 @@ from npxpy import (
     MarkerAligner,
     Group,
 )
-import PIL
-import sys
-from io import StringIO
-from functools import wraps
-from inspect import signature
+
+# Dependency management with improved error reporting
+_MISSING_DEPS: List[str] = []
+_HAS_PYA = False
+
+try:
+    import pya
+
+    _HAS_PYA = True
+except ImportError as e:
+    raise ImportError(
+        "Missing required dependency: 'pya' (Python for KLayout API).\n"
+        "Install with: pip install npxpy[gds]\n"
+        "or: pip install npxpy[all]"
+    ) from e
+
+try:
+    import numpy as np
+
+    _HAS_NUMPY = True
+except ImportError:
+    np = None
+    _MISSING_DEPS.append("numpy")
+
+try:
+    from shapely.geometry import Polygon, MultiPolygon, box
+    from shapely.affinity import translate, rotate
+    from shapely.ops import unary_union
+
+    _HAS_SHAPELY = True
+except ImportError:
+    Polygon = MultiPolygon = box = translate = rotate = unary_union = None
+    _MISSING_DEPS.append("shapely")
+
+try:
+    import trimesh
+
+    _HAS_TRIMESH = True
+except ImportError:
+    trimesh = None
+    _MISSING_DEPS.append("trimesh")
+
+try:
+    import PIL
+
+    _HAS_PIL = True
+except ImportError:
+    PIL = None
+    _MISSING_DEPS.append("PIL")
 
 
-def verbose_output(verbose_param="_verbose"):
-    """Decorator to suppress print statements based on a verbose flag"""
+def verbose_output(verbose_param: str = "_verbose") -> Callable:
+    """Decorator to suppress print statements based on verbosity flag.
 
-    def decorator(func):
+    Args:
+        verbose_param: Name of the verbosity parameter in the decorated function
+
+    Returns:
+        Callable: Decorated function with output suppression
+    """
+
+    def decorator(func: Callable) -> Callable:
         @wraps(func)
-        def wrapper(*args, **kwargs):
-            # Get the verbosity flag using function signature
+        def wrapper(*args, **kwargs) -> Callable:
             sig = signature(func)
             bound_args = sig.bind(*args, **kwargs)
             bound_args.apply_defaults()
-            verbose = bound_args.arguments.get(verbose_param, False)
+            verbose: bool = bound_args.arguments.get(verbose_param, False)
 
-            # Suppress output if not verbose
             original_stdout = sys.stdout
             if not verbose:
                 sys.stdout = StringIO()
 
             try:
                 result = func(*args, **kwargs)
-                # Flush suppressed output if needed
                 if not verbose:
                     sys.stdout.getvalue()  # Consume captured output
                 return result
             finally:
-                sys.stdout = original_stdout  # Always restore stdout
+                sys.stdout = original_stdout
 
         return wrapper
 
     return decorator
 
 
-# Load the GDS layout
-# (Otpional) Specify custom top cell in GDS by name (type str)
-# (Optional) Specify the write field by passing prepared Scene
 class _write_field_scene(Scene):
-    def __init__(self):
-        super().__init__()
+    """Custom scene configuration for write field operations."""
+
+    def __init__(self) -> None:
+        """Initialize a default write field scene with interface aligner."""
+        super().__init__(name="default_write_field")
         ia = InterfaceAligner(signal_type="auto", measure_tilt=True)
-        ia.set_grid(count=[2, 2], size=[180, 180])
+        ia.set_grid(count=[2, 2], size=[180.0, 180.0])
         self.add_child(ia)
 
 
 class GDSParser:
-    def __init__(
-        self,
-        gds_file: str,
-    ):
-        self.layout = pya.Layout()
-        self.layout.read(gds_file)
-        self.gds_name = gds_file.split(".")[0]
+    """Parser for GDSII layout files with dependency management and validation.
+
+    Attributes:
+        gds_file (str): Path to the loaded GDSII file
+        layout (pya.Layout): Parsed GDSII layout object
+        gds_name (str): Base name of the GDS file without extension
+    """
+
+    _REQUIRED_DEPS: List[str] = ["numpy", "shapely", "trimesh", "PIL"]
+
+    def __init__(self, gds_file: str) -> None:
+        """Initialize GDS parser with file validation and dependency checks.
+
+        Args:
+            gds_file: Path to GDSII file to load
+
+        Raises:
+            ImportError: If required dependencies are missing
+            FileNotFoundError: If specified file doesn't exist
+            ValueError: For invalid file types or parsing errors
+        """
+        self.gds_file = gds_file  # Validated through property setter
+        self._layout = pya.Layout()
+        self._layout.read(gds_file)  # Let pya exceptions bubble up
         self._plot_tiles_flag = False
         self._previous_image_safe_path_marker_aligned_printing = "0/0"
+        self._check_dependencies()
+
+    def _check_dependencies(self) -> None:
+        """Verify required dependencies are installed.
+
+        Raises:
+            ImportError: With list of missing dependencies
+        """
+        missing = [dep for dep in self._REQUIRED_DEPS if dep in _MISSING_DEPS]
+        if missing:
+            raise ImportError(
+                f"Missing required dependencies: {', '.join(missing)}\n"
+                "Install either with: pip install npxpy[gds]\n"
+                "or with: pip install npxpy[all]"
+            )
+
+    @property
+    def gds_file(self) -> str:
+        """Get path to loaded GDS file."""
+        return self._gds_file
+
+    @property
+    def layout(self) -> pya.Layout:
+        """Get parsed GDS layout object."""
+        return self._layout
+
+    @property
+    def gds_name(self) -> str:
+        """Get base name of GDS file without extension."""
+        base = os.path.basename(self.gds_file)
+        return os.path.splitext(base)[0]
+
+    @gds_file.setter
+    def gds_file(self, value: str) -> None:
+        """Validate and set new GDS file path.
+
+        Args:
+            value: Path to new GDS file
+
+        Raises:
+            TypeError: For non-string input
+            FileNotFoundError: If file doesn't exist
+            ValueError: For non-GDS file extension
+        """
+        if not isinstance(value, str):
+            raise TypeError(f"Expected string path, got {type(value)}")
+
+        norm_path = os.path.normpath(value)
+        if not os.path.isfile(norm_path):
+            raise FileNotFoundError(f"GDS file not found: {norm_path}")
+
+        if not value.lower().endswith(".gds"):
+            raise ValueError("File must have .gds extension")
+
+        self._gds_file = norm_path
 
     def _gather_polygons_in_child_cell(self, child_cell, layer_to_print):
         """
@@ -501,17 +625,79 @@ class GDSParser:
 
     def gds_printing(
         self,
-        project,
-        preset,
-        cell_name=None,
-        write_field_scene=None,
-        layer_to_print=(1, 1),
-        extrusion=1.0,
-        tile_size=220,
-        epsilon=0.5,
-        color="#16506B",
-        _verbose=False,
-    ):
+        project: Project,
+        preset: Preset,
+        cell_name: Optional[str] = None,
+        write_field_scene: Optional[Scene] = None,
+        layer_to_print: Tuple[int, int] = (1, 1),
+        extrusion: float = 1.0,
+        tile_size: float = 220,
+        epsilon: float = 0.5,
+        skip_if_exists: bool = False,
+        color: str = "#16506B",
+        _verbose: bool = False,
+    ) -> Group:
+        """Generate hierarchical printing structure from GDS layout polygons.
+
+        Args:
+            project: Target project for resource management
+            preset: Printing preset configuration
+            cell_name: Specific cell to process (uses top cell if None)
+            write_field_scene: Custom write field scene configuration
+            layer_to_print: Layer/datatype tuple to process
+            extrusion: Z-height for printed structures (negative values valid!)
+            tile_size: Maximum dimension for geometry tiling
+            epsilon: Overlap-compensation for stitching in microns
+            skip_if_exists: If polygons already exist, do not recreate them
+            color: Visualization color of meshes inside viewport
+            _verbose: Enable debug output
+
+        Returns:
+            Group: Hierarchical structure ready for printing
+
+        Raises:
+            ValueError: Invalid input parameters
+            TypeError: Incorrect argument types
+            RuntimeError: Polygon processing failure
+        """
+        # Input validation
+        if not isinstance(project, Project):
+            raise TypeError("project must be a Project instance")
+        if not isinstance(preset, Preset):
+            raise TypeError("preset must be a Preset instance")
+        if cell_name is not None and not isinstance(cell_name, str):
+            raise TypeError("cell_name must be a string or None")
+        if write_field_scene is not None and not isinstance(
+            write_field_scene, Scene
+        ):
+            raise TypeError(
+                "write_field_scene must be a Scene instance or None"
+            )
+
+        # Validate layer_to_print structure and content
+        if not isinstance(layer_to_print, tuple) or len(layer_to_print) != 2:
+            raise TypeError("layer_to_print must be a tuple of two integers")
+        if not all(isinstance(x, int) for x in layer_to_print):
+            raise TypeError("Both elements in layer_to_print must be integers")
+
+        # Validate numerical parameters
+        if not isinstance(extrusion, (int, float)):
+            raise TypeError("extrusion must be a numeric value")
+        if not isinstance(tile_size, (int, float)):
+            raise TypeError("tile_size must be a numeric value")
+        if tile_size <= 0:
+            raise ValueError("tile_size must be positive")
+        if not isinstance(epsilon, (int, float)):
+            raise TypeError("epsilon must be a numeric value")
+        if epsilon < 0:
+            raise ValueError("epsilon must be non-negative")
+
+        # Validate boolean parameters
+        if not isinstance(skip_if_exists, bool):
+            raise TypeError("skip_if_exists must be a boolean")
+        if not isinstance(_verbose, bool):
+            raise TypeError("_verbose must be a boolean")
+
         gds_printing_group_raw = self._gds_printing(
             project,
             preset,
@@ -521,6 +707,7 @@ class GDSParser:
             extrusion=extrusion,
             tile_size=tile_size,
             epsilon=epsilon,
+            skip_if_exists=skip_if_exists,
             color=color,
             _verbose=_verbose,
         )
@@ -541,18 +728,18 @@ class GDSParser:
     @verbose_output()
     def _gds_printing(
         self,
-        project,
-        preset,
-        cell_name=None,
-        write_field_scene=None,
-        layer_to_print=(1, 1),
-        extrusion=1.0,
-        tile_size=220,
-        epsilon=0.5,
-        skip_if_exists=False,
-        color="#16506B",
-        _verbose=False,
-    ):
+        project: Project,
+        preset: Preset,
+        cell_name: Optional[str],
+        write_field_scene: Optional[Scene],
+        layer_to_print: Tuple[int, int],
+        extrusion: float,
+        tile_size: float,
+        epsilon: float,
+        skip_if_exists: bool,
+        color: str,
+        _verbose: bool,
+    ) -> Group:
         cell = (
             self.layout.top_cell()
             if cell_name is None
@@ -774,74 +961,147 @@ class GDSParser:
         marker_layer: Tuple[int, int] = (10, 10),
         mesh_spots_layers: List[Tuple[int, int]] = [(100, 100)],
         cell_origin_offset: Tuple[float, float] = (0.0, 0.0),
-        cell_name=None,
-        image_resource: Image = None,
-        interface_aligner_node: InterfaceAligner = None,
-        marker_aligner_node: MarkerAligner = None,
-        colors: List[str] = None,
-        marker_aligner_kwargs: Dict = {},
-        structure_kwargs: Dict = {},
-        _verbose=False,
+        cell_name: Optional[str] = None,
+        image_resource: Optional[Image] = None,
+        interface_aligner_node: Optional[InterfaceAligner] = None,
+        marker_aligner_node: Optional[MarkerAligner] = None,
+        colors: Optional[List[str]] = None,
+        marker_aligner_kwargs: Optional[Dict] = None,
+        structure_kwargs: Optional[Dict] = None,
+        _verbose: bool = False,
     ) -> Group:
+        """Create a hierarchical printing group with marker-based alignment.
 
-        colors = ["#16506B"] * len(meshes) if colors is None else colors
+        Args:
+            project: Parent Project for resource management
+            presets: List of Preset configurations for printing
+            meshes: List of Mesh objects to print
+            marker_height: Z-height for marker structures
+            marker_layer: Layer/datatype for alignment markers
+            mesh_spots_layers: List of layers containing print locations
+            cell_origin_offset: Coordinate offset for cell origin
+            cell_name: Cell to start traversing from (uses top cell if None)
+            image_resource: Pre-configured Image resource for markers
+            interface_aligner_node: InterfaceAligner configuration template
+            marker_aligner_node: MarkerAligner configuration template
+            colors: Color codes for visualization
+            marker_aligner_kwargs: Additional MarkerAligner parameters
+            structure_kwargs: Additional Structure parameters
+            _verbose: Enable debug output
 
-        # Check all iterables have same length
-        if not (
-            len(presets)
-            == len(meshes)
-            == len(mesh_spots_layers)
-            == len(colors)
+        Returns:
+            Group: Hierarchical printing structure with alignment
+
+        Raises:
+            ValueError: Invalid input dimensions, values, or formats
+            TypeError: Incorrect argument types
+            RuntimeError: Marker processing failure
+        """
+        # Initialize mutable defaults safely
+        marker_aligner_kwargs = marker_aligner_kwargs or {}
+        structure_kwargs = structure_kwargs or {}
+        colors = colors or ["#16506B"] * len(meshes)
+
+        # Comprehensive type validation
+        if not isinstance(project, Project):
+            raise TypeError("project must be a Project instance")
+        if not isinstance(presets, list):
+            raise TypeError("presets must be a list")
+        if not isinstance(meshes, list):
+            raise TypeError("meshes must be a list")
+        if not isinstance(mesh_spots_layers, list):
+            raise TypeError("mesh_spots_layers must be a list")
+
+        # Validate numerical parameters
+        if not isinstance(marker_height, (int, float)):
+            raise TypeError("marker_height must be numeric")
+        if (
+            not isinstance(cell_origin_offset, tuple)
+            or len(cell_origin_offset) != 2
         ):
-            raise ValueError(
-                "presets, meshes, mesh_spots_layers, (and colors, if any were passed) must all have the same length"
+            raise TypeError("cell_origin_offset must be a 2-element tuple")
+        if not all(isinstance(x, (int, float)) for x in cell_origin_offset):
+            raise TypeError("cell_origin_offset elements must be numeric")
+
+        # Validate layer specifications
+        layer_valid = (
+            lambda l: isinstance(l, tuple)
+            and len(l) == 2
+            and all(isinstance(n, int) for n in l)
+        )
+        if not layer_valid(marker_layer):
+            raise TypeError("marker_layer must be a (int, int) tuple")
+        if not all(layer_valid(l) for l in mesh_spots_layers):
+            raise TypeError(
+                "All mesh_spots_layers elements must be (int, int) tuples"
             )
 
-        # Type checking with try-except conversions
+        # Validate list contents
         for i, preset in enumerate(presets):
             if not isinstance(preset, Preset):
-                raise TypeError(f"presets[{i}] must be of type Preset")
-
+                raise TypeError(f"presets[{i}] must be a Preset instance")
         for i, mesh in enumerate(meshes):
             if not isinstance(mesh, Mesh):
-                raise TypeError(f"meshes[{i}] must be of type Mesh")
+                raise TypeError(f"meshes[{i}] must be a Mesh instance")
 
-        for i, spots in enumerate(mesh_spots_layers):
-            try:
-                if len(spots) != 2 or not isinstance(spots, tuple):
-                    raise ValueError
-                int(spots[0]), int(spots[1])
-            except (ValueError, TypeError):
-                raise TypeError(
-                    f"mesh_spots_layers[{i}] must be a tuple of two integers"
-                )
+        # Validate optional parameters
+        if cell_name is not None and not isinstance(cell_name, str):
+            raise TypeError("cell_name must be a string or None")
+        if image_resource is not None and not isinstance(
+            image_resource, Image
+        ):
+            raise TypeError("image_resource must be an Image instance or None")
+        if interface_aligner_node is not None and not isinstance(
+            interface_aligner_node, InterfaceAligner
+        ):
+            raise TypeError(
+                "interface_aligner_node must be an InterfaceAligner instance or None"
+            )
+        if marker_aligner_node is not None and not isinstance(
+            marker_aligner_node, MarkerAligner
+        ):
+            raise TypeError(
+                "marker_aligner_node must be a MarkerAligner instance or None"
+            )
 
-        for i, color in enumerate(colors):
-            try:
-                str(color)
-            except Exception as e:
-                raise TypeError(
-                    f"colors[{i}] must be convertible to string: {str(e)}"
-                )
+        # Validate dictionary parameters
+        if not isinstance(marker_aligner_kwargs, dict):
+            raise TypeError("marker_aligner_kwargs must be a dictionary")
+        if not isinstance(structure_kwargs, dict):
+            raise TypeError("structure_kwargs must be a dictionary")
+        if not isinstance(_verbose, bool):
+            raise TypeError("_verbose must be a boolean")
 
-        marker_aligned_printing_group_raw = self._marker_aligned_printing(
-            project,
-            presets,
-            meshes,
-            cell_name=cell_name,
-            cell_origin_offset=cell_origin_offset,
-            image_resource=image_resource,
-            interface_aligner_node=interface_aligner_node,
-            marker_aligner_node=marker_aligner_node,
-            marker_height=marker_height,
-            marker_layer=marker_layer,
-            mesh_spots_layers=mesh_spots_layers,
-            colors=colors,
-            marker_aligner_kwargs=marker_aligner_kwargs,
-            structure_kwargs=structure_kwargs,
-            _verbose=_verbose,
-        )
+        # Validate dimensional consistency
+        if (
+            len(presets) != len(meshes)
+            or len(presets) != len(mesh_spots_layers)
+            or len(presets) != len(colors)
+        ):
+            raise ValueError("All input lists must have equal length")
+        if not presets:
+            raise ValueError("At least one preset must be provided")
 
+        try:
+            marker_aligned_printing_group_raw = self._marker_aligned_printing(
+                project,
+                presets,
+                meshes,
+                cell_name=cell_name,
+                cell_origin_offset=cell_origin_offset,
+                image_resource=image_resource,
+                interface_aligner_node=interface_aligner_node,
+                marker_aligner_node=marker_aligner_node,
+                marker_height=marker_height,
+                marker_layer=marker_layer,
+                mesh_spots_layers=mesh_spots_layers,
+                colors=colors,
+                marker_aligner_kwargs=marker_aligner_kwargs,
+                structure_kwargs=structure_kwargs,
+                _verbose=_verbose,
+            )
+        except Exception as e:
+            raise RuntimeError("Marker alignment processing failed") from e
         # Clean up nodes that do not contain any structures
         marker_aligned_printing_group = (
             marker_aligned_printing_group_raw.deepcopy_node(
@@ -861,22 +1121,23 @@ class GDSParser:
     @verbose_output()
     def _marker_aligned_printing(
         self,
-        project,
-        presets,
-        meshes,
-        marker_height=0.33,
-        cell_origin_offset=(0.0, 0.0),
-        marker_layer=(10, 10),
-        mesh_spots_layers=[(100, 100)],
-        cell_name=None,
-        image_resource=None,
-        interface_aligner_node=None,
-        marker_aligner_node=None,
-        colors=["#16506B"],
-        marker_aligner_kwargs={},
-        structure_kwargs={},
-        _verbose=False,
-    ):
+        project: Project,
+        presets: List[Preset],
+        meshes: List[Mesh],
+        marker_height: float,
+        marker_layer: Tuple[int, int],
+        mesh_spots_layers: List[Tuple[int, int]],
+        cell_origin_offset: Tuple[float, float],
+        cell_name: Optional[str],
+        image_resource: Optional[Image],
+        interface_aligner_node: Optional[InterfaceAligner],
+        marker_aligner_node: Optional[MarkerAligner],
+        colors: List[str],
+        marker_aligner_kwargs: Dict,
+        structure_kwargs: Dict,
+        _verbose: bool,
+    ) -> Group:
+        """Internal implementation of marker-aligned printing."""
         cell = (
             self.layout.top_cell()
             if cell_name is None
@@ -1272,23 +1533,34 @@ class GDSParser:
         image.save(output_file)
         print(f"Image saved as {output_file}")
 
-    def get_cell_by_name(self, cell_name: str):
-        """
-        Retrieves a cell by its name.
+    def get_cell_by_name(self, cell_name: str) -> pya.Cell:
+        """Retrieve a cell by its name from the GDS layout.
 
         Args:
-            cell_name (str): Name of the cell to retrieve.
+            cell_name: Name of the cell to retrieve. Case-sensitive.
 
         Returns:
-            pya.Cell: The cell object if found, otherwise None.
-        """
-        # Iterate through all cells in the layout
-        for cell in self.layout.each_cell():
-            if cell.name == cell_name:
-                return cell  # Return the cell if its name matches
+            pya.Cell: The requested cell object.
 
-        # If the cell is not found, return None
-        return None
+        Raises:
+            TypeError: If input is not a string
+            KeyError: If no cell with specified name exists
+        """
+        # Input validation
+        if not isinstance(cell_name, str):
+            raise TypeError(
+                f"Expected string for cell name, got {type(cell_name)}"
+            )
+
+        # Efficient search using layout's cell dictionary
+        cell = self.layout.cell(cell_name)
+        if cell is None:
+            available_cells = [c.name for c in self.layout.each_cell()]
+            raise KeyError(
+                f"Cell '{cell_name}' not found in GDS layout. "
+                f"Available cells: {', '.join(available_cells[:5])}..."
+            )
+        return cell
 
     def _merged_polygons_and_their_positions(self, child_cell, layer, z_pos):
 
@@ -1304,43 +1576,86 @@ class GDSParser:
 
     def get_marker_aligner(
         self,
-        cell_name,
-        project=None,
-        marker_layer=(254, 254),
-        marker_height=0.33,
-        image_resource=None,
-        **marker_aligner_kwargs,
-    ):
-        cell = self.get_cell_by_name(cell_name)
+        cell_name: str,
+        project: Optional[Project] = None,
+        marker_layer: Tuple[int, int] = (254, 254),
+        marker_height: float = 0.33,
+        image_resource: Optional[Image] = None,
+        **marker_aligner_kwargs: Dict,
+    ) -> MarkerAligner:
+        """Create and configure a MarkerAligner from GDS markers.
+
+        Args:
+            cell_name: Name of the cell containing markers
+            project: Optional Project for resource management
+            marker_layer: Layer/datatype tuple for marker identification
+            marker_height: Z-height for marker polygons
+            image_resource: Optional pre-configured Image resource
+            **marker_aligner_kwargs: Additional MarkerAligner configuration
+
+        Returns:
+            Configured MarkerAligner instance
+
+        Raises:
+            ValueError: If no markers found or invalid input dimensions
+            TypeError: For invalid input types
+            RuntimeError: If image processing fails
+        """
+        # Input validation
+        if not isinstance(marker_layer, tuple) or len(marker_layer) != 2:
+            raise TypeError("marker_layer must be a (int, int) tuple")
+        if marker_height < 0:
+            raise ValueError("marker_height must be non-negative")
+
+        try:
+            cell = self.get_cell_by_name(cell_name)
+        except KeyError as e:
+            raise ValueError(f"Cell '{cell_name}' not found in layout") from e
+
+        # Polygon processing
         marker_polygons, marker_positions = (
             self._merged_polygons_and_their_positions(
                 cell, marker_layer, marker_height
             )
         )
 
-        image_file_path = f"./images_{self.gds_name}_{marker_layer}/marker_{marker_layer}.png"
-        self._ensure_folder_exist_else_create(
-            f"./images_{self.gds_name}_{marker_layer}"
+        if not marker_polygons:
+            raise ValueError(f"No markers found on layer {marker_layer}")
+        if len(marker_positions) < 3:
+            raise ValueError("At least 3 markers required for alignment")
+
+        # Image resource handling
+        image_dir = f"./images_{self.gds_name}_{marker_layer}"
+        self._ensure_folder_exist_else_create(image_dir)
+
+        image_file_path = os.path.join(image_dir, f"marker_{marker_layer}.png")
+        _image = image_resource or Image(
+            name=str(marker_layer), file_path=image_file_path
         )
 
-        _image = (
-            Image(name=f"{marker_layer}", file_path=image_file_path)
-            if image_resource is None
-            else image_resource
-        )
         if project is not None:
+            if not isinstance(project, Project):
+                raise TypeError("project must be a Project instance")
             project.load_resources(_image)
 
+        # Marker processing
         _, marker_orientations = (
             self._group_equivalent_polygons_and_output_image(
                 marker_polygons, file_path=image_file_path
             )
         )
 
-        marker_size = [
-            marker_polygons[0].bounds[2] - marker_polygons[0].bounds[0],
-            marker_polygons[0].bounds[3] - marker_polygons[0].bounds[1],
-        ]
+        try:
+            marker_size = [
+                marker_polygons[0].bounds[2] - marker_polygons[0].bounds[0],
+                marker_polygons[0].bounds[3] - marker_polygons[0].bounds[1],
+            ]
+        except:
+            UserWarning(
+                "Failed to calculate marker sizes based on GDS-polygons."
+                " Default [5.0,5.0] will be used instead."
+            )
+            marker_size = [5.0, 5.0]
 
         if "max_outliers" not in marker_aligner_kwargs:
             marker_aligner_kwargs["max_outliers"] = (
@@ -1361,26 +1676,60 @@ class GDSParser:
         return marker_aligner
 
     def get_coarse_aligner(
-        self, cell_name, coarse_layer=(200, 200), residual_threshold=10.0
-    ):
+        self,
+        cell_name: str,
+        coarse_layer: Tuple[int, int] = (200, 200),
+        residual_threshold: float = 10.0,
+    ) -> CoarseAligner:
+        """Create a CoarseAligner from anchor points in GDS.
+
+        Args:
+            cell_name: Name of the cell containing coarse alignment features
+            coarse_layer: Layer/datatype tuple for anchor identification
+            residual_threshold: Maximum allowed alignment residual
+
+        Returns:
+            Configured CoarseAligner instance
+
+        Raises:
+            ValueError: If no anchors found or invalid threshold
+        """
+        if not isinstance(coarse_layer, tuple) or len(coarse_layer) != 2:
+            raise TypeError("marker_layer must be a (int, int) tuple")
+        if residual_threshold <= 0:
+            raise ValueError("residual_threshold must be positive")
+
         cell = self.get_cell_by_name(cell_name)
         _, anchor_positions = self._merged_polygons_and_their_positions(
             cell, coarse_layer, 0
         )
-        coarse_aligner = CoarseAligner(
+
+        return CoarseAligner(
             name=f"{cell.name}{coarse_layer}",
             residual_threshold=residual_threshold,
-        )
-        coarse_aligner.set_coarse_anchors_at(anchor_positions)
-        return coarse_aligner
+        ).set_coarse_anchors_at(anchor_positions)
 
     def get_custom_interface_aligner(
         self,
-        cell_name,
-        interface_layer=(255, 255),
-        scan_area_sizes=None,
-        **interface_aligner_kwargs,
-    ):
+        cell_name: str,
+        interface_layer: Tuple[int, int] = (255, 255),
+        scan_area_sizes: Optional[List[List[float]]] = None,
+        **interface_aligner_kwargs: Dict,
+    ) -> InterfaceAligner:
+        """Create an InterfaceAligner with custom scan areas from GDS.
+
+        Args:
+            cell_name: Name of the cell containing interface features
+            interface_layer: Layer/datatype tuple for scan areas
+            scan_area_sizes: Optional list of [width, height] pairs
+            **interface_aligner_kwargs: Additional InterfaceAligner config
+
+        Returns:
+            Configured InterfaceAligner instance
+        """
+        if not isinstance(interface_layer, tuple) or len(interface_layer) != 2:
+            raise TypeError("marker_layer must be a (int, int) tuple")
+
         cell = self.get_cell_by_name(cell_name)
         scan_area_sizes_polygons, anchor_positions = (
             self._merged_polygons_and_their_positions(cell, interface_layer, 0)
@@ -1400,10 +1749,10 @@ class GDSParser:
             else scan_area_sizes
         )
 
-        interface_aligner = InterfaceAligner(
-            name=f"{cell.name}{interface_layer}", **interface_aligner_kwargs
+        return InterfaceAligner(
+            name=f"{cell.name}{interface_layer}",
+            **interface_aligner_kwargs,
+        ).set_interface_anchors_at(
+            positions=anchor_positions,
+            scan_area_sizes=scan_area_sizes,
         )
-        interface_aligner.set_interface_anchors_at(
-            positions=anchor_positions, scan_area_sizes=scan_area_sizes
-        )
-        return interface_aligner
