@@ -19,9 +19,8 @@ from .nodes.aligners import (
 )
 from .nodes.misc import DoseCompensation, Capture, StageMove, Wait
 from ._version import __version__
-from .gds import GDSParser
 
-# Define what should be available when importing npxpy
+# Define what should be available when importing npxpy (this is the core)
 __all__ = [
     "Preset",
     "Image",
@@ -42,7 +41,6 @@ __all__ = [
     "Capture",
     "StageMove",
     "Wait",
-    "GDSParser"
 ]
 
 # Metadata
