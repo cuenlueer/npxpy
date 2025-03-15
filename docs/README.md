@@ -19,11 +19,13 @@ You can install ```npxpy``` via ```pip``` together with all features (recommende
 ```
 pip install npxpy[all]
 ```
-If you are interested in a light-weight installation you are able to install only the core of ```npxpy``` via:
+A more selective installation with respect to features like the 3D-viewport or GDS-parsing is possible as well by
+exchanging ```[all]``` with ```[viewport]``` and ```[gds]```, respectively. If you are interested in a light-weight
+installation you are able to install only the core features of ```npxpy``` via:
 ```
 pip install npxpy
 ```
-Beware that the light-weight installation lacks features like the 3D-viewport or GDS-parsing.
+Beware that the light-weight installation lacks the other aforementioned features entirely. 
 
 ## Features and Usage
 Straightforward print project preparation with usual workflow logic is embeded in the Python-software ecosystem
