@@ -244,28 +244,6 @@ class Node:
             Node: A deep copy of the current node.
         """
 
-        """ Deprecated?
-        if copy_children:
-            copied_node = copy.deepcopy(self)
-            self._reset_ids(copied_node)
-            copied_node.all_ancestors = []
-            copied_node.parent_node = []
-            for descendant_node in copied_node.all_descendants:
-                index_of_copied_node = descendant_node.all_ancestors.index(
-                    copied_node
-                )
-                descendant_node.all_ancestors = descendant_node.all_ancestors[
-                    : index_of_copied_node + 1
-                ]
-        else:
-            copied_node = copy.copy(self)
-            copied_node.id = str(uuid.uuid4())
-            copied_node.children_nodes = []
-            copied_node.all_descendants = []
-            copied_node.all_ancestors = []
-            copied_node.parent_node = []
-        """
-
         copied_node = copy.copy(self)
         copied_node.id = str(uuid.uuid4())
         copied_node.children_nodes = []
@@ -458,6 +436,7 @@ class Node:
 
         Examples
         --------
+        ```python
         >>> # Basic usage without disabling any groups
         >>> node.viewport()
 
@@ -466,7 +445,7 @@ class Node:
 
         >>> # Exclude transformations from ancestor nodes
         >>> node.viewport(include_ancestor_transforms=False)
-
+        ```
         """
         _GroupedPlotter, _apply_transforms, _meshbuilder, blocks = (
             self._lazy_import_wrapper()

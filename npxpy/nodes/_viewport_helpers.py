@@ -21,7 +21,9 @@ def _lazy_import():
         from typing import Optional
     except ImportError:
         raise ImportError(
-            "Missing extra dependencies. Install via `pip install npxpy[all]`."
+            "Missing extra dependencies.\n"
+            "Either install via `pip install npxpy[all]`\n"
+            "or via `pip install npxpy[viewport]`"
         )
 
     class _GroupedPlotter(BackgroundPlotter):
