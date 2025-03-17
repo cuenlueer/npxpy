@@ -97,10 +97,7 @@ class TestProjectClass(unittest.TestCase):
         project.load_resources(self.image)
 
         # Mock resource file path and name for adding to zip
-        with patch(
-            "builtins.open", unittest.mock.mock_open(read_data="data")
-        ), patch("zipfile.ZipFile.writestr"):
-            project.nano(project_name="TestProject", path="./test_path")
+        project.nano(project_name="TestProject", path="./test_path")
 
         # Check that resource was written to the zip file
         self.assertTrue(mock_isfile.called)

@@ -17,7 +17,7 @@ class TestNode(unittest.TestCase):
         self.assertIn(self.child1, self.parent.children_nodes)
 
         # Test the child's parent relationship
-        self.assertIn(self.parent, self.child1.parents_nodes)
+        self.assertIn(self.parent, self.child1.parent_node)
 
         # Adding structure node as a child (this is fine)
         self.parent.add_child(self.structure_node)
@@ -96,7 +96,7 @@ class TestNode(unittest.TestCase):
         self.child1.add_child(self.grandchild1)
 
         grabbed_node = self.parent.grab_node(
-            [("scene", 0), ("coarse_alignment", 0)]
+            ("scene", 0), ("coarse_alignment", 0)
         )
         self.assertEqual(grabbed_node, self.grandchild1)
 

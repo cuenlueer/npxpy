@@ -36,10 +36,8 @@ class TestStructureSubclasses(unittest.TestCase):
             objective="25x", resin="IP-n162", substrate="*"
         )
         structure = Structure(
-            preset=self.preset_anchorage,
-            mesh=self.dummy_mesh,
-            project=project_anchorage,
-        )
+            preset=self.preset_anchorage, mesh=self.dummy_mesh
+        ).auto_load(project_anchorage)
 
         # Check that the project matches the preset's configuration
         self.assertEqual(project_anchorage.objective, "25x")
@@ -52,10 +50,8 @@ class TestStructureSubclasses(unittest.TestCase):
             objective="25x", resin="IP-n162", substrate="*"
         )
         structure = Structure(
-            preset=self.preset_speed,
-            mesh=self.dummy_mesh,
-            project=project_speed,
-        )
+            preset=self.preset_speed, mesh=self.dummy_mesh
+        ).auto_load(project_speed)
 
         # Check that the project matches the preset's configuration
         self.assertEqual(project_speed.objective, "25x")
@@ -70,8 +66,7 @@ class TestStructureSubclasses(unittest.TestCase):
         structure = Structure(
             preset=self.preset_visio,
             mesh=self.dummy_mesh,
-            project=project_visio,
-        )
+        ).auto_load(project_visio)
 
         # Check that the project matches the preset's configuration
         self.assertEqual(project_visio.objective, "25x")
@@ -83,7 +78,7 @@ class TestStructureSubclasses(unittest.TestCase):
         project_visio = Project(
             objective="25x", resin="IP-Visio", substrate="*"
         )
-        text = Text(preset=self.preset_visio, project=project_visio)
+        text = Text(preset=self.preset_visio).auto_load(project_visio)
 
         # Check that the project matches the preset's configuration
         self.assertEqual(project_visio.objective, "25x")
@@ -94,7 +89,7 @@ class TestStructureSubclasses(unittest.TestCase):
         project_speed = Project(
             objective="25x", resin="IP-n162", substrate="*"
         )
-        lens = Lens(preset=self.preset_speed, project=project_speed)
+        lens = Lens(preset=self.preset_speed).auto_load(project_speed)
 
         # Check that the project matches the preset's configuration
         self.assertEqual(project_speed.objective, "25x")

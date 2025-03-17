@@ -21,7 +21,7 @@ class TestAligners(unittest.TestCase):
             CoarseAligner(residual_threshold=-1)  # Invalid threshold
 
         # Test adding coarse anchors
-        coarse_aligner.add_coarse_anchor("Anchor 1", [0, 0, 0])
+        coarse_aligner.add_coarse_anchor([0, 0, 0], "Anchor 1")
         self.assertEqual(len(coarse_aligner.alignment_anchors), 1)
 
     def test_interface_aligner_initialization(self):
@@ -57,7 +57,7 @@ class TestAligners(unittest.TestCase):
         )
 
         # Test marker addition
-        marker_aligner.add_marker("Marker 1", 90.0, [0, 0, 0])
+        marker_aligner.add_marker([0, 0, 0], 90.0, "Marker 1")
         self.assertEqual(len(marker_aligner.alignment_anchors), 1)
 
     def test_edge_aligner_initialization(self):
@@ -68,7 +68,11 @@ class TestAligners(unittest.TestCase):
         self.assertEqual(edge_aligner.edge_orientation, 45.0)
 
         # Test measurement addition
-        edge_aligner.add_measurement("Edge 1", 0.1, [50.0, 50.0])
+        edge_aligner.add_measurement(
+            0.1,
+            [50.0, 50.0],
+            "Edge 1",
+        )
         self.assertEqual(len(edge_aligner.alignment_anchors), 1)
 
     def test_to_dict_methods(self):

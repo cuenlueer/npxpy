@@ -15,7 +15,7 @@ class TestPreset(unittest.TestCase):
         self.preset = Preset()
 
     def test_default_initialization(self):
-        self.assertEqual(self.preset.name, "25x_IP-n162")
+        self.assertEqual(self.preset.name, "25x_IP-n162_default")
         self.assertEqual(self.preset.valid_objectives, ["25x"])
         self.assertEqual(self.preset.valid_resins, ["IP-n162"])
         self.assertEqual(self.preset.valid_substrates, ["*"])
@@ -95,7 +95,7 @@ class TestPreset(unittest.TestCase):
             "grayscale_writing_power_minimum": 0.0,
             "grayscale_exponent": 1.0,
         }
-        with patch("toml.load", return_value=test_toml_data):
+        with patch("pytomlpp.load", return_value=test_toml_data):
             preset = Preset.load_single(
                 "presets/25x_IP-Visio.toml", fresh_id=True
             )
