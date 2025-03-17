@@ -62,6 +62,7 @@ gds = [
 [project.urls]
 "Bug Tracker" = "https://github.com/cuenlueer/npxpy/issues"
 "Source Code" = "https://github.com/cuenlueer/npxpy"
+"Documentation" = "https://cuenlueer.github.io/npxpy/"
 
 [tool.setuptools]
 packages = ["npxpy"]

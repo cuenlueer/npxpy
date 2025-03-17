@@ -1,6 +1,11 @@
-![](docs/images/logo.svg)
+<p align="center">
+    <img src="https://raw.githubusercontent.com/cuenlueer/npxpy/e1f01ab85a470d2ed1aeef534a21cc6dd2aad524/docs/images/logo.svg">
+</p>
 
 [![semantic-release: conventional](https://img.shields.io/badge/semantic--release-conventional-e10079?logo=semantic-release)](https://github.com/semantic-release/semantic-release)
+[![DOI](https://zenodo.org/badge/776090967.svg)](https://doi.org/10.5281/zenodo.15038194)
+
+
 # npxpy
 npxpy is a versatile open source Python package that enables you to build projects (NANO files) for the 3D direct laser 
 lithography system **Nanoscribe Quantum X align** (**QXa**) via CLI/Scripts. It is designed such that it adheres to the
@@ -154,10 +159,18 @@ Features like a viewport based on ```pyvistaqt``` are also available for keeping
 ```python
 >>> viewport = project.viewport()
 ```
-![](docs/examples/example_README/example0_viewport.png)
+<p align="center">
+    <img src="https://raw.githubusercontent.com/cuenlueer/npxpy/refs/heads/main/docs/examples/example_README/example0_viewport.png">
+</p>
 
-## [Documentation](heregoesthelink!)
-To view more functionalities and use case examples of npxpy, refer to the the provided [documentation](heregoesthelink!).
+## [Documentation](https://cuenlueer.github.io/npxpy/)
+To view more functionalities and use case examples of npxpy, refer to the the provided [documentation](https://cuenlueer.github.io/npxpy/).
+
+## [How to Cite](https://doi.org/10.5281/zenodo.15038194)
+[![DOI](https://zenodo.org/badge/776090967.svg)](https://doi.org/10.5281/zenodo.15038194)
+
+If npxpy contributes to your research, software, or project, we kindly request that you cite it in your
+publications using the provided DOI above.
 
 ## License
 
