@@ -14,7 +14,62 @@ from typing import Dict, List
 from npxpy.nodes.node import Node
 
 
-class _space_ops_space(Node):
+class _GatekeeperSpace(Node):
+    """Helper class for input data validation"""
+
+    def __init__(
+        self,
+        node_type: str,
+        name: str,
+        position: List[float] = [0.0, 0.0, 0.0],
+        rotation: List[float] = [0.0, 0.0, 0.0],
+    ):
+        super().__init__(node_type, name)
+        self.position = position
+        self.rotation = rotation
+
+    @property
+    def position(self) -> List[float]:
+        return self._position
+
+    @position.setter
+    def position(self, value):
+        try:
+            value_list = list(value)
+        except TypeError:
+            raise ValueError(
+                "Position must be an iterable of three numeric values."
+            )
+        if len(value_list) != 3:
+            raise ValueError("Position must have exactly three elements.")
+        try:
+            self._position = [float(x) for x in value_list]
+        except ValueError as e:
+            raise ValueError(
+                "All elements in position must be numeric."
+            ) from e
+
+    @property
+    def rotation(self) -> List[float]:
+        return self._rotation
+
+    @rotation.setter
+    def rotation(self, value):
+        try:
+            value_list = list(value)
+        except TypeError:
+            raise ValueError(
+                "Rotation must be an iterable of three numeric values."
+            )
+        if len(value_list) != 3:
+            raise ValueError("Rotation must have exactly three elements.")
+        try:
+            self._rotation = [float(x) for x in value_list]
+        except ValueError as e:
+            raise ValueError(
+                "All elements in rotation must be numeric."
+            ) from e
+
     def position_at(
         self,
         position: List[float] = [0.0, 0.0, 0.0],
@@ -100,7 +155,7 @@ class _space_ops_space(Node):
         return self
 
 
-class Scene(_space_ops_space):
+class Scene(_GatekeeperSpace):
     """
     Class representing a scene node.
 
@@ -128,31 +183,6 @@ class Scene(_space_ops_space):
             writing_direction_upward  # Using setter
         )
 
-    # Setters for position and rotation
-    @property
-    def position(self) -> List[float]:
-        return self._position
-
-    @position.setter
-    def position(self, value: List[float]):
-        if not isinstance(value, list) or len(value) != 3:
-            raise ValueError(
-                "Position must be a list of three numeric values."
-            )
-        self._position = value
-
-    @property
-    def rotation(self) -> List[float]:
-        return self._rotation
-
-    @rotation.setter
-    def rotation(self, value: List[float]):
-        if not isinstance(value, list) or len(value) != 3:
-            raise ValueError(
-                "Rotation must be a list of three numeric values."
-            )
-        self._rotation = value
-
     # Getter and setter for writing direction
     @property
     def writing_direction_upward(self):
@@ -175,7 +205,7 @@ class Scene(_space_ops_space):
         return node_dict
 
 
-class Group(_space_ops_space):
+class Group(_GatekeeperSpace):
     """
     Class representing a group node.
 
@@ -197,31 +227,6 @@ class Group(_space_ops_space):
         self.position = position
         self.rotation = rotation
 
-    # Setters for position and rotation
-    @property
-    def position(self) -> List[float]:
-        return self._position
-
-    @position.setter
-    def position(self, value: List[float]):
-        if not isinstance(value, list) or len(value) != 3:
-            raise ValueError(
-                "Position must be a list of three numeric values."
-            )
-        self._position = value
-
-    @property
-    def rotation(self) -> List[float]:
-        return self._rotation
-
-    @rotation.setter
-    def rotation(self, value: List[float]):
-        if not isinstance(value, list) or len(value) != 3:
-            raise ValueError(
-                "Rotation must be a list of three numeric values."
-            )
-        self._rotation = value
-
     def to_dict(self) -> Dict:
         """
         Convert the Group object into a dictionary.
@@ -232,7 +237,7 @@ class Group(_space_ops_space):
         return node_dict
 
 
-class Array(_space_ops_space):
+class Array(_GatekeeperSpace):
     """
     Class representing an array node with additional attributes.
 
@@ -265,31 +270,6 @@ class Array(_space_ops_space):
         self.spacing = spacing
         self.order = order
         self.shape = shape
-
-    # Setters for position and rotation
-    @property
-    def position(self) -> List[float]:
-        return self._position
-
-    @position.setter
-    def position(self, value: List[float]):
-        if not isinstance(value, list) or len(value) != 3:
-            raise ValueError(
-                "Position must be a list of three numeric values."
-            )
-        self._position = value
-
-    @property
-    def rotation(self) -> List[float]:
-        return self._rotation
-
-    @rotation.setter
-    def rotation(self, value: List[float]):
-        if not isinstance(value, list) or len(value) != 3:
-            raise ValueError(
-                "Rotation must be a list of three numeric values."
-            )
-        self._rotation = value
 
     # Setters for other attributes
     @property

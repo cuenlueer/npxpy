@@ -15,13 +15,14 @@ from npxpy.nodes.node import Node
 from npxpy.resources import Mesh
 from npxpy.preset import Preset
 from npxpy.nodes.project import Project
+from npxpy.nodes.space import _GatekeeperSpace
 
 Struct = TypeVar(
     "Struct", bound="Structure"
 )  # Define a type variable for the class
 
 
-class Structure(Node):
+class Structure(_GatekeeperSpace):
     """
     A class representing a structure node.
 
@@ -208,36 +209,6 @@ class Structure(Node):
         self._size = value
 
     @property
-    def position(self):
-        """The position of the structure."""
-        return self._position
-
-    @position.setter
-    def position(self, value: List[Union[float, int]]):
-        if len(value) != 3 or not all(
-            isinstance(v, (float, int)) for v in value
-        ):
-            raise ValueError(
-                "Position must be a list of three numeric values."
-            )
-        self._position = value
-
-    @property
-    def rotation(self):
-        """The rotation of the structure."""
-        return self._rotation
-
-    @rotation.setter
-    def rotation(self, value: List[Union[float, int]]):
-        if len(value) != 3 or not all(
-            isinstance(v, (float, int)) for v in value
-        ):
-            raise ValueError(
-                "Rotation must be a list of three numeric values."
-            )
-        self._rotation = value
-
-    @property
     def color(self):
         """The color of the structure inside the viewport."""
         return self._color
@@ -384,7 +355,6 @@ class Text(Structure):
 
         Parameters:
             preset (Preset): The preset associated with the text.
-            project (Project): The project context for auto-loading resources.
             name (str): The name of the text.
             text (str): The text content.
             font_size (Union[float, int]): The font size of the text. Must be greater than 0.
@@ -537,7 +507,6 @@ class Lens(Structure):
 
         Parameters:
             preset (Preset): The preset associated with the lens.
-            project (Project): The project context for auto-loading resources.
             name (str): The name of the lens.
             radius (Union[float, int]): The radius of the lens. Must be > 0.
             height (Union[float, int]): The height of the lens. Must be > 0.
