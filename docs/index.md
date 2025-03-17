@@ -1,24 +1,28 @@
+---
+hide:
+  - navigation
+---
+
+---
 ![](images/logo.svg)
+
+---
+
 # npxpy
 
+## What is npxpy?
 npxpy is a versatile open source Python package that enables you to build projects (NANO files) for the 3D direct laser 
-lithography system **Nanoscribe Quantum X align** (**QXa**) via CLI/Scripts. It is designed such that it adheres to the
+lithography system **Nanoscribe Quantum X align** via CLI/Scripts. It is designed such that it adheres to the
 same workflow logic as Nanoscribe's GUI software *nanoPrintX*, making the application additionally user-friendly to
 experienced users of the **QXa**.
+---
 
-## Table of Contents
-- [Installation](#installation)
-- [Features and Usage](#usageandfeatures)
-- [Documentation](#documentation)
-- [How to Cite npxpy](#howtocitenpxpy)
-- [License](#license)
-
-## Installation
-It is recommended to install ```npxpy``` in a virtual environment to prevent dependency issues.\
-You can install ```npxpy``` via ```pip``` together with all features (recommended) :
+## How to install it?
+You can install ```npxpy``` via ```pip``` together with all features (recommended):
 ```
 pip install npxpy[all]
 ```
+It is recommended to install ```npxpy``` in a virtual environment to prevent dependency issues.  
 A more selective installation with respect to features like the 3D-viewport or GDS-parsing is possible as well by
 exchanging ```[all]``` with ```[viewport]``` and ```[gds]```, respectively. If you are interested in a light-weight
 installation you are able to install only the core features of ```npxpy``` via:
@@ -26,10 +30,11 @@ installation you are able to install only the core features of ```npxpy``` via:
 pip install npxpy
 ```
 Beware that the light-weight installation lacks the other aforementioned features entirely. 
+---
 
-## Features and Usage
-Straightforward print project preparation with usual workflow logic is embeded in the Python-software ecosystem
-with extras like GDS-parsing for high workflow integration.
+## How to use it?
+The print project preparation exhibits the usual workflow logic only that is embeded in the Python-software ecosystem
+with extras like GDS-parsing for high workflow integration. Below is the implementation of an example print project. 
 ```python
 >>> import npxpy
 >>> #  Initialize the presets and resources that you want to use in this project.
@@ -130,10 +135,19 @@ ma_positions = [
 >>> 
 >>> coarse_aligner.add_child(scene_1)
 >>> 
->>> #  Checking the node order can be done as well
->>> project.tree() 
+>>> #  Export your project to a .nano-file.
+>>> project.nano(project_name="my_project") 
 ```
+Although only a scripting interface is provided for project preparation, the internal viewport (based on ```pyvistaqt```)
+enables to keep track of your projects visually as well.
+```python
+>>> viewport = project.viewport()
 ```
+![](examples/example_README/example0_viewport.png)
+
+If something does not go as intended, debugging tools make your life easier.
+```
+>>> project.tree()
 Project (project)
     └──Coarse aligner (coarse_alignment)
         ├──scene (scene)
@@ -145,23 +159,11 @@ Project (project)
                 └──Marker Aligner (marker_alignment)
                     └──structure_1 (structure)
 ```
-```python
->>> #  Export your project to a .nano-file.
->>> project.nano(project_name="my_project")
-```
-Features like a viewport based on ```pyvistaqt``` are also available for keeping track of your project visually as well.
-```python
->>> viewport = project.viewport()
-```
-![](examples/example_README/example0_viewport.png)
-
-## [Documentation](heregoesthelink!)
-To view more functionalities and use case examples of npxpy, refer to the the provided [documentation](heregoesthelink!).
-
+---
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](https://github.com/cuenlueer/nanoAPI/blob/main/LICENSE)
-file for details.\
+file for details.  
 **TL;DR:** You may use, modify, and distribute this software freely, provided the license and copyright notice are included.
 ### What This Means for Users and Contributors
 
@@ -179,3 +181,5 @@ restrictions. No obligations apply to the proprietary components of your project
 MIT License. This ensures your changes remain freely usable by others under the same terms.
 
 For more details on your rights and responsibilities under this license, please review the [LICENSE](https://github.com/cuenlueer/nanoAPI/blob/main/LICENSE) file.
+
+---

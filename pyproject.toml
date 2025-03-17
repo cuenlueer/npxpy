@@ -11,7 +11,7 @@ authors = [
     {name = "Wolfram Pernice"}
 ]
 description = "Python based open source text-only project preparation framework for Nanoscribe's two-photon 3D lithography system Quantum X align."
-readme = "docs/README.md"
+readme = "README.md"
 requires-python = ">=3.7"
 classifiers = [
     "Development Status :: 5 - Production/Stable",
@@ -32,11 +32,6 @@ classifiers = [
 dependencies = [
     "pytomlpp",
     "numpy-stl",
-]
-
-[tool.setuptools.package-data]
-my_package = [
-    "npxpy/images/logo.png",
 ]
 
 [project.optional-dependencies]
@@ -80,5 +75,5 @@ upload_to_pypi = false
 upload_to_release = true
 build_command = "pip install build && python3 -m build"
 
-[tool.semantic_release.changelog]
+[tool.semantic_release.changelog.default_templates]
 changelog_file = "docs/CHANGELOG.md"
