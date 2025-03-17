@@ -1,0 +1,52 @@
+name: Tag and publish Python package to PyPI
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    name: Build distribution
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: write
+      
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+          
+      - name: Python Semantic Release
+        uses: python-semantic-release/python-semantic-release@v9.21.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Store the distribution packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-package-distributions
+          path: dist/
+
+  publish-to-pypi:
+    name: Publish package to PyPI
+    needs:
+      - build
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+
+    steps:
+      - name: Download all the dists
+        uses: actions/download-artifact@v4
+        with:
+          name: python-package-distributions
+          path: dist/
+      - name: Publish package to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1

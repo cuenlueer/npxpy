@@ -1,5 +1,6 @@
 ![](docs/images/logo.svg)
 
+[![semantic-release: conventional](https://img.shields.io/badge/semantic--release-conventional-e10079?logo=semantic-release)](https://github.com/semantic-release/semantic-release)
 # npxpy
 npxpy is a versatile open source Python package that enables you to build projects (NANO files) for the 3D direct laser 
 lithography system **Nanoscribe Quantum X align** (**QXa**) via CLI/Scripts. It is designed such that it adheres to the
