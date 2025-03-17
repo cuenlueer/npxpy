@@ -1,6 +1,27 @@
 # CHANGELOG
 
 
+## v0.1.1 (2025-03-17)
+
+### Bug Fixes
+
+- Enhance data validation for position/rotation
+  ([`8a580ff`](https://github.com/cuenlueer/npxpy/commit/8a580ff09a26a47af8a23a7fb1ca2ccbc4c31fc5))
+
+- Implement a gatekeeper node class for better maintainability of nodes with position/rotation
+  attributes.
+
+- Enable input of arbitrary iterable types and force entry datatypes to be float.
+
+### Documentation
+
+- Add metadata references
+  ([`820c192`](https://github.com/cuenlueer/npxpy/commit/820c192404da1a148a14416d495d245882b4657d))
+
+- Deploy documentation
+  ([`3213278`](https://github.com/cuenlueer/npxpy/commit/3213278a48e4a64d9b3c6700b86628f241217e22))
+
+
 ## v0.1.0 (2025-03-17)
 
 ### Bug Fixes
