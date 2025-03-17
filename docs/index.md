@@ -7,7 +7,7 @@ hide:
 ![](images/logo.svg)
 
 ---
-
+[![DOI](https://zenodo.org/badge/776090967.svg)](https://doi.org/10.5281/zenodo.15038194)
 # npxpy
 
 ## What is npxpy?
@@ -159,6 +159,13 @@ Project (project)
                 └──Marker Aligner (marker_alignment)
                     └──structure_1 (structure)
 ```
+---
+## [How to Cite](https://doi.org/10.5281/zenodo.15038194)
+[![DOI](https://zenodo.org/badge/776090967.svg)](https://doi.org/10.5281/zenodo.15038194)
+
+If npxpy contributes to your research, software, or project, we kindly request that you cite it in your
+publications using the provided DOI above.
+
 ---
 ## License
 

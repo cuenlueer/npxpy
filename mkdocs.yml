@@ -11,8 +11,7 @@ extra:
     - icon: fontawesome/solid/book
       link: https://cuenlueer.github.io./npxpy/
 
-#extra_javascript:
- #   - javascripts/header-social.js
+copyright: Copyright &copy; 2025 Caghan Ünlüer
 
 theme:
   stylesheet:
