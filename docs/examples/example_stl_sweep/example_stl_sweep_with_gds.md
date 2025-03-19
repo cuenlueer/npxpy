@@ -311,7 +311,7 @@ project.viewport()
 
 ---
 
-[Show full script](example_stl_sweep_with_gds.py){ .md-button .md-button--primary}
+[Download full example](example_stl_sweep_with_gds.zip){ .md-button .md-button--primary}
 
 ---
 
