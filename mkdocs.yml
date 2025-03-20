@@ -74,7 +74,7 @@ markdown_extensions:
 nav:
   - Home: 
     - Home: index.md
-  - Tutorials:
+  - User Guide:
     - Core:
         - "Resources and Presets": tutorials/resources_and_presets.md
         - "Nodes": tutorials/nodes.md
