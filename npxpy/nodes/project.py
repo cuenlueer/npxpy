@@ -189,6 +189,12 @@ class Project(Node):
         """
         print("npxpy: Attempting to create .nano-file...")
 
+        # Trigger user warning if project contains structures outside scenes
+        for i_node in self.all_descendants:
+            if i_node._type == "structure":
+                if not "scene" in [i._type for i in self.all_ancestors]:
+                    UserWarning("Structures have to be inside Scene nodes!")
+
         # Ensure the path ends with a slash
         if not path.endswith("/"):
             path += "/"
