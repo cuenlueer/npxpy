@@ -43,8 +43,8 @@ class Structure(_GatekeeperSpace):
 
     def __init__(
         self,
-        preset: Optional[Preset] = None,
-        mesh: Optional[Mesh] = None,
+        preset: Preset,
+        mesh: Mesh,
         size: List[Union[float, int]] = [100.0, 100.0, 100.0],
         name: str = "Structure",
         slicing_origin: str = "scene_bottom",
@@ -362,7 +362,7 @@ class Text(Structure):
 
     def __init__(
         self,
-        preset: Optional[Preset] = None,
+        preset: Preset,
         name: str = "Text",
         text: str = "Text",
         font_size: Union[float, int] = 10.0,
@@ -507,7 +507,7 @@ class Lens(Structure):
 
     def __init__(
         self,
-        preset: Optional[Preset] = None,
+        preset: Preset,
         name: str = "Lens",
         radius: Union[float, int] = 100.0,
         height: Union[float, int] = 50.0,
