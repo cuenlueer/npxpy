@@ -1,6 +1,14 @@
 # CHANGELOG
 
 
+## v0.1.3 (2025-03-28)
+
+### Bug Fixes
+
+- Hotfix missing positional argument: 'mesh'
+  ([`50e0dfa`](https://github.com/cuenlueer/npxpy/commit/50e0dfa8d669613ae1f341828f5b0b92c28fd95d))
+
+
 ## v0.1.2 (2025-03-28)
 
 ### Bug Fixes
