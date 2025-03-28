@@ -93,6 +93,8 @@ ma_positions = [
 >>> marker_aligner.set_markers_at(ma_positions)
 >>> 
 >>> #  ... or incorporate them in a GDS-design and read them in.
+>>> import npxpy.gds
+>>> 
 >>> gds = npxpy.gds.GDSParser("gds_file.gds")
 >>> 
 >>> interface_aligner = gds.get_custom_interface_aligner(

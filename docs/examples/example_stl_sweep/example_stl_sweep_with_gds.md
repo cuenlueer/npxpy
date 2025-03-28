@@ -1,4 +1,5 @@
 # Structured Sweep of Cylinders with GDS Markers
+![](example_stl_sweep_with_gds.png)
 
 ---
 
@@ -22,7 +23,15 @@ of the package [`gsdhelpers`](https://github.com/HelgeGehring/gdshelpers/tree/ma
 - A valid `25x_IP-n162_cylinders.toml` preset file.  
 - A `meshes/` directory containing cylinder meshes named in a numeric sequence.  
 - A `marker.png` image for the marker aligner.  
-- The npxpy, shapely, gdshelpers, and numpy packages installed.
+- The `npxpy[viewport]`, `shapely`, `gdshelpers`, and `numpy` packages installed.
+
+You can download the full example below:
+
+---
+
+[Download full example](example_stl_sweep_with_gds.zip){ .md-button .md-button--primary}
+
+---
 
 ### Helper Functions
 
@@ -309,11 +318,7 @@ project.viewport()
 
 ![](example_stl_sweep_with_gds.png)
 
----
 
-[Download full example](example_stl_sweep_with_gds.zip){ .md-button .md-button--primary}
-
----
 
 ## End of Example
 

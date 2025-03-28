@@ -1,3 +1,55 @@
+# Introductory Example
+![](example0_viewport.png)
+
+---
+
+## Overview
+The code provided in this section is the introductory example as given on the Github repository's [Readme](https://github.com/cuenlueer/npxpy/blob/main/README.md)
+and the documentation's [Home tab](https://cuenlueer.github.io/npxpy/).
+
+**This script:**
+
+- **Loads printing presets and resources**:  
+  - Reads a `.toml` preset file and initializes custom presets with parameters like writing speed, power, and hatching settings.  
+  - Imports a 3D mesh (`example_mesh.stl`) and a marker image (`example_marker.png`).  
+
+- **Sets up alignment configurations**:  
+  - Defines `CoarseAligner` and `MarkerAligner` nodes for nano-printing alignment, with manual anchor positions.  
+  - Integrates GDS cell data (`gds_file.gds`) to create a custom `InterfaceAligner` with anchor positions/scan sizes defined by polygons in a GDS file.  
+
+- **Organizes the printing hierarchy**:  
+  - Initializes a `Scene` with upward writing direction and attaches a `Structure` (using the mesh and preset).  
+  - Builds a node hierarchy with coarse alignment, scene, interface alignment, and marker alignment.  
+
+- **Duplicates and modifies scenes**:  
+  - Clones scenes, translates their positions, and updates their presets/names for multi-scene arrangements.  
+
+- **Exports the project**:  
+  - Generates a `.nano` file for and validates node hierarchy via `project.tree()`.
+
+**Prerequisites**
+
+**Files/Directories**:  
+- `preset_from_file.toml` (preset configuration).  
+- `example_mesh.stl` (3D structure mesh).  
+- `example_marker.png` (alignment marker image).  
+- `gds_file.gds` (GDSII design for interface alignment).  
+
+**Python Packages**:  
+- `npxpy` installed with key `all`: `pip install npxpy[all]`.  
+- `shapely` & `gdshelpers` (for GDS parsing and geometry operations).
+
+You can download the full example below:
+
+---
+
+[Download full example](example_README.zip){ .md-button .md-button--primary}
+
+---
+
+## Full Implementation
+
+```python
 import npxpy
 
 #  Initialize the presets and resources that you want to use in this project.
@@ -105,3 +157,16 @@ project.tree()
 
 #  Export your project to a .nano-file.
 project.nano(project_name="my_project")
+
+```
+
+In addition, you can regard your project in the viewport.
+
+```python
+#  Check Project in Viewport
+
+project.viewport()
+
+```
+
+![](example0_viewport.png)

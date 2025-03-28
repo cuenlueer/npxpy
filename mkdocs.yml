@@ -81,6 +81,7 @@ nav:
     - GDS:
         - "GDS-Parsing": tutorials/gds_parsing.md
   - Examples:
+    - "Introductory Example": examples/example_README/example0.md
     - Core:
         - "Generate mesh sweep alongside GDS-design": examples/example_stl_sweep/example_stl_sweep_with_gds.md
   - How to Cite: howtocite/howtocite.md
