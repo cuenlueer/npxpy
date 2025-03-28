@@ -552,6 +552,7 @@ class Lens(Structure):
         """
         super().__init__(
             preset=preset,
+            mesh=None,
             name=name,
             slicing_origin=slicing_origin,
             slicing_offset=slicing_offset,
