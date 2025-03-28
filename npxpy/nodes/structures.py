@@ -101,8 +101,28 @@ class Structure(_GatekeeperSpace):
 
     @slicing_origin.setter
     def slicing_origin(self, value: str):
-        if not isinstance(value, str):
-            raise TypeError("slicing_origin must be a string.")
+        if not isinstance(value, str) or value not in [
+            "zero",
+            "structure_top",
+            "scene_center",
+            "structure_center",
+            "scene_top",
+            "structure_bottom",
+            "scene_bottom",
+        ]:
+            valids = [
+                "zero",
+                "structure_top",
+                "scene_center",
+                "structure_center",
+                "scene_top",
+                "structure_bottom",
+                "scene_bottom",
+            ]
+            raise TypeError(
+                "slicing_origin must be a string. "
+                f"Valid inputs are: {valids}"
+            )
         # Add any specific value constraints here if needed (e.g., valid slicing origins)
         self._slicing_origin = value
 
@@ -322,6 +342,11 @@ class Structure(_GatekeeperSpace):
         node_dict["preset"] = self.preset.id if self.preset else None
         node_dict["properties"] = {"color": self.color}
         node_dict["geometry"] = self.geometry
+        node_dict["slicing_origin_reference"] = self.slicing_origin_reference
+        node_dict["slicing_offset"] = self.slicing_offset
+        node_dict["priority"] = self.priority
+        node_dict["expose_individually"] = self.expose_individually
+
         return node_dict
 
 
