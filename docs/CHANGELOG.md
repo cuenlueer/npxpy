@@ -1,6 +1,42 @@
 # CHANGELOG
 
 
+## v0.1.2 (2025-03-28)
+
+### Bug Fixes
+
+- Attributes assigned but never passed to_dict()
+  ([`f20d514`](https://github.com/cuenlueer/npxpy/commit/f20d51441dfaf6da68221891fd69c596ce556123))
+
+- Enforce passing of Preset and Mesh args
+  ([`7680c97`](https://github.com/cuenlueer/npxpy/commit/7680c97ec33787d85ec794d73d80ce7c206a20e8))
+
+Keeping Preset/Mesh for structures optional may cause issues with the TOML-parser during export if
+  not passed.
+
+- Resize pyvista text mesh for potential linebreaks
+  ([`a8e9bf5`](https://github.com/cuenlueer/npxpy/commit/a8e9bf56f8d6a038a751cab36d7faba5be75d3fe))
+
+- Return self when appending nodes
+  ([`647cca4`](https://github.com/cuenlueer/npxpy/commit/647cca4af3fe583d81f51995bb9f790e2440fb82))
+
+### Documentation
+
+- Add introductory example to Examples tab
+  ([`28952ba`](https://github.com/cuenlueer/npxpy/commit/28952bac30ae4804c7b8e9ab1704ac294214f95a))
+
+- Change "Tutorials" section to "User Guide"
+  ([`de84b3e`](https://github.com/cuenlueer/npxpy/commit/de84b3e7cf4623f407f342909125bcdd28fbd595))
+
+- Create download for full example
+  ([`1fd0ecf`](https://github.com/cuenlueer/npxpy/commit/1fd0ecf6e298ab3a4231d792deb549848980bb2b))
+
+docs: zip example
+
+- Reorganize example section
+  ([`d3329c5`](https://github.com/cuenlueer/npxpy/commit/d3329c547b9002480e9845f13c89b40ea4720eee))
+
+
 ## v0.1.1 (2025-03-17)
 
 ### Bug Fixes
