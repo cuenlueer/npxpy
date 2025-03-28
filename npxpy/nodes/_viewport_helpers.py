@@ -15,6 +15,7 @@ This file is part of npxpy, which is licensed under the MIT License.
 def _lazy_import():
     try:
         import pyvista as pv
+
         pv.global_theme.allow_empty_mesh = True
         from pyvistaqt import BackgroundPlotter
         import numpy as np
@@ -425,7 +426,7 @@ def _lazy_import():
             text_mesh = pv.Text3D(
                 string=text,
                 depth=height,
-                height=font_size,
+                height=font_size * (1 + text.count("\n")),
                 center=(0, 0, height / 2),
             )
 
