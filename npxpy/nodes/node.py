@@ -336,6 +336,7 @@ class Node:
         for node_to_append in nodes_to_append:
             grandest_grandchild = self._find_grandest_grandchild(self)
             grandest_grandchild.add_child(node_to_append)
+        return self
 
     def _find_grandest_grandchild(self, current_node: "Node") -> "Node":
         """
