@@ -81,8 +81,7 @@ with extras like GDS-parsing for high workflow integration.
 ...     [-200.0, -200.0, 0.0],
 ...     [-200.0, 200.0, 0.0],
 ... ]
->>> 
-ma_positions = [
+>>> ma_positions = [
 ...     [0, 200, 0.33],
 ...     [200, 0, 0.33],
 ...     [0, -200, 0.33],
