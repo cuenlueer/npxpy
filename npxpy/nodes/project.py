@@ -103,14 +103,16 @@ class Project(Node):
     @resin.setter
     def resin(self, value: str):
         valid_resins = {
-            "IP-PDMS",
-            "IPX-S",
+            "IP-Dip",
+            "IP-Dip2",
             "IP-L",
             "IP-n162",
-            "IP-Dip2",
-            "IP-Dip",
+            "IP-PDMS",
             "IP-S",
             "IP-Visio",
+            "IPX-Clear",
+            "IPX-Q",
+            "IPX-S",
             "*",
         }
         if value not in valid_resins:

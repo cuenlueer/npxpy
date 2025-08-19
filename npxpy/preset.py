@@ -116,14 +116,16 @@ class Preset:
     @valid_resins.setter
     def valid_resins(self, value):
         valid_resins_set = {
-            "IP-PDMS",
-            "IPX-S",
+            "IP-Dip",
+            "IP-Dip2",
             "IP-L",
             "IP-n162",
-            "IP-Dip2",
-            "IP-Dip",
+            "IP-PDMS",
             "IP-S",
             "IP-Visio",
+            "IPX-Clear",
+            "IPX-Q",
+            "IPX-S"
             "*",
         }
         if not set(value).issubset(valid_resins_set):
