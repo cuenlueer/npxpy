@@ -13,7 +13,7 @@ This file is part of npxpy, which is licensed under the MIT License.
 import os
 import math
 import sys
-from typing import List, Dict, Tuple, Optional, Callable
+from typing import List, Dict, Tuple, Optional, Callable, Any
 from io import StringIO
 from functools import wraps
 from inspect import signature
@@ -56,6 +56,7 @@ except ImportError:
 try:
     from shapely.geometry import Polygon, MultiPolygon, box
     from shapely.affinity import translate, rotate
+    from shapely.affinity import scale as shapely_scale
     from shapely.ops import unary_union
 
     _HAS_SHAPELY = True
@@ -385,36 +386,125 @@ class GDSParser:
 
         return tile_dict
 
-    def _extrude_shapely_geometry(self, geometry, thickness):
+    def _extrude_shapely_geometry(
+        self,
+        geometry,
+        thickness,
+        hollow=False,
+        hollow_scale=0.9,
+        hollow_shift_z=0.0,
+    ):
         """
-        Extrude a Shapely geometry (Polygon or MultiPolygon) by 'thickness'
-        along the Z-axis and return a Trimesh mesh.
-        """
-        meshes = []
+        Extrude a Shapely geometry (Polygon or MultiPolygon) into a Trimesh mesh.
+        Optionally create a hollow mesh by scaling and shifting an inner copy.
 
-        # geometry can be Polygon or MultiPolygon
+        Args:
+            geometry: Shapely Polygon or MultiPolygon.
+            thickness: Z-axis extrusion height.
+            hollow: If True, generate a hollow mesh (default: False).
+            hollow_scale: Scaling factor for inner geometry (0 < scale < 1).
+            hollow_shift_z: Z-axis shift for inner geometry (relative to base).
+
+        Returns:
+            Trimesh mesh or None if geometry is empty.
+        """
+
+        # Validate hollow parameters
+        if hollow:
+            if hollow_scale <= 0 or hollow_scale >= 1:
+                raise ValueError(
+                    "hollow_scale must be between 0 and 1 (exclusive)"
+                )
+            if not (-thickness <= hollow_shift_z <= thickness):
+                raise ValueError(
+                    "hollow_shift_z must be within [-thickness, thickness]"
+                )
+
+        # Create the original solid mesh
+        meshes = []
         if geometry.geom_type == "Polygon":
-            # Directly extrude
             mesh = trimesh.creation.extrude_polygon(geometry, thickness)
             meshes.append(mesh)
-
         elif geometry.geom_type == "MultiPolygon":
-            # Extrude each sub-polygon
             for poly in geometry.geoms:
                 mesh = trimesh.creation.extrude_polygon(poly, thickness)
                 meshes.append(mesh)
 
-        # Combine everything into one mesh
-        if len(meshes) == 1:
-            return meshes[0]
-        elif len(meshes) > 1:
-            return trimesh.util.concatenate(meshes)
-        else:
-            # In case geometry was empty, return None or an empty Trimesh
-            return None
+        if not meshes:
+            return None  # Empty geometry
+
+        outer_mesh = (
+            meshes[0] if len(meshes) == 1 else trimesh.util.concatenate(meshes)
+        )
+
+        # Early return if not hollow
+        if not hollow:
+            return outer_mesh
+
+        # Create inner geometry (scaled)
+        if geometry.geom_type == "Polygon":
+            inner_geom = shapely_scale(
+                geometry,
+                xfact=hollow_scale,
+                yfact=hollow_scale,
+                origin="center",
+            )
+        else:  # MultiPolygon
+            inner_geoms = [
+                shapely_scale(
+                    poly,
+                    xfact=hollow_scale,
+                    yfact=hollow_scale,
+                    origin="center",
+                )
+                for poly in geometry.geoms
+            ]
+            inner_geom = (
+                MultiPolygon(inner_geoms)
+                if len(inner_geoms) > 1
+                else inner_geoms[0]
+            )
+
+        # Extrude inner geometry and apply Z-shift
+        inner_meshes = []
+        if inner_geom.geom_type == "Polygon":
+            inner_mesh = trimesh.creation.extrude_polygon(
+                inner_geom, thickness
+            )
+            inner_meshes.append(inner_mesh)
+        elif inner_geom.geom_type == "MultiPolygon":
+            for poly in inner_geom.geoms:
+                inner_mesh = trimesh.creation.extrude_polygon(poly, thickness)
+                inner_meshes.append(inner_mesh)
+
+        if not inner_meshes:
+            return outer_mesh  # Fallback if inner geometry is empty
+
+        inner_mesh = (
+            inner_meshes[0]
+            if len(inner_meshes) == 1
+            else trimesh.util.concatenate(inner_meshes)
+        )
+        inner_mesh.apply_translation([0, 0, hollow_shift_z])
+
+        # Boolean subtraction (hollowing)
+        try:
+            hollow_mesh = outer_mesh.difference(inner_mesh, engine="blender")
+            return hollow_mesh
+        except Exception:
+            # Fallback to solid mesh if boolean operation fails
+            return outer_mesh
 
     def _tile_polygons_2D_extrusion(
-        self, extrusion, tile_dict, child_cell, target_layer, skip_if_exists
+        self,
+        extrusion,
+        tile_dict,
+        child_cell,
+        target_layer,
+        skip_if_exists,
+        hollow,
+        hollow_scale,
+        hollow_shift_z,
     ):
 
         output_folder = f"{self.gds_name}/{child_cell.name}{target_layer}"
@@ -438,7 +528,11 @@ class GDSParser:
             # Extrude each geometry in that tile
             for geom in geoms:
                 mesh_3d = self._extrude_shapely_geometry(
-                    geometry=geom, thickness=extrusion
+                    geometry=geom,
+                    thickness=extrusion,
+                    hollow=hollow,
+                    hollow_scale=hollow_scale,
+                    hollow_shift_z=hollow_shift_z,
                 )
                 if mesh_3d is not None:
                     tile_meshes.append(mesh_3d)
@@ -629,31 +723,44 @@ class GDSParser:
         preset: Preset,
         cell_name: Optional[str] = None,
         write_field_scene: Optional[Scene] = None,
-        layer_to_print: Tuple[int, int] = (1, 1),
-        extrusion: float = 1.0,
-        tile_size: float = 220,
-        epsilon: float = 0.5,
+        layer: Tuple[int, int] = (1, 0),
+        epsilon: float = 1.0,
+        tile_size: Tuple[float, float] = (200.0, 200.0),
+        extrusion: float = 20.0,
         skip_if_exists: bool = False,
         color: str = "#16506B",
+        iterate_over_each_polygon: bool = False,
+        hollow: bool = True,
+        hollow_scale: float = 0.9,
+        hollow_shift_z: float = -2.0,
+        layer_to_print=None,
         _verbose: bool = False,
     ) -> Group:
-        """Generate hierarchical printing structure from GDS layout polygons.
+        """
+        Process GDS layout to generate tiled scenes for 3D printing.
+
+        This method processes a GDS layout, divides it into tiles, creates 3D extrusions
+        from the polygons, and generates scenes for each tile with appropriate positioning.
 
         Args:
-            project: Target project for resource management
-            preset: Printing preset configuration
-            cell_name: Specific cell to process (uses top cell if None)
-            write_field_scene: Custom write field scene configuration
-            layer_to_print: Layer/datatype tuple to process
-            extrusion: Z-height for printed structures (negative values valid!)
-            tile_size: Maximum dimension for geometry tiling
-            epsilon: Overlap-compensation for stitching in microns
-            skip_if_exists: If polygons already exist, do not recreate them
-            color: Visualization color of meshes inside viewport
-            _verbose: Enable debug output
+            project: Project instance to which generated meshes are loaded to.
+            preset: Preset instance for printing.
+            cell_name: Name of the cell in GDS to process.
+            write_field_scene: Scene template for writing fields.
+            layer: Layer containing polygons that are supposed to be extruded and printed.
+            extrusion: Thickness for 3D extrusion.
+            tile_size: Size of each tile in micrometers.
+            epsilon: Overlap value between tiles in micrometers.
+            skip_if_exists: Skip processing if output files already exist.
+            color: Color for generated structures in viewer.
+            iterate_over_each_polygon: Tile each polygon individually if True
+            hollow: Create hollow structures if True
+            hollow_scale: Scaling factor for hollow structures
+            hollow_shift_z: Z-axis shift for hollow structures
+            _verbose: Verbose output flag (for debugging/developing)
 
         Returns:
-            Group: Hierarchical structure ready for printing
+            Group: Group instance containing all generated tile scenes.
 
         Raises:
             ValueError: Invalid input parameters
@@ -673,57 +780,307 @@ class GDSParser:
             raise TypeError(
                 "write_field_scene must be a Scene instance or None"
             )
-
+        if layer == (1, 0) and layer_to_print is not None:
+            DeprecationWarning(
+                "Argument layer_to_print is deprecated and will "
+                "be removed in a future release. Use layer instead."
+            )
+            layer = layer_to_print
+        elif layer_to_print is not None:
+            DeprecationWarning(
+                "Argument layer_to_print is deprecated and will be removed "
+                "in a future release. Argument layer will be used instead. "
+            )
         # Validate layer_to_print structure and content
-        if not isinstance(layer_to_print, tuple) or len(layer_to_print) != 2:
-            raise TypeError("layer_to_print must be a tuple of two integers")
-        if not all(isinstance(x, int) for x in layer_to_print):
-            raise TypeError("Both elements in layer_to_print must be integers")
+        if not isinstance(layer, tuple) or len(layer) != 2:
+            raise TypeError("layer must be a tuple of two integers")
+        if not all(isinstance(x, int) for x in layer):
+            raise TypeError("Both elements in layer must be integers")
 
         # Validate numerical parameters
         if not isinstance(extrusion, (int, float)):
             raise TypeError("extrusion must be a numeric value")
-        if not isinstance(tile_size, (int, float)):
-            raise TypeError("tile_size must be a numeric value")
-        if tile_size <= 0:
-            raise ValueError("tile_size must be positive")
+        if not isinstance(tile_size, tuple) or len(layer) != 2:
+            raise TypeError("tile_size must be a tuple of two integers")
+        if not all(isinstance(x, (int, float)) for x in tile_size):
+            raise TypeError(
+                "All elements in tile_size must be numbers (int or float)"
+            )
+        if not all(x > 0 for x in tile_size):
+            raise ValueError("All elements in tile_size must be positive")
+
         if not isinstance(epsilon, (int, float)):
             raise TypeError("epsilon must be a numeric value")
         if epsilon < 0:
             raise ValueError("epsilon must be non-negative")
+        if not isinstance(hollow_scale, (int, float)):
+            raise TypeError(
+                "hollow_scale must be a numeric value between 0 and 1."
+            )
+        if hollow_scale < 0 or hollow_scale > 1:
+            raise TypeError(
+                "hollow_scale must be a numeric value between 0 and 1."
+            )
+        if not isinstance(hollow_shift_z, (int, float)):
+            raise TypeError("hollow_shift_z must be a numeric value.")
 
         # Validate boolean parameters
         if not isinstance(skip_if_exists, bool):
             raise TypeError("skip_if_exists must be a boolean")
+        if not isinstance(iterate_over_each_polygon, bool):
+            raise TypeError("iterate_over_each_polygon must be a boolean")
+        if not isinstance(hollow, bool):
+            raise TypeError("hollow must be a boolean")
         if not isinstance(_verbose, bool):
             raise TypeError("_verbose must be a boolean")
 
-        gds_printing_group_raw = self._gds_printing(
+        gds_printing_group = self._gds_printing_new(
             project,
             preset,
             cell_name=cell_name,
             write_field_scene=write_field_scene,
-            layer_to_print=layer_to_print,
+            layer=layer,
             extrusion=extrusion,
+            hollow=hollow,
+            hollow_scale=hollow_scale,
+            hollow_shift_z=hollow_shift_z,
             tile_size=tile_size,
             epsilon=epsilon,
             skip_if_exists=skip_if_exists,
             color=color,
+            iterate_over_each_polygon=iterate_over_each_polygon,
             _verbose=_verbose,
         )
 
-        # Clean up nodes that do not contain any structures
-        gds_printing_group = gds_printing_group_raw.deepcopy_node(
-            copy_children=False
-        )
-        for node in gds_printing_group_raw.children_nodes:
-            for node_descendant in node.all_descendants:
-                if node_descendant._type == "structure":
-                    gds_printing_group.add_child(node)
-                    break
         return gds_printing_group
 
-        return gds_printing_group
+    @verbose_output()
+    def _gds_printing_new(
+        self,
+        project: Project,
+        preset: Preset,
+        cell_name: Optional[str] = None,
+        write_field_scene: Optional[Scene] = None,
+        layer: Tuple[int, int] = (1, 0),
+        epsilon: float = 1.0,
+        tile_size: Tuple[float, float] = (200.0, 200.0),
+        extrusion: float = 20.0,
+        skip_if_exists: bool = False,
+        color: str = "#16506B",
+        iterate_over_each_polygon: bool = True,
+        hollow: bool = True,
+        hollow_scale: float = 0.9,
+        hollow_shift_z: float = -2.0,
+        _verbose: bool = False,
+    ) -> Group:
+        """
+        Process GDS layout to generate tiled scenes for 3D printing.
+
+        This method processes a GDS layout, divides it into tiles, creates 3D extrusions
+        from the polygons, and generates scenes for each tile with appropriate positioning.
+
+        Args:
+            project: Project configuration object
+            preset: Preset configuration for structures
+            cell_name: Name of the cell to process (optional)
+            write_field_scene: Scene template for writing fields (optional)
+            layer: Layer specification to process
+            epsilon: Overlap value between tiles
+            tile_size: Size of each tile in micrometers
+            extrusion: Thickness for 3D extrusion
+            skip_if_exists: Skip processing if output files already exist
+            color: Color for generated structures
+            iterate_over_each_polygon: Process each polygon individually if True
+            hollow: Create hollow structures if True
+            hollow_scale: Scaling factor for hollow structures
+            hollow_shift_z: Z-axis shift for hollow structures
+            _verbose: Verbose output flag
+
+        Returns:
+            Group: Group containing all generated tiled scenes
+        """
+        # Load the GDS file
+        #        self.layout.read(self.gds_path)
+
+        # Get the specified layer
+        layer_index = self.layout.layer(*layer)
+        gds_name = os.path.splitext(os.path.basename(self.gds_file))[0]
+
+        # Get the top cell
+        top_cell = (
+            self.layout.top_cell()
+            if cell_name is None
+            else self.get_cell_by_name(cell_name=cell_name, layout=self.layout)
+        )
+
+        shapes_iter = top_cell.begin_shapes_rec(layer_index)
+        tiles = []
+        results = []
+        meshes_npx = []
+        scenes_npx = []
+        output_group = Group(
+            name=gds_name
+            + "_"
+            + top_cell.name
+            + f"_layer_{layer[0]}_{layer[1]}"
+        )
+
+        # Check if passed write field is a valid scene
+        if write_field_scene is None:
+            write_field_scene = _write_field_scene()
+        elif write_field_scene._type != "scene":
+            write_field_scene = _write_field_scene()
+            UserWarning(
+                "Invalid scene. Default write field going to be applied instead."
+            )
+
+        # Convert from um to dbu
+        epsilon_dbu = epsilon * 1000
+        tile_size_dbu = (tile_size[0] * 1000, tile_size[1] * 1000)
+
+        # Create a region from all shapes on the layer
+        region_all = pya.Region(shapes_iter)
+        iterable = region_all.each() if iterate_over_each_polygon else [0]
+
+        for poly in iterable:
+            # Get the region to process
+            if iterate_over_each_polygon:
+                region = pya.Region(poly)
+            else:
+                region = region_all
+
+            bbox = region.bbox()
+            x_min, y_min = bbox.left, bbox.bottom
+            x_max, y_max = bbox.right, bbox.top
+
+            # Calculate number of tiles needed
+            tile_width, tile_height = tile_size_dbu
+            num_x = int(np.ceil((x_max - x_min) / (tile_width - epsilon_dbu)))
+            num_y = int(np.ceil((y_max - y_min) / (tile_height - epsilon_dbu)))
+
+            # Generate tiles in meander order
+            for j in range(num_y):
+                # Alternate direction for meander pattern
+                x_indices = (
+                    range(num_x) if j % 2 == 0 else reversed(range(num_x))
+                )
+
+                for i in x_indices:
+                    # Calculate tile boundaries with overlap
+                    x1 = x_min + i * (tile_width - epsilon_dbu)
+                    y1 = y_min + j * (tile_height - epsilon_dbu)
+                    x2 = x1 + tile_width
+                    y2 = y1 + tile_height
+
+                    # Create tile box
+                    tile_box = pya.Box(x1, y1, x2, y2)
+                    tiles.append((i, j, tile_box))
+
+            # Process each tile
+            for i, j, tile_box in tiles:
+                # Create region for the tile
+                tile_region = pya.Region(tile_box)
+
+                # Extract polygons that intersect with the tile
+                extracted = region & tile_region
+
+                # Merge overlapping/adjacent polygons
+                extracted.merge()
+
+                # Skip empty tiles
+                if extracted.is_empty():
+                    continue
+
+                # Convert to Shapely polygons
+                shapely_polygons = []
+                for poly in extracted.each():
+                    # Get polygon points
+                    points = []
+                    for point in poly.each_point_hull():
+                        points.append((point.x / 1000, point.y / 1000))
+
+                    # Create Shapely polygon (close the ring if needed)
+                    if points[0] != points[-1]:
+                        points.append(points[0])
+
+                    shapely_polygons.append(Polygon(points))
+
+                # Create MultiPolygon from all polygons in the tile
+                multipolygon = MultiPolygon(shapely_polygons)
+
+                # Calculate tile center
+                center_x = extracted.bbox().center().x / 1000
+                center_y = extracted.bbox().center().y / 1000
+
+                # Create 3D extrusions/meshes
+                tile_meshes = []
+                mesh_3d = self._extrude_shapely_geometry(
+                    geometry=multipolygon,
+                    thickness=extrusion,
+                    hollow=hollow,
+                    hollow_scale=hollow_scale,
+                    hollow_shift_z=hollow_shift_z,
+                )
+                if mesh_3d is not None:
+                    tile_meshes.append(mesh_3d)
+
+                # Combine (concatenate) all extruded meshes in this tile
+                if len(tile_meshes) == 0:
+                    # No valid geometry in this tile, skip
+                    continue
+                elif len(tile_meshes) == 1:
+                    tile_mesh_combined = tile_meshes[0]
+                else:
+                    tile_mesh_combined = trimesh.util.concatenate(tile_meshes)
+
+                # Export to STL
+                output_folder = f"{gds_name}/{top_cell.name}{layer}"
+                os.makedirs(output_folder, exist_ok=True)
+
+                tile_filename = (
+                    f"tile_{i}_{j}_center_{int(center_x)}_{int(center_y)}.stl"
+                )
+                tile_filepath = os.path.join(output_folder, tile_filename)
+
+                # Check if the STL file already exists and export if not
+                if not os.path.exists(tile_filepath) and not skip_if_exists:
+                    tile_mesh_combined.export(tile_filepath)
+                else:
+                    print(
+                        f"Tile {(i, j)} already exists at {tile_filepath}, skipping."
+                    )
+
+                # npx-API goes below here
+                mesh_npx = Mesh(
+                    file_path=tile_filepath,
+                    name=tile_filename.split(".")[0],
+                    auto_center=True,
+                )
+                meshes_npx.append(mesh_npx)
+                structure_npx = Structure(
+                    preset,
+                    mesh_npx,
+                    name=tile_filename.split(".")[0],
+                    color=color,
+                )
+                scene_npx = write_field_scene.deepcopy_node(name=mesh_npx.name)
+                scene_npx.position = [center_x, center_y, 0]
+                scene_npx.append_node(structure_npx)
+                scenes_npx.append(scene_npx)
+
+                # Add to results (not part of any npx-related things)
+                results.append(((i, j), (center_x, center_y), multipolygon))
+
+        output_group.add_child(*scenes_npx)
+
+        # Print information about each tile if verbose
+        for (i, j), center, multipolygon in results:
+            print(f"Tile ({i}, {j}) at center {center}:")
+            print(f"  Contains {len(multipolygon.geoms)} polygons")
+            print(f"  Total area: {multipolygon.area}")
+            print()
+        project.load_resources(meshes_npx)
+        return output_group
 
     @verbose_output()
     def _gds_printing(
@@ -734,6 +1091,9 @@ class GDSParser:
         write_field_scene: Optional[Scene],
         layer_to_print: Tuple[int, int],
         extrusion: float,
+        hollow: bool,
+        hollow_scale: float,
+        hollow_shift_z: float,
         tile_size: float,
         epsilon: float,
         skip_if_exists: bool,
@@ -783,6 +1143,9 @@ class GDSParser:
                     child_cell=child_cell,
                     target_layer=layer_to_print,
                     skip_if_exists=skip_if_exists,
+                    hollow=hollow,
+                    hollow_scale=hollow_scale,
+                    hollow_shift_z=hollow_shift_z,
                 )
                 child_cell_group = self._build_nano_leaf_group(
                     tile_dict,
@@ -818,10 +1181,13 @@ class GDSParser:
                     self.gds_printing(
                         project,
                         preset,
-                        cell=child_cell,
+                        cell_name=child_cell.name,
                         write_field_scene=write_field_scene,
                         layer_to_print=layer_to_print,
                         extrusion=extrusion,
+                        hollow=hollow,
+                        hollow_scale=hollow_scale,
+                        hollow_shift_z=hollow_shift_z,
                         tile_size=tile_size,
                         epsilon=epsilon,
                         color=color,
@@ -997,6 +1363,11 @@ class GDSParser:
             TypeError: Incorrect argument types
             RuntimeError: Marker processing failure
         """
+        DeprecationWarning(
+            "The method .marker_aligned_printing() is deprecated"
+            " and will be removed in a future release. Use the "
+            " method .get_scenes() instead."
+        )
         # Initialize mutable defaults safely
         marker_aligner_kwargs = marker_aligner_kwargs or {}
         structure_kwargs = structure_kwargs or {}
@@ -1082,26 +1453,24 @@ class GDSParser:
         if not presets:
             raise ValueError("At least one preset must be provided")
 
-        try:
-            marker_aligned_printing_group_raw = self._marker_aligned_printing(
-                project,
-                presets,
-                meshes,
-                cell_name=cell_name,
-                cell_origin_offset=cell_origin_offset,
-                image_resource=image_resource,
-                interface_aligner_node=interface_aligner_node,
-                marker_aligner_node=marker_aligner_node,
-                marker_height=marker_height,
-                marker_layer=marker_layer,
-                mesh_spots_layers=mesh_spots_layers,
-                colors=colors,
-                marker_aligner_kwargs=marker_aligner_kwargs,
-                structure_kwargs=structure_kwargs,
-                _verbose=_verbose,
-            )
-        except Exception as e:
-            raise RuntimeError("Marker alignment processing failed") from e
+        marker_aligned_printing_group_raw = self._marker_aligned_printing(
+            project,
+            presets,
+            meshes,
+            cell_name=cell_name,
+            cell_origin_offset=cell_origin_offset,
+            image_resource=image_resource,
+            interface_aligner_node=interface_aligner_node,
+            marker_aligner_node=marker_aligner_node,
+            marker_height=marker_height,
+            marker_layer=marker_layer,
+            mesh_spots_layers=mesh_spots_layers,
+            colors=colors,
+            marker_aligner_kwargs=marker_aligner_kwargs,
+            structure_kwargs=structure_kwargs,
+            _verbose=_verbose,
+        )
+
         # Clean up nodes that do not contain any structures
         marker_aligned_printing_group = (
             marker_aligned_printing_group_raw.deepcopy_node(
@@ -1117,7 +1486,354 @@ class GDSParser:
             [-cell_origin_offset[0], -cell_origin_offset[1], 0]
         )
 
-    # TODO: Consider exchanging marker part with get_marker_aligner()
+    @verbose_output()
+    def get_scenes(
+        self,
+        scene_layer: Tuple[int, int],
+        project: Project,
+        presets: List[Preset],
+        meshes: Optional[List[Mesh]] = None,
+        marker_layer: Optional[Tuple[int, int]] = None,
+        marker_region_layer: Optional[Tuple[int, int]] = None,
+        marker_height: float = 0.33,
+        image_resource: Optional[str] = None,
+        marker_aligner_node: Optional[MarkerAligner] = None,
+        interface_aligner_node: Optional[InterfaceAligner] = None,
+        interface_aligner_layer: Optional[Tuple[int, int]] = None,
+        mesh_spots_layers: Optional[List[Tuple[int, int]]] = None,
+        cell_name: Optional[str] = None,
+        colors: Optional[List[str]] = None,
+        structure_kwargs: Optional[Dict[str, Any]] = None,
+        _verbose: bool = False,
+    ) -> Group:
+        """
+        Process scenes from GDS layout and generate structured print scenes.
+
+        This method takes a scene layer as designation for the print scene and checks
+        for markers lying inside the scene as provided by marker_layer.
+        In case the marker pattern consists of disjoint polygons,
+        it is necessary to provide a marker_region_layer that defines the
+        image frame for every single marker to ensure correct image generation.
+        Markers may have different orientations but always have to have the same
+        size/shape per layer.
+
+        Args:
+            scene_layer: Layer specification for scene regions
+            project: Project instance in which read-out markers from GDS are loaded to.
+            presets: Bijective list of Preset instances for each mesh (referred to by index)
+            meshes: List of mesh objects (optional)
+            marker_layer: Layer specification for markers
+            marker_region_layer: Layer specification for marker regions
+            marker_height: Height value for markers
+            image_resource: Path to an alternative image resource (optional)
+            marker_aligner_node: Custom marker alignment node (optional)
+            interface_aligner_node: Custom interface alignment node (optional)
+            interface_aligner_layer: Layer specification for interface alignment (optional)
+            mesh_spots_layers: List of layer specifications for mesh spots (optional)
+            cell_name: Name of the GDS cell to process (optional)
+            colors: Bijective list of colors for structures (optional)
+            structure_kwargs: Additional dictionary for keyword arguments for all structures
+            _verbose: Verbose output flag
+
+        Returns:
+            Group: Group node containing all generated scenes
+        """
+        # Initialize default values
+        structure_kwargs = structure_kwargs or {}
+
+        # Check if all interface aligner related parameters are None
+        _no_interfacealigner_if_all_None = all(
+            v is None
+            for v in [
+                meshes,
+                marker_layer,
+                interface_aligner_node,
+                interface_aligner_layer,
+            ]
+        )
+
+        # Validation checks
+        if marker_layer is None and marker_region_layer is not None:
+            raise ValueError(
+                "marker_layer must not be None if a marker_region_layer was specified.\n"
+                "Either specify a marker_layer or set marker_region_layer=None as well."
+            )
+
+        if marker_layer is None:
+            marker_layer = (1_000_000, 1_000_000)
+
+        # Input layers
+        _marker_layer = self.layout.layer(*marker_layer)  # Target shapes
+        _marker_region_layer = (
+            self.layout.layer(*marker_region_layer)
+            if marker_region_layer is not None
+            else self.layout.layer(*marker_layer)
+        )  # Target regions
+        _scene_layer = self.layout.layer(*scene_layer)  # Region definition
+
+        # Create regions
+        top_cell = (
+            self.layout.top_cell()
+            if cell_name is None
+            else self.get_cell_by_name(cell_name=cell_name, layout=self.layout)
+        )
+        scene_region = pya.Region(top_cell.begin_shapes_rec(_scene_layer))
+        marker_region = pya.Region(top_cell.begin_shapes_rec(_marker_layer))
+        marker_region_region = pya.Region(
+            top_cell.begin_shapes_rec(_marker_region_layer)
+        )
+
+        if interface_aligner_layer is not None:
+            _interface_aligner_layer = self.layout.layer(
+                *interface_aligner_layer
+            )
+            ia_region = pya.Region(
+                top_cell.begin_shapes_rec(_interface_aligner_layer)
+            )
+
+        if mesh_spots_layers is not None:
+            _mesh_spots_layers = [
+                self.layout.layer(*mesh_spots_layer)
+                for mesh_spots_layer in mesh_spots_layers
+            ]
+            mesh_spots_regions = [
+                pya.Region(top_cell.begin_shapes_rec(_mesh_spots_layer))
+                for _mesh_spots_layer in _mesh_spots_layers
+            ]
+
+        # Compute the intersection to reduce sample size
+        marker_region_region_in_scene_region = (
+            marker_region_region & scene_region
+        )
+        marker_region_in_scene_region = marker_region & scene_region
+
+        # Iterate through all polygon patches in scene layer
+        all_scenes = []
+        file_path = None  # resets file_path each run to ensure the directory gets recreated and not skipped
+
+        for idx, scene in enumerate(scene_region.each()):
+            single_scene_reg = pya.Region(scene)
+            # Determine absolute centroid position of scene(s)
+            scene_pos = (
+                single_scene_reg.bbox().center().x / 1000,
+                single_scene_reg.bbox().center().y / 1000,
+                0,
+            )
+
+            # Prepare Scene with interface alignment
+            scene_npx = Scene(
+                position=scene_pos,
+                name=f"scene_{scene_layer[0]}_{scene_layer[1]}_{idx}",
+            )
+            interface_aligner_npx = (
+                InterfaceAligner()
+                if interface_aligner_node is None
+                else interface_aligner_node.deepcopy_node(copy_children=False)
+            )
+
+            # Return only scenes if all listed are None
+            if not _no_interfacealigner_if_all_None:
+                interface_aligner_npx.name = (
+                    f"ia_in_scene_{scene_layer[0]}_{scene_layer[1]}_{idx}"
+                )
+                scene_npx.append_node(interface_aligner_npx)
+
+            # Pass alignment anchors and scan area sizes from polygons in interface alignment layer
+            # if any was specified
+            if interface_aligner_layer is not None:
+                ia_regions_in_single_scene = ia_region & single_scene_reg
+                ia_anchor_pos_list = [
+                    [
+                        ia_region_poly.bbox().center().x / 1000 - scene_pos[0],
+                        ia_region_poly.bbox().center().y / 1000 - scene_pos[1],
+                    ]
+                    for ia_region_poly in ia_regions_in_single_scene.each()
+                ]
+                ia_scan_area_sizes = [
+                    [
+                        ia_region_poly.bbox().width() / 1000,
+                        ia_region_poly.bbox().height() / 1000,
+                    ]
+                    for ia_region_poly in ia_regions_in_single_scene.each()
+                ]
+                interface_aligner_npx.set_interface_anchors_at(
+                    positions=ia_anchor_pos_list,
+                    scan_area_sizes=ia_scan_area_sizes,
+                )
+                interface_aligner_npx.name = f"ia_{interface_aligner_layer[0]}_{interface_aligner_layer[1]}_in_scene_{scene_layer[0]}_{scene_layer[1]}_{idx}"
+
+            # Process all positions defined by mesh spots per layer if any were given
+            all_structures = []
+            if mesh_spots_layers is not None and meshes is not None:
+                colors = (
+                    len(mesh_spots_layers) * ["yellow"]
+                    if colors is None
+                    else colors
+                )
+                for mesh_spots_region, mesh, preset, color, name in zip(
+                    mesh_spots_regions,
+                    meshes,
+                    presets,
+                    colors,
+                    mesh_spots_layers,
+                ):
+                    mesh_spots_in_single_scene_reg = (
+                        mesh_spots_region & single_scene_reg
+                    )
+                    ms_pos_single_layer_positions = [
+                        [
+                            ms_region_poly.bbox().center().x / 1000
+                            - scene_pos[0],
+                            ms_region_poly.bbox().center().y / 1000
+                            - scene_pos[1],
+                            0 - scene_pos[2],
+                        ]
+                        for ms_region_poly in mesh_spots_in_single_scene_reg
+                    ]
+
+                    # Assign meshes to structures and append them to current scene
+                    structures = [
+                        Structure(
+                            name=mesh.name + "_in_" + name,
+                            mesh=mesh,
+                            preset=preset,
+                            color=color,
+                            position=position,
+                            **structure_kwargs,
+                        )
+                        for position in ms_pos_single_layer_positions
+                    ]
+                    all_structures.extend(structures)
+            elif meshes is not None:
+                colors = len(meshes) * ["red"] if colors is None else colors
+                structures = [
+                    Structure(
+                        mesh=mesh,
+                        preset=preset,
+                        color=color,
+                        name=mesh.name,
+                        **structure_kwargs,
+                    )
+                    for mesh, preset, color in zip(meshes, presets, colors)
+                ]
+                all_structures.extend(structures)
+
+            # Get marker_region parts within this specific single scene
+            marker_regions_in_single_scene = (
+                marker_region_region_in_scene_region & single_scene_reg
+            )
+
+            if marker_region_layer is None:
+                marker_regions_in_single_scene.merge()
+
+            # Create list containing relative coordinates of markers in respective scene
+            marker_pos_list = [
+                [
+                    marker_region_poly.bbox().center().x / 1000 - scene_pos[0],
+                    marker_region_poly.bbox().center().y / 1000 - scene_pos[1],
+                    marker_height,
+                ]
+                for marker_region_poly in marker_regions_in_single_scene.each()
+            ]
+
+            # Additional processing per patch
+            if not marker_regions_in_single_scene.is_empty():
+                # Collect shapes and convert to Shapely polygons
+                polygons_to_unify = []
+                shapely_polys = []
+
+                for marker_region in marker_regions_in_single_scene.each():
+                    single_marker_reg = pya.Region(marker_region)
+                    single_marker_reg_iter = pya.RecursiveShapeIterator(
+                        self.layout, top_cell, _marker_layer, single_marker_reg
+                    )
+                    polygons_to_unify = []
+                    while not single_marker_reg_iter.at_end():
+                        marker_shape = single_marker_reg_iter.shape()
+                        marker_trans = single_marker_reg_iter.trans()
+
+                        if (
+                            marker_shape.is_polygon()
+                            or marker_shape.is_box()
+                            or marker_shape.is_path()
+                        ):
+                            klayout_poly = marker_shape.polygon.transformed(
+                                marker_trans
+                            )
+
+                            # Extract hull points
+                            hull_points = list(klayout_poly.each_point_hull())
+                            exterior = [(p.x, p.y) for p in hull_points]
+
+                            # Extract holes
+                            interiors = []
+                            for h in range(klayout_poly.holes()):
+                                hole_points = list(
+                                    klayout_poly.each_point_hole(h)
+                                )
+                                interiors.append(
+                                    [(p.x, p.y) for p in hole_points]
+                                )
+
+                            # Create Shapely polygon
+                            poly = Polygon(exterior, interiors)
+                            polygons_to_unify.append(poly)
+
+                        single_marker_reg_iter.next()
+
+                    shapely_polys.append(MultiPolygon(polygons_to_unify))
+
+                img_dir = f"./images_{self.gds_name}_scene_{scene_layer[0]}_{scene_layer[1]}"
+                png_name = f"marker_{marker_layer[0]}_{marker_layer[1]}.png"
+                if file_path != os.path.join(img_dir, png_name):
+                    file_path = os.path.join(img_dir, png_name)
+                    os.makedirs(img_dir, exist_ok=True)
+                    _, marker_orientations = (
+                        self._group_equivalent_polygons_and_output_image(
+                            shapely_polys, file_path=file_path
+                        )
+                    )
+                    assert len(marker_orientations) == len(marker_pos_list), (
+                        "marker position count does not coincide with marker "
+                        "orientation count. Marker layer polygons are probably "
+                        "not grouped properly.\n"
+                        f"len of marker_orientations : {len(marker_orientations)}\n"
+                        f"len of marker_pos_list : {len(marker_pos_list)}"
+                    )
+
+                    image_resource = (
+                        Image(file_path, png_name)
+                        if image_resource is None
+                        else image_resource
+                    )
+                    project.load_resources(image_resource)
+
+                    marker_aligner_npx = (
+                        MarkerAligner(
+                            image_resource,
+                            marker_size=[
+                                single_marker_reg.bbox().width() / 1000,
+                                single_marker_reg.bbox().height() / 1000,
+                            ],
+                            max_outliers=len(marker_pos_list) - 3,
+                        )
+                        if marker_aligner_node is None
+                        else marker_aligner_node.deepcopy_node()
+                    )
+                    marker_aligner_npx.set_markers_at(
+                        marker_pos_list, marker_orientations
+                    )
+
+                copied_marker_aligner_npx = marker_aligner_npx.deepcopy_node(
+                    name=f"marker_{marker_layer[0]}_{marker_layer[1]}_in_scene_{scene_layer[0]}_{scene_layer[1]}_{idx}"
+                ).add_child(*all_structures)
+                scene_npx.append_node(copied_marker_aligner_npx)
+            all_scenes.append(scene_npx)
+
+        output_group = Group(f"scene_layer_{scene_layer[0]}_{scene_layer[1]}")
+        output_group.add_child(*all_scenes)
+        return output_group
+
     @verbose_output()
     def _marker_aligned_printing(
         self,
@@ -1329,7 +2045,8 @@ class GDSParser:
                         project,
                         presets,
                         meshes,
-                        cell=child_cell,
+                        cell_name=child_cell.name,
+                        cell_origin_offset=cell_origin_offset,
                         image_resource=image_resource,
                         interface_aligner_node=interface_aligner_node,
                         marker_aligner_node=marker_aligner_node,
