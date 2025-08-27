@@ -222,7 +222,7 @@ class Node:
             Node: A deep copy of the current node.
         """
 
-        copied_node = copy.copy(self)
+        copied_node = copy.deepcopy(self)
         copied_node.id = str(uuid.uuid4())
         copied_node.children_nodes = []
         copied_node.all_descendants = []
