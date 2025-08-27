@@ -19,6 +19,7 @@ import zipfile
 from npxpy.nodes.node import Node
 from npxpy.resources import Resource
 from npxpy.preset import Preset
+import warnings
 
 
 class Project(Node):
@@ -31,7 +32,15 @@ class Project(Node):
         project_info (dict): Information about the project including author, objective, resin, substrate, and creation date.
     """
 
-    def __init__(self, objective: str, resin: str, substrate: str):
+    def __init__(
+        self,
+        objective: str,
+        resin: str,
+        substrate: str,
+        auto_load_presets: bool = False,
+        auto_load_meshes: bool = False,
+        auto_load_images: bool = False,
+    ):
         """
         Initialize the project with the specified parameters.
 
@@ -39,6 +48,9 @@ class Project(Node):
             objective (str): Objective of the project.
             resin (str): Resin used in the project.
             substrate (str): Substrate used in the project.
+            auto_load_presets (bool): Whether or not to automatically load any attached presets.
+            auto_load_meshes (bool): Whether or not to automatically load any attached meshes.
+            auto_load_images (bool): Whether or not to automatically load any attached images.
 
         Raises:
             ValueError: If any of the parameters have invalid values.
@@ -59,6 +71,11 @@ class Project(Node):
             "creation_date": datetime.now().replace(microsecond=0).isoformat(),
         }
         self._visibility_in_plotter_disabled = []
+        self._loaded_resource_ids = set()
+        self._loaded_preset_ids = set()
+        self._auto_load_presets = auto_load_presets
+        self._auto_load_meshes = auto_load_meshes
+        self._auto_load_images = auto_load_images
 
     # Setters for the attributes with validation
     @property
@@ -67,7 +84,12 @@ class Project(Node):
 
     @objective.setter
     def objective(self, value: str):
-        valid_objectives = {"25x", "63x", "*"}
+        valid_objectives = {
+            "10x",
+            "25x",
+            "63x",
+            "*",
+        }
         if value not in valid_objectives:
             raise ValueError(
                 f"Invalid objective: {value}. Must be one of {valid_objectives}."
@@ -123,7 +145,7 @@ class Project(Node):
 
     def load_resources(self, *resourcess: Union[Resource, List[Resource]]):
         """
-        Adds resources to the resources list.
+        Adds resources to the resources list, skipping duplicates based on UUID.
         """
         for resources in resourcess:
             if not isinstance(resources, list):
@@ -136,13 +158,18 @@ class Project(Node):
                     "All resources must be instances of the Resource class or its subclasses."
                 )
 
-            self._resources.extend(
-                resources
-            )  # Modifies the internal _resources
+            for resource in resources:
+                if resource.id in self._loaded_resource_ids:
+                    warnings.warn(
+                        f"Resource with ID {resource.id} already loaded. Skipping."
+                    )
+                    continue
+                self._resources.append(resource)
+                self._loaded_resource_ids.add(resource.id)
 
     def load_presets(self, *presetss: Union[Preset, List[Preset]]):
         """
-        Adds presets to the presets list.
+        Adds presets to the presets list, skipping duplicates based on UUID.
         """
         for presets in presetss:
             if not isinstance(presets, list):
@@ -153,7 +180,40 @@ class Project(Node):
                     "All presets must be instances of the Preset class."
                 )
 
-            self._presets.extend(presets)  # Modifies the internal _presets
+            for preset in presets:
+                if preset.id in self._loaded_preset_ids:
+                    warnings.warn(
+                        f"Preset with ID {preset.id} already loaded. Skipping."
+                    )
+                    continue
+                self._presets.append(preset)
+                self._loaded_preset_ids.add(preset.id)
+
+    def _auto_load_resources_presets(self):
+        """
+        Loads all Resource/Preset nodes into the Project node they
+        are attached to.
+        """
+        all_structures = self.grab_all_nodes_bfs("structure")
+        all_marker_aligners = self.grab_all_nodes_bfs("marker_alignment")
+
+        if self._auto_load_meshes:
+            all_meshes = [
+                structure.mesh
+                for structure in all_structures
+                if structure._mesh
+            ]
+            self.load_resources(all_meshes)
+
+        if self._auto_load_presets:
+            all_presets = [structure.preset for structure in all_structures]
+            self.load_presets(all_presets)
+
+        if self._auto_load_images:
+            all_images = [
+                marker_aligner.image for marker_aligner in all_marker_aligners
+            ]
+            self.load_resources(all_images)
 
     def _create_toml_data(
         self, presets: List[Any], resources: List[Any], nodes: List[Node]
@@ -195,6 +255,16 @@ class Project(Node):
                 if not "scene" in [i._type for i in self.all_ancestors]:
                     UserWarning("Structures have to be inside Scene nodes!")
 
+        # Autoload presets/resources if desired
+        if any(
+            [
+                self._auto_load_images,
+                self._auto_load_meshes,
+                self._auto_load_presets,
+            ]
+        ):
+            self._auto_load_resources_presets()
+
         # Ensure the path ends with a slash
         if not path.endswith("/"):
             path += "/"
@@ -216,14 +286,20 @@ class Project(Node):
             nano_zip.writestr("project_info.json", project_info_data)
 
             # Add the resources to the zip file
+            already_zipped_resources = set()
             for resource in self._resources:
                 src_path = resource.file_path
                 arcname = resource.safe_path
-                if os.path.isfile(src_path):
+                if (
+                    os.path.isfile(src_path)
+                    and arcname not in already_zipped_resources
+                ):
                     self._add_file_to_zip(nano_zip, src_path, arcname)
-                else:
+                    already_zipped_resources.add(arcname)
+                elif not os.path.isfile(src_path):
                     print(f"File not found: {src_path}")
-
+                else:
+                    print(f"File already loaded: {src_path}")
         print("npxpy: .nano-file created successfully.")
 
     def to_dict(self) -> Dict:
