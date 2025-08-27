@@ -1,6 +1,29 @@
 # CHANGELOG
 
 
+## v0.2.0 (2025-08-27)
+
+### Bug Fixes
+
+- Deepcopy_node alignment_anchors issue
+  ([`25c53c0`](https://github.com/cuenlueer/npxpy/commit/25c53c00736928c01beba48da2a09e49d0049df6))
+
+### Features
+
+- Implement auto loading for presets/resources
+  ([`fc6009a`](https://github.com/cuenlueer/npxpy/commit/fc6009acc37e54c7cc757e4430c93cc8a008619c))
+
+- Implemented auto loading flags for images/meshes/presets. - Fixed possible multiloading of same
+  instances for meshes/presets during export. - Introduced 10x objective as possible parameter
+
+- Implement method .get_scenes()
+  ([`38e8ae4`](https://github.com/cuenlueer/npxpy/commit/38e8ae45c738f3610f26aa3b847df89e0e8a5e4e))
+
+- Implemented new method that is supposed to supersede method .marker_aligned_printing(). - Enhanced
+  method .gds_printing() by introducing option to tile for each polygon instead of the enclosing
+  bbox.
+
+
 ## v0.1.3 (2025-03-28)
 
 ### Bug Fixes
