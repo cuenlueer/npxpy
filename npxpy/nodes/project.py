@@ -85,7 +85,7 @@ class Project(Node):
     @objective.setter
     def objective(self, value: str):
         valid_objectives = {
-            "10x",
+            "10xW",
             "25x",
             "63x",
             "*",

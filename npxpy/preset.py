@@ -104,7 +104,12 @@ class Preset:
 
     @valid_objectives.setter
     def valid_objectives(self, value):
-        valid_objectives_set = {"25x", "63x", "*"}
+        valid_objectives_set = {
+            "10xW",
+            "25x",
+            "63x",
+            "*"
+        }
         if not set(value).issubset(valid_objectives_set):
             raise ValueError(f"Invalid valid_objectives: {value}")
         self._valid_objectives = value
