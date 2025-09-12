@@ -210,12 +210,13 @@ class Node:
                 prefix=new_prefix,
             )
 
-    def deepcopy_node(self, copy_children: bool = True, name=None) -> Self:
+    def deepcopy_node(self, copy_children: bool = True, name: Optional[str] = None) -> Self:
         """
         Create a deep copy of the node.
 
         Parameters:
             copy_children (bool, optional): Whether to copy children nodes. Defaults to True.
+            name (str, optional): New name for the copied node. Defaults to None.
 
         Returns:
             Node: A deep copy of the current node.
