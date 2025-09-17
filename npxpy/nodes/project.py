@@ -84,17 +84,20 @@ class Project(Node):
 
     @objective.setter
     def objective(self, value: str):
-        valid_objectives = {
-            "10x",
-            "25x",
-            "63x",
-            "*",
-        }
-        if value not in valid_objectives:
-            raise ValueError(
-                f"Invalid objective: {value}. Must be one of {valid_objectives}."
-            )
-        self._objective = value
+        if value == "10x":
+            self._objective = "10xW"
+        else:
+            valid_objectives = {
+                "10xW",
+                "25x",
+                "63x",
+                "*",
+            }
+            if value not in valid_objectives:
+                raise ValueError(
+                    f"Invalid objective: {value}. Must be one of {valid_objectives}."
+                )
+            self._objective = value
 
     @property
     def resin(self):

@@ -104,7 +104,10 @@ class Preset:
 
     @valid_objectives.setter
     def valid_objectives(self, value):
-        valid_objectives_set = {"25x", "63x", "*"}
+        # Replace all occurrences of "10x" with "10xW" before proceeding
+        value = ["10xW" if obj == "10x" else obj for obj in value]
+
+        valid_objectives_set = {"10xW", "25x", "63x", "*"}
         if not set(value).issubset(valid_objectives_set):
             raise ValueError(f"Invalid valid_objectives: {value}")
         self._valid_objectives = value
@@ -125,7 +128,7 @@ class Preset:
             "IP-Visio",
             "IPX-Clear",
             "IPX-Q",
-            "IPX-S"
+            "IPX-S",
             "*",
         }
         if not set(value).issubset(valid_resins_set):
