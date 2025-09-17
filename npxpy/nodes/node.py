@@ -12,8 +12,7 @@ This file is part of npxpy, which is licensed under the MIT License.
 """
 import uuid
 import copy
-import os
-from typing import Dict, Any, List, Tuple, Optional, Union
+from typing import Dict, Any, List, Tuple, Optional, Union, Self
 from importlib.resources import files
 
 
@@ -211,12 +210,13 @@ class Node:
                 prefix=new_prefix,
             )
 
-    def deepcopy_node(self, copy_children: bool = True, name=None) -> "Node":
+    def deepcopy_node(self, copy_children: bool = True, name: Optional[str] = None) -> Self:
         """
         Create a deep copy of the node.
 
         Parameters:
             copy_children (bool, optional): Whether to copy children nodes. Defaults to True.
+            name (str, optional): New name for the copied node. Defaults to None.
 
         Returns:
             Node: A deep copy of the current node.
