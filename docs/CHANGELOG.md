@@ -1,6 +1,23 @@
 # CHANGELOG
 
 
+## v0.2.1 (2025-09-17)
+
+### Bug Fixes
+
+- Add IPX-Clear and IPX-Q to valid resins
+  ([`2765b72`](https://github.com/cuenlueer/npxpy/commit/2765b728b8c71831459324f3706851e5dd4a45a0))
+
+- Add type hint for `name` parameter
+  ([`1b2a8b4`](https://github.com/cuenlueer/npxpy/commit/1b2a8b4c8490387c1f578f7f68cd7ad2a18d5a33))
+
+- Implement hotfix for 10x objective
+  ([`cc00585`](https://github.com/cuenlueer/npxpy/commit/cc00585493f9a9da39bd46c28872efc3688d4c29))
+
+- Use `Self` return type for `deepcopy_node`
+  ([`78a1647`](https://github.com/cuenlueer/npxpy/commit/78a1647582741579b8f05aca2a94ebff7a5491aa))
+
+
 ## v0.2.0 (2025-08-27)
 
 ### Bug Fixes
