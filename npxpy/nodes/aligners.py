@@ -347,6 +347,12 @@ class InterfaceAligner(Node):
     def count(self, value: List[int]):
         if len(value) != 2 or not all(isinstance(c, int) for c in value):
             raise ValueError("count must be a list of two integers.")
+        try:
+            value = list(value)
+        except:
+            raise ValueError(
+                "count must be at least an iterable of two integers."
+            )
         self._count = value
 
     @property
@@ -359,6 +365,12 @@ class InterfaceAligner(Node):
             isinstance(s, (float, int)) for s in value
         ):
             raise ValueError("size must be a list of two numbers.")
+        try:
+            value = list(value)
+        except:
+            raise ValueError(
+                "size must be at least an iterable of two integers."
+            )
         self._size = value
 
     @property
