@@ -730,7 +730,7 @@ class GDSParser:
         skip_if_exists: bool = False,
         color: str = "#16506B",
         iterate_over_each_polygon: bool = False,
-        hollow: bool = True,
+        hollow: bool = False,
         hollow_scale: float = 0.9,
         hollow_shift_z: float = -2.0,
         layer_to_print=None,
@@ -910,7 +910,7 @@ class GDSParser:
         top_cell = (
             self.layout.top_cell()
             if cell_name is None
-            else self.get_cell_by_name(cell_name=cell_name, layout=self.layout)
+            else self.get_cell_by_name(cell_name=cell_name)
         )
 
         shapes_iter = top_cell.begin_shapes_rec(layer_index)
@@ -1043,12 +1043,12 @@ class GDSParser:
                 tile_filepath = os.path.join(output_folder, tile_filename)
 
                 # Check if the STL file already exists and export if not
-                if not os.path.exists(tile_filepath) and not skip_if_exists:
-                    tile_mesh_combined.export(tile_filepath)
-                else:
+                if os.path.exists(tile_filepath) and skip_if_exists:
                     print(
                         f"Tile {(i, j)} already exists at {tile_filepath}, skipping."
                     )
+                else:
+                    tile_mesh_combined.export(tile_filepath)
 
                 # npx-API goes below here
                 mesh_npx = Mesh(
@@ -1491,7 +1491,7 @@ class GDSParser:
         self,
         scene_layer: Tuple[int, int],
         project: Project,
-        presets: List[Preset],
+        presets: Optional[List[Preset]] = None,
         meshes: Optional[List[Mesh]] = None,
         marker_layer: Optional[Tuple[int, int]] = None,
         marker_region_layer: Optional[Tuple[int, int]] = None,
@@ -1504,6 +1504,7 @@ class GDSParser:
         cell_name: Optional[str] = None,
         colors: Optional[List[str]] = None,
         structure_kwargs: Optional[Dict[str, Any]] = None,
+        remove_scenes_without_mesh: bool = False,
         _verbose: bool = False,
     ) -> Group:
         """
@@ -1520,7 +1521,7 @@ class GDSParser:
         Args:
             scene_layer: Layer specification for scene regions
             project: Project instance in which read-out markers from GDS are loaded to.
-            presets: Bijective list of Preset instances for each mesh (referred to by index)
+            presets: Bijective list of Preset instances for each mesh (referred to by index; optional)
             meshes: List of mesh objects (optional)
             marker_layer: Layer specification for markers
             marker_region_layer: Layer specification for marker regions
@@ -1533,6 +1534,7 @@ class GDSParser:
             cell_name: Name of the GDS cell to process (optional)
             colors: Bijective list of colors for structures (optional)
             structure_kwargs: Additional dictionary for keyword arguments for all structures
+            remove_scenes_without_mesh: Removes all scenes that do not contain any meshes as structure nodes.
             _verbose: Verbose output flag
 
         Returns:
@@ -1670,6 +1672,11 @@ class GDSParser:
                     if colors is None
                     else colors
                 )
+                presets = (
+                    len(mesh_spots_layers) * [Preset()]
+                    if presets is None
+                    else presets
+                )
                 for mesh_spots_region, mesh, preset, color, name in zip(
                     mesh_spots_regions,
                     meshes,
@@ -1694,7 +1701,7 @@ class GDSParser:
                     # Assign meshes to structures and append them to current scene
                     structures = [
                         Structure(
-                            name=mesh.name + "_in_" + name,
+                            name=mesh.name + "_in_" + f"{name}",
                             mesh=mesh,
                             preset=preset,
                             color=color,
@@ -1706,6 +1713,9 @@ class GDSParser:
                     all_structures.extend(structures)
             elif meshes is not None:
                 colors = len(meshes) * ["red"] if colors is None else colors
+                presets = (
+                    len(meshes) * [Preset()] if presets is None else presets
+                )
                 structures = [
                     Structure(
                         mesh=mesh,
@@ -1828,10 +1838,24 @@ class GDSParser:
                     name=f"marker_{marker_layer[0]}_{marker_layer[1]}_in_scene_{scene_layer[0]}_{scene_layer[1]}_{idx}"
                 ).add_child(*all_structures)
                 scene_npx.append_node(copied_marker_aligner_npx)
+            # Append would not work so add in this case
+            elif not all_structures == [] and scene_npx.children_nodes == []:
+                scene_npx.add_child(*all_structures)
+            elif not all_structures == []:
+                scene_npx.children_nodes[0].add_child(*all_structures)
             all_scenes.append(scene_npx)
+
+        # Remove scenes that do not have any mesh in them if flag is True
+        if remove_scenes_without_mesh:
+            all_scenes = [
+                scene
+                for scene in all_scenes
+                if len(scene.grab_all_nodes_bfs("structure")) > 0
+            ]
 
         output_group = Group(f"scene_layer_{scene_layer[0]}_{scene_layer[1]}")
         output_group.add_child(*all_scenes)
+
         return output_group
 
     @verbose_output()
