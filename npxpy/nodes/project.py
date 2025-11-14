@@ -65,9 +65,9 @@ class Project(Node):
         self._resources = []
         self.project_info = {
             "author": os.getlogin(),
-            "objective": objective,
-            "resist": resin,
-            "substrate": substrate,
+            "objective": self.objective,
+            "resist": self.resin,
+            "substrate": self.substrate,
             "creation_date": datetime.now().replace(microsecond=0).isoformat(),
         }
         self._visibility_in_plotter_disabled = []
