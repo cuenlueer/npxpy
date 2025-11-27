@@ -1,6 +1,28 @@
 # CHANGELOG
 
 
+## v0.3.0 (2025-11-27)
+
+### Bug Fixes
+
+- Let iterables pass
+  ([`b0e3309`](https://github.com/cuenlueer/npxpy/commit/b0e33099c66839f205b146500aa431f43b32d229))
+
+- Use setters for project_info generation
+  ([`703cb5b`](https://github.com/cuenlueer/npxpy/commit/703cb5b7e625ad6344652bddd1d9cee608db11e4))
+
+### Features
+
+- Remove scenes without meshes in get_scenes
+  ([`8bc7d65`](https://github.com/cuenlueer/npxpy/commit/8bc7d65994a252664bf378cff4406441a84786e4))
+
+fix: Remove redundant layout parameter in method get_cell_by_name.
+
+fix: Implement correct if-else-statement for skip_if_exist parameter.
+
+fix: Put presets-list as optional argument in method get_scenes.
+
+
 ## v0.2.1 (2025-09-17)
 
 ### Bug Fixes
