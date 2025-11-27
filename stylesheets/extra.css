@@ -1,0 +1,30 @@
+/* stylesheets/extra.css */
+.md-typeset .admonition,
+.md-typeset div.tabbed-set {
+  border-radius: 12px;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+  transition: transform 0.2s ease;
+}
+
+.md-typeset .admonition:hover {
+  transform: translateY(-2px);
+}
+
+.md-header {
+  background: linear-gradient(180deg, var(--md-primary-fg-color), #2FFFE6);
+}
+
+.md-tabs {
+  background: linear-gradient(0deg, var(--md-primary-fg-color), #2FFFE6);
+}
+
+
+.md-nav__link:hover {
+  transform: translateX(4px);
+  transition: transform 0.2s ease;
+}
+
+.md-typeset a:hover {
+  color: var(--md-accent-fg-color);
+  text-decoration: underline wavy;
+}
