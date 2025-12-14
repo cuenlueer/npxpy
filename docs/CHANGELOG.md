@@ -1,6 +1,19 @@
 # CHANGELOG
 
 
+## v0.4.0 (2025-12-14)
+
+### Features
+
+- Implement array types via methods for Array
+  ([`21e0cba`](https://github.com/cuenlueer/npxpy/commit/21e0cbafb4b17782a7a83cf013cc0bdc05096f1c))
+
+feat: custom and hexagonal grids can now be set for Array instances through the methods
+  '.set_custom_grid()' and '.set_hexagonal_grid()', respectively.
+
+chores: remove redundant error handling in _GatekeeperSpace's methods
+
+
 ## v0.3.0 (2025-11-27)
 
 ### Bug Fixes
