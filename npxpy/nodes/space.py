@@ -112,14 +112,7 @@ class _GatekeeperSpace(Node):
         Returns:
             Acene/Group/Array: The updated object.
         """
-        if (
-            len(translation) != 3
-            or not all(isinstance(t, (int, float)) for t in translation)
-            or not isinstance(translation, list)
-        ):
-            raise ValueError(
-                "Translation must be a list of three numeric elements."
-            )
+
         self.position = [p + t for p, t in zip(self.position, translation)]
         return self
 
@@ -143,12 +136,7 @@ class _GatekeeperSpace(Node):
         Returns:
             Acene/Group/Array: The updated object.
         """
-        if len(rotation) != 3 or not all(
-            isinstance(r, (int, float)) for r in rotation
-        ):
-            raise ValueError(
-                "Rotation must be a list of three numeric elements."
-            )
+
         self.rotation = [
             (r + delta) % 360 for r, delta in zip(self.rotation, rotation)
         ]
@@ -248,6 +236,7 @@ class Array(_GatekeeperSpace):
         spacing (List[float]): Spacing of the grid in [width, height].
         order (str): Order of the array ('Lexical' or 'Meander').
         shape (str): Shape of the array ('Rectangular' or 'Round').
+        array_type (str): Type of array ('rect', 'hex', 'custom')
     """
 
     def __init__(
@@ -270,24 +259,23 @@ class Array(_GatekeeperSpace):
         self.spacing = spacing
         self.order = order
         self.shape = shape
+        self._array_type = "RECTANGULAR_GRID"
 
     # Setters for other attributes
     @property
     def count(self):
         return self._count
 
-    @property
-    def count(self):
-        return self._count
-
     @count.setter
     def count(self, value: List[int]):
-        if len(value) != 2 or not all(
+        if len(value) < 2 or not all(
             isinstance(c, int) and c > 0 for c in value
         ):
             raise ValueError(
-                "Count must be a list of exactly two integers greater than zero."
+                "Count must be a list of at least two (max. three) integers greater than zero."
             )
+        if len(value) > 3:
+            value = value[:2]
         self._count = value
 
     @property
@@ -296,12 +284,14 @@ class Array(_GatekeeperSpace):
 
     @spacing.setter
     def spacing(self, value: List[float]):
-        if len(value) != 2 or not all(
+        if len(value) < 2 or not all(
             isinstance(s, (int, float)) for s in value
         ):
             raise ValueError(
-                "Spacing must be a list of exactly two numeric values."
+                "Spacing must be a list of at least two (max. three) numeric values."
             )
+        if len(value) > 3:
+            value = value[:2]
         self._spacing = value
 
     @property
@@ -337,8 +327,76 @@ class Array(_GatekeeperSpace):
         Returns:
             Array: The updated Array object.
         """
+        self._array_type = "RECTANGULAR_GRID"
         self.count = count
         self.spacing = spacing
+        return self
+
+    def set_hexagonal_grid(
+        self, count: List[int] = count, hex_spacing: float = 100.0
+    ):
+        """
+        Set the count and spacing of the hexagonal array grid.
+
+        Parameters:
+            count (List[int]): The new grid point count.
+            hex_spacing (float): The hexagonal grid spacing.
+
+        Returns:
+            Array: The updated Array object.
+        """
+
+        if not isinstance(hex_spacing, (int, float)):
+            raise ValueError("hexagonal distance must be a numeric value.")
+
+        self._array_type = "HEXAGONAL_GRID"
+        self.count = count
+        self._hex_spacing = hex_spacing
+        return self
+
+    def set_custom_grid(
+        self,
+        custom_instance_positions: List[List[float]],
+    ):
+        """
+        Set the grid positions of the custom array grid.
+
+        Parameters:
+            custom_instance_positions (List[List[float]]): The custom grid points count.
+
+        Returns:
+            Array: The updated Array object.
+        """
+        self._irregular_instance_positions = []
+        self._array_type = "IRREGULAR"
+        try:
+            for custom_instance_position in custom_instance_positions:
+
+                if len(custom_instance_position) < 3:
+                    raise ValueError(
+                        "Position must be an iterable (list, tuple, etc.) of three numeric values."
+                    )
+                elif len(custom_instance_position) > 3:
+                    custom_instance_position = custom_instance_position[:3]
+
+                try:
+                    custom_instance_position = [
+                        float(s) for s in custom_instance_position
+                    ]
+                    self._irregular_instance_positions.append(
+                        custom_instance_position
+                    )
+                except (TypeError, ValueError) as e:
+                    raise TypeError(
+                        f"Position must be an iterable (list, tuple, etc.) of three numeric values."
+                    ) from e
+
+        except (TypeError, ValueError) as e:
+            raise TypeError(
+                f"custom_instance_positions must be an iterable (list, tuple, etc.), containing iterables with numeric values with three entries!"
+                f"got {type(custom_instance_positions).__name__}"
+            ) from e
+
         return self
 
     def to_dict(self) -> Dict:
@@ -352,4 +410,12 @@ class Array(_GatekeeperSpace):
         node_dict["spacing"] = self.spacing
         node_dict["order"] = self.order
         node_dict["shape"] = self.shape
+        node_dict["array_type"] = self._array_type
+
+        if self._array_type == "HEXAGONAL_GRID":
+            node_dict["hexagonal_spacing"] = self._hex_spacing
+        elif self._array_type == "IRREGULAR":
+            node_dict["irregular_instance_positions"] = (
+                self._irregular_instance_positions
+            )
         return node_dict
