@@ -141,14 +141,14 @@ class CoarseAligner(Node):
 
         return self
 
-    def to_dict(self) -> Dict[str, Any]:
+    def _to_dict(self) -> Dict[str, Any]:
         """
         Convert the CoarseAligner object into a dictionary.
 
         Returns:
             Dict[str, Any]: Dictionary representation of the object.
         """
-        node_dict = super().to_dict()  # Get basic attributes from Node
+        node_dict = super()._to_dict()  # Get basic attributes from Node
         node_dict.update(
             {
                 "alignment_anchors": self.alignment_anchors,
@@ -177,7 +177,7 @@ class InterfaceAligner(Node):
         detector_type: str = "auto",
         measure_tilt: bool = False,
         area_measurement: bool = False,
-        center_stage: bool = True,
+        center_stage: str = "ALIGNER_CENTER",
         action_upon_failure: str = "abort",
         laser_power: float = 0.5,
         scan_area_res_factors: List[float] = [1.0, 1.0],
@@ -193,7 +193,7 @@ class InterfaceAligner(Node):
             detector_type (str): The type of detector. Can be 'auto', 'confocal', 'camera', or 'camera_legacy'. Defaults to 'auto'.
             measure_tilt (bool): Whether to measure tilt. Defaults to False.
             area_measurement (bool): Whether to measure the area. Defaults to False.
-            center_stage (bool): Whether to center the stage. Defaults to True.
+            center_stage (str): Anchors can be measured in modes "ANCHORS", "ALIGNER_CENTER", "NONE". Defaults to "ALIGNER_CENTER".
             action_upon_failure (str): Action upon failure, can be 'abort' or 'ignore'. Defaults to 'abort'.
             laser_power (float): The power of the laser. Must be a positive number. Defaults to 0.5.
             scan_area_res_factors (List[float]): Resolution factors for the scan area. Defaults to [1.0, 1.0].
@@ -273,9 +273,15 @@ class InterfaceAligner(Node):
         return self._center_stage
 
     @center_stage.setter
-    def center_stage(self, value: bool):
-        if not isinstance(value, bool):
-            raise TypeError("center_stage must be a boolean.")
+    def center_stage(self, value: str):
+        if isinstance(value, bool):
+            DeprecationWarning(
+                "Assigning center_stage a boolean is deprecated."
+            )
+            value = "ALIGNER_CENTER"
+        valid_types = ["ANCHORS", "ALIGNER_CENTER", "NONE"]
+        if value not in valid_types:
+            raise ValueError(f"center_stage must be one of {valid_types}.")
         self._center_stage = value
 
     @property
@@ -480,7 +486,7 @@ class InterfaceAligner(Node):
 
         return self
 
-    def to_dict(self) -> Dict:
+    def _to_dict(self) -> Dict:
         """
         Converts the current state of the object into a dictionary representation.
 
@@ -488,7 +494,7 @@ class InterfaceAligner(Node):
             dict: Dictionary representation of the current state of the object, including
                   alignment anchors, grid settings, and signal properties.
         """
-        node_dict = super().to_dict()
+        node_dict = super()._to_dict()
         if self.signal_type == "auto" or self.detector_type == "camera_legacy":
             node_dict["interface_finder_type"] = self.signal_type
         else:
@@ -708,14 +714,14 @@ class FiberAligner(Node):
 
         return self
 
-    def to_dict(self) -> Dict:
+    def _to_dict(self) -> Dict:
         """
         Converts the current state of the object into a dictionary.
 
         Returns:
             dict: Dictionary representation of the current state of the object.
         """
-        node_dict = super().to_dict()
+        node_dict = super()._to_dict()
         # Add custom attributes not covered by super().__init__()
         node_dict.update(
             {
@@ -1056,11 +1062,11 @@ class MarkerAligner(Node):
             self.add_marker(position, orientation, label)
         return self
 
-    def to_dict(self) -> Dict:
+    def _to_dict(self) -> Dict:
         """
         Converts the current state of the object into a dictionary representation.
         """
-        node_dict = super().to_dict()
+        node_dict = super()._to_dict()
         node_dict.update(
             {
                 "marker": {"image": self.image.id, "size": self.marker_size},
@@ -1325,11 +1331,11 @@ class EdgeAligner(Node):
             self.add_measurement(offset, scan_area_size, label)
         return self
 
-    def to_dict(self) -> Dict[str, Any]:
+    def _to_dict(self) -> Dict[str, Any]:
         """
         Converts the current state of the object into a dictionary representation.
         """
-        node_dict = super().to_dict()
+        node_dict = super()._to_dict()
         node_dict.update(
             {
                 "xy_position_local_cos": self.edge_location,
