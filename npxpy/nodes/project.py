@@ -14,7 +14,7 @@ import pytomlpp as toml
 import json
 from datetime import datetime
 import os
-from typing import Dict, Any, List, Union
+from typing import Dict, Any, List, Union, Sequence
 import zipfile
 from npxpy.nodes.node import Node
 from npxpy.resources import Resource
@@ -30,6 +30,8 @@ class Project(Node):
         presets (list): List of presets for the project.
         resources (list): List of resources for the project.
         project_info (dict): Information about the project including author, objective, resin, substrate, and creation date.
+        apply_curvature_compensation (bool): Whether curvature compensation is applied when printing.
+        stage_velocity (float): Stage velocity in mm/s, between 0.1 and 50.0 (inclusive).
     """
 
     def __init__(
@@ -40,6 +42,8 @@ class Project(Node):
         auto_load_presets: bool = False,
         auto_load_meshes: bool = False,
         auto_load_images: bool = False,
+        apply_curvature_compensation: bool = False,
+        stage_velocity: float = 1.0,
     ):
         """
         Initialize the project with the specified parameters.
@@ -51,9 +55,14 @@ class Project(Node):
             auto_load_presets (bool): Whether or not to automatically load any attached presets.
             auto_load_meshes (bool): Whether or not to automatically load any attached meshes.
             auto_load_images (bool): Whether or not to automatically load any attached images.
+            apply_curvature_compensation (bool): Whether to apply curvature compensation when printing.
+            stage_velocity (float): Stage velocity in mm/s. Must be between
+                0.1 and 50.0 (inclusive). The value is rounded to the third
+                decimal place.
 
         Raises:
             ValueError: If any of the parameters have invalid values.
+            TypeError: If any of the parameters have invalid types.
         """
         super().__init__(node_type="project", name="Project")
 
@@ -77,9 +86,14 @@ class Project(Node):
         self._auto_load_meshes = auto_load_meshes
         self._auto_load_images = auto_load_images
 
+        self.apply_curvature_compensation = apply_curvature_compensation
+        self.stage_velocity = stage_velocity
+        self._custom_origin = False
+        self._origin = [0.0, 0.0]
+
     # Setters for the attributes with validation
     @property
-    def objective(self):
+    def objective(self) -> str:
         return self._objective
 
     @objective.setter
@@ -100,7 +114,7 @@ class Project(Node):
             self._objective = value
 
     @property
-    def resin(self):
+    def resin(self) -> str:
         return self._resin
 
     @resin.setter
@@ -125,7 +139,7 @@ class Project(Node):
         self._resin = value
 
     @property
-    def substrate(self):
+    def substrate(self) -> str:
         return self._substrate
 
     @substrate.setter
@@ -137,18 +151,86 @@ class Project(Node):
             )
         self._substrate = value
 
+    @property
+    def apply_curvature_compensation(self) -> bool:
+        return self._apply_curvature_compensation
+
+    @apply_curvature_compensation.setter
+    def apply_curvature_compensation(self, value: bool):
+        if not isinstance(value, bool):
+            raise TypeError(
+                "apply_curvature_compensation must be a bool, got "
+                f"{type(value).__name__}."
+            )
+        self._apply_curvature_compensation = value
+
+    @property
+    def stage_velocity(self) -> float:
+        return self._stage_velocity
+
+    @stage_velocity.setter
+    def stage_velocity(self, value: float):
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise TypeError(
+                "stage_velocity must be a number, got "
+                f"{type(value).__name__}."
+            )
+        if not (0.1 <= value <= 50.0):
+            raise ValueError(
+                "stage_velocity must be between 0.1 and 50.0 (inclusive), "
+                f"got {value}."
+            )
+        self._stage_velocity = round(float(value), 3)
+
     # Read-only public properties
     @property
-    def presets(self):
+    def presets(self) -> List[Preset]:
         """Get the list of presets."""
         return self._presets
 
     @property
-    def resources(self):
+    def resources(self) -> List[Resource]:
         """Get the list of resources."""
         return self._resources
 
-    def load_resources(self, *resourcess: Union[Resource, List[Resource]]):
+    def start_from_current_stage_position(self) -> None:
+        """
+        Start the print from the current stage position.
+
+        Disables any fixed origin previously set via
+        :meth:`start_from_fixed_stage_position`.
+        """
+        self._custom_origin = False
+
+    def start_from_fixed_stage_position(
+        self, *, origin: Sequence[float] = (0.0, 0.0)
+    ) -> None:
+        """
+        Start the print from a fixed stage position instead of the current
+        stage position.
+
+        Parameters:
+            origin (Sequence[float]): The (x, y) stage coordinates to start
+                from. Must be an iterable of at least length 2 containing
+                numbers only. Values are rounded to the third decimal place.
+
+        Raises:
+            TypeError: If ``origin`` is not an iterable of at least length 2
+                containing numbers only.
+        """
+        try:
+            x, y = float(origin[0]), float(origin[1])
+        except (TypeError, IndexError, ValueError, KeyError):
+            raise TypeError(
+                "Make sure that origin is an iterable of at least length 2 "
+                "containing numbers only"
+            )
+        self._custom_origin = True
+        self._origin = [round(x, 3), round(y, 3)]
+
+    def load_resources(
+        self, *resourcess: Union[Resource, List[Resource]]
+    ) -> None:
         """
         Adds resources to the resources list, skipping duplicates based on UUID.
         """
@@ -172,7 +254,7 @@ class Project(Node):
                 self._resources.append(resource)
                 self._loaded_resource_ids.add(resource.id)
 
-    def load_presets(self, *presetss: Union[Preset, List[Preset]]):
+    def load_presets(self, *presetss: Union[Preset, List[Preset]]) -> None:
         """
         Adds presets to the presets list, skipping duplicates based on UUID.
         """
@@ -227,9 +309,9 @@ class Project(Node):
         Creates TOML data for the project.
         """
         data = {
-            "presets": [preset.to_dict() for preset in presets],
-            "resources": [resource.to_dict() for resource in resources],
-            "nodes": [node.to_dict() for node in nodes],
+            "presets": [preset._to_dict() for preset in presets],
+            "resources": [resource._to_dict() for resource in resources],
+            "nodes": [node._to_dict() for node in nodes],
         }
         return toml.dumps(data)
 
@@ -248,7 +330,7 @@ class Project(Node):
         with open(file_path, "rb") as f:
             zip_file.writestr(arcname, f.read())
 
-    def nano(self, project_name: str = "Project", path: str = "./"):
+    def nano(self, project_name: str = "Project", path: str = "./") -> None:
         """
         Creates a .nano file for the project.
         """
@@ -307,16 +389,20 @@ class Project(Node):
                     print(f"File already loaded: {src_path}")
         print("npxpy: .nano-file created successfully.")
 
-    def to_dict(self) -> Dict:
+    def _to_dict(self) -> Dict:
         """
         Convert the Project object into a dictionary.
         """
-        node_dict = super().to_dict()
+        node_dict = super()._to_dict()
         node_dict.update(
             {
                 "objective": self.objective,
                 "resin": self.resin,
                 "substrate": self.substrate,
+                "custom_origin": self._custom_origin,
+                "origin": self._origin,
+                "apply_curvature_compensation": self.apply_curvature_compensation,
+                "stage_velocity": self.stage_velocity,
             }
         )
         return node_dict
