@@ -34,20 +34,7 @@ class _GatekeeperSpace(Node):
 
     @position.setter
     def position(self, value):
-        try:
-            value_list = list(value)
-        except TypeError:
-            raise ValueError(
-                "Position must be an iterable of three numeric values."
-            )
-        if len(value_list) != 3:
-            raise ValueError("Position must have exactly three elements.")
-        try:
-            self._position = [float(x) for x in value_list]
-        except ValueError as e:
-            raise ValueError(
-                "All elements in position must be numeric."
-            ) from e
+        self._position = self._validate_triplet(value, "position")
 
     @property
     def rotation(self) -> List[float]:
@@ -55,19 +42,24 @@ class _GatekeeperSpace(Node):
 
     @rotation.setter
     def rotation(self, value):
+        self._rotation = self._validate_triplet(value, "rotation")
+
+    @staticmethod
+    def _validate_triplet(value, field_name: str) -> List[float]:
+        """Validate that value is an iterable of exactly three numeric values."""
         try:
             value_list = list(value)
         except TypeError:
             raise ValueError(
-                "Rotation must be an iterable of three numeric values."
+                f"{field_name} must be an iterable of three numeric values."
             )
         if len(value_list) != 3:
-            raise ValueError("Rotation must have exactly three elements.")
+            raise ValueError(f"{field_name} must have exactly three elements.")
         try:
-            self._rotation = [float(x) for x in value_list]
-        except ValueError as e:
+            return [float(x) for x in value_list]
+        except (TypeError, ValueError) as e:
             raise ValueError(
-                "All elements in rotation must be numeric."
+                f"All elements in {field_name} must be numeric."
             ) from e
 
     def position_at(
@@ -113,6 +105,7 @@ class _GatekeeperSpace(Node):
             Acene/Group/Array: The updated object.
         """
 
+        translation = self._validate_triplet(translation, "translation")
         self.position = [p + t for p, t in zip(self.position, translation)]
         return self
 
@@ -137,6 +130,7 @@ class _GatekeeperSpace(Node):
             Acene/Group/Array: The updated object.
         """
 
+        rotation = self._validate_triplet(rotation, "rotation")
         self.rotation = [
             (r + delta) % 360 for r, delta in zip(self.rotation, rotation)
         ]
@@ -182,11 +176,11 @@ class Scene(_GatekeeperSpace):
             raise ValueError("writing_direction_upward must be a boolean.")
         self._writing_direction_upward = value
 
-    def to_dict(self) -> Dict:
+    def _to_dict(self) -> Dict:
         """
         Convert the Scene object into a dictionary.
         """
-        node_dict = super().to_dict()
+        node_dict = super()._to_dict()
         node_dict["position"] = self.position
         node_dict["rotation"] = self.rotation
         node_dict["writing_direction_upward"] = self.writing_direction_upward
@@ -215,11 +209,11 @@ class Group(_GatekeeperSpace):
         self.position = position
         self.rotation = rotation
 
-    def to_dict(self) -> Dict:
+    def _to_dict(self) -> Dict:
         """
         Convert the Group object into a dictionary.
         """
-        node_dict = super().to_dict()
+        node_dict = super()._to_dict()
         node_dict["position"] = self.position
         node_dict["rotation"] = self.rotation
         return node_dict
@@ -399,11 +393,11 @@ class Array(_GatekeeperSpace):
 
         return self
 
-    def to_dict(self) -> Dict:
+    def _to_dict(self) -> Dict:
         """
         Convert the Array object into a dictionary.
         """
-        node_dict = super().to_dict()
+        node_dict = super()._to_dict()
         node_dict["position"] = self.position
         node_dict["rotation"] = self.rotation
         node_dict["count"] = self.count
