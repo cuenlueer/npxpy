@@ -86,7 +86,7 @@ class Resource:
         target_path = f"resources/{file_hash}/{os.path.basename(file_path)}"
         return target_path
 
-    def to_dict(self) -> Dict[str, Any]:
+    def _to_dict(self) -> Dict[str, Any]:
         """
         Converts the current state of the object into a dictionary representation.
 
@@ -240,6 +240,35 @@ class Mesh(Resource):
             raise ValueError("Target ratio must be between 0 and 100")
         self._target_ratio = value
 
+    @classmethod
+    def from_directory(cls, directory_path: str) -> List["Mesh"]:
+        """
+        Load every STL file in a directory as a Mesh instance.
+
+        Each Mesh is named after its file name including the extension
+        (e.g. ``"bracket.stl"``).
+
+        Parameters:
+            directory_path (str): Path to the folder that contains STL files.
+
+        Returns:
+            List[Mesh]: One Mesh per ``.stl`` file found in the folder,
+            ordered alphabetically by file name.
+
+        Raises:
+            NotADirectoryError: If ``directory_path`` is not an existing directory.
+        """
+        if not os.path.isdir(directory_path):
+            raise NotADirectoryError(f"Directory not found: {directory_path}")
+
+        meshes: List["Mesh"] = []
+        for filename in sorted(os.listdir(directory_path)):
+            if filename.lower().endswith(".stl"):
+                file_path = os.path.join(directory_path, filename)
+                if os.path.isfile(file_path):
+                    meshes.append(cls(file_path=file_path, name=filename))
+        return meshes
+
     def _auto_center(self):
         """
         Auto-center the mesh by translating it so the bounding box center aligns with the origin
@@ -292,14 +321,14 @@ class Mesh(Resource):
         except Exception as e:
             raise Exception(f"Error reading STL file: {e}")
 
-    def to_dict(self) -> Dict[str, Any]:
+    def _to_dict(self) -> Dict[str, Any]:
         """
         Converts the current state of the object into a dictionary representation.
 
         Returns:
             dict: Dictionary representation of the current state of the object.
         """
-        resource_dict = super().to_dict()
+        resource_dict = super()._to_dict()
         resource_dict.update(
             {
                 "translation": self.translation,

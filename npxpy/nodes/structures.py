@@ -241,6 +241,71 @@ class Structure(_GatekeeperSpace):
             )
         self._color = value
 
+    @classmethod
+    def from_directory(
+        cls,
+        directory_path: str,
+        preset: Preset,
+        size: List[Union[float, int]] = [100.0, 100.0, 100.0],
+        name: str = "Structure",
+        slicing_origin: str = "scene_bottom",
+        slicing_offset: Union[float, int] = 0.0,
+        priority: int = 0,
+        expose_individually: bool = False,
+        position: List[Union[float, int]] = [0, 0, 0],
+        rotation: List[Union[float, int]] = [0.0, 0.0, 0.0],
+        color: str = "#16506B",
+    ) -> List["Structure"]:
+        """
+        Load every STL file in a directory as a Structure instance.
+
+        Each Structure is built from a Mesh loaded from the directory
+        (see :meth:`Mesh.from_directory`). All other parameters are applied
+        to every Structure alike, with the exception of ``name``, to which
+        the mesh file name is appended (e.g. ``"Structure_bracket.stl"``).
+
+        Parameters:
+            directory_path (str): Path to the folder that contains STL files.
+            preset (Preset): The preset applied to every Structure.
+            size (List[Union[float, int]]): Size applied to every Structure.
+            name (str): Base name; the mesh file name is appended.
+            slicing_origin (str): Slicing origin for every Structure.
+            slicing_offset (Union[float, int]): Slicing offset for every Structure.
+            priority (int): Priority for every Structure.
+            expose_individually (bool): Exposure flag for every Structure.
+            position (List[Union[float, int]]): Position for every Structure.
+            rotation (List[Union[float, int]]): Rotation for every Structure.
+            color (str): Viewport color for every Structure.
+
+        Returns:
+            List[Structure]: One Structure per ``.stl`` file found in the
+            folder, ordered alphabetically by file name.
+
+        Raises:
+            NotADirectoryError: If ``directory_path`` is not an existing
+                directory (propagated from :meth:`Mesh.from_directory`).
+        """
+        meshes = Mesh.from_directory(directory_path)
+
+        structures: List["Structure"] = []
+        for mesh in meshes:
+            structures.append(
+                cls(
+                    preset=preset,
+                    mesh=mesh,
+                    size=list(size),
+                    name=f"{name}_{mesh.name}",
+                    slicing_origin=slicing_origin,
+                    slicing_offset=slicing_offset,
+                    priority=priority,
+                    expose_individually=expose_individually,
+                    position=list(position),
+                    rotation=list(rotation),
+                    color=color,
+                )
+            )
+        return structures
+
     def position_at(
         self,
         position: List[Union[float, int]] = [0, 0, 0],
@@ -321,7 +386,7 @@ class Structure(_GatekeeperSpace):
             self.project.load_resources(self.mesh)
         return self
 
-    def to_dict(self) -> dict:
+    def _to_dict(self) -> dict:
         """
         Convert the structure to a dictionary representation.
 
@@ -338,7 +403,7 @@ class Structure(_GatekeeperSpace):
                     self.size[2] / 100,
                 ],
             }
-        node_dict = super().to_dict()
+        node_dict = super()._to_dict()
         node_dict["preset"] = self.preset.id if self.preset else None
         node_dict["properties"] = {"color": self.color}
         node_dict["geometry"] = self.geometry
@@ -470,7 +535,7 @@ class Text(Structure):
             self.project.load_resources(self.mesh)
         return self
 
-    def to_dict(self) -> dict:
+    def _to_dict(self) -> dict:
         """
         Convert the text to a dictionary representation.
 
@@ -483,7 +548,7 @@ class Text(Structure):
             "font_size": self.font_size,
             "height": self.height,
         }
-        node_dict = super().to_dict()
+        node_dict = super()._to_dict()
         node_dict["geometry"] = self.geometry
         return node_dict
 
@@ -841,7 +906,7 @@ class Lens(Structure):
             self.project.load_resources(self.mesh)
         return self
 
-    def to_dict(self) -> dict:
+    def _to_dict(self) -> dict:
         """
         Convert the lens to a dictionary representation.
 
@@ -867,6 +932,6 @@ class Lens(Structure):
             "nr_phi_segments": self.nr_phi_segments,
         }
 
-        node_dict = super().to_dict()
+        node_dict = super()._to_dict()
         node_dict["geometry"] = self.geometry
         return node_dict
