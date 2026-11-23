@@ -426,7 +426,7 @@ class Preset:
                     print(file_name)
         return presets
 
-    def to_dict(self) -> Dict[str, Any]:
+    def _to_dict(self) -> Dict[str, Any]:
         """
         Convert the preset to a dictionary format.
 
@@ -469,7 +469,7 @@ class Preset:
         elif not file_path.endswith(".toml"):
             file_path += ".toml"
 
-        data = self.to_dict()
+        data = self._to_dict()
 
         with open(file_path, "w") as toml_file:
             toml.dump(data, toml_file)

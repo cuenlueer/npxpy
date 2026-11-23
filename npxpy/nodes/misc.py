@@ -139,14 +139,14 @@ class DoseCompensation(Node):
             raise ValueError("gain_limit must be greater than or equal to 1.")
         self._gain_limit = value
 
-    def to_dict(self) -> Dict[str, Any]:
+    def _to_dict(self) -> Dict[str, Any]:
         """
         Convert the DoseCompensation object into a dictionary.
 
         Returns:
             Dict[str, Any]: Dictionary representation of the object.
         """
-        node_dict = super().to_dict()  # Get the basic dict from Node
+        node_dict = super()._to_dict()  # Get the basic dict from Node
         node_dict.update(
             {
                 "position_local_cos": self.edge_location,
@@ -285,14 +285,14 @@ class Capture(Node):
         self.capture_type = "Confocal"
         return self
 
-    def to_dict(self) -> Dict[str, Any]:
+    def _to_dict(self) -> Dict[str, Any]:
         """
         Convert the Capture object into a dictionary.
 
         Returns:
             Dict[str, Any]: Dictionary representation of the Capture object.
         """
-        node_dict = super().to_dict()  # Get the basic dict from Node
+        node_dict = super()._to_dict()  # Get the basic dict from Node
         node_dict.update(
             {
                 "capture_type": self.capture_type,
@@ -349,14 +349,14 @@ class StageMove(Node):
             raise TypeError("stage_position must be a list of three numbers.")
         self._stage_position = value
 
-    def to_dict(self) -> Dict[str, Any]:
+    def _to_dict(self) -> Dict[str, Any]:
         """
         Convert the StageMove object into a dictionary.
 
         Returns:
             Dict[str, Any]: Dictionary representation of the object.
         """
-        node_dict = super().to_dict()  # Get the basic dict from Node
+        node_dict = super()._to_dict()  # Get the basic dict from Node
         node_dict["target_position"] = self.stage_position
         return node_dict
 
@@ -400,13 +400,13 @@ class Wait(Node):
             raise ValueError("wait_time must be a positive number.")
         self._wait_time = value
 
-    def to_dict(self) -> Dict[str, Any]:
+    def _to_dict(self) -> Dict[str, Any]:
         """
         Convert the Wait object into a dictionary.
 
         Returns:
             Dict[str, Any]: Dictionary representation of the object.
         """
-        node_dict = super().to_dict()  # Get the basic dict from Node
+        node_dict = super()._to_dict()  # Get the basic dict from Node
         node_dict["wait_time"] = self.wait_time
         return node_dict
