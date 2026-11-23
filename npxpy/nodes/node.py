@@ -12,8 +12,9 @@ This file is part of npxpy, which is licensed under the MIT License.
 """
 import uuid
 import copy
-from typing import Dict, Any, List, Tuple, Optional, Union, Self
+from typing import Dict, Any, List, Tuple, Optional, Union, Self, ClassVar
 from importlib.resources import files
+import inspect
 
 
 class Node:
@@ -32,6 +33,30 @@ class Node:
         geometry (Any): Geometry of the node.
         unique_attributes (Dict[str, Any]): Additional dynamic attributes.
     """
+
+    _repr_fields: ClassVar[Tuple[str, ...]] = ("name",)
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        # Runs once per subclass at definition time — cache the param names.
+        if "__repr__" in cls.__dict__:
+            return  # subclass defines its own repr — leave it alone
+        params = inspect.signature(cls.__init__).parameters
+        cls._repr_fields = tuple(
+            p.name
+            for p in params.values()
+            if p.name != "self"
+            and p.kind not in (p.VAR_POSITIONAL, p.VAR_KEYWORD)
+        )
+
+    def __repr__(self) -> str:
+        parts = []
+        for field in self._repr_fields:
+            try:
+                parts.append(f"{field}={getattr(self, field)!r}")
+            except AttributeError:
+                parts.append(f"{field}=<unset>")
+        return f"{type(self).__name__}({', '.join(parts)})"
 
     def __init__(
         self,
@@ -61,10 +86,29 @@ class Node:
 
         self.children: List[str] = []
         self.children_nodes: List[Node] = []
-        self.all_descendants: List[Node] = self._generate_all_descendants()
 
-        self.parent_node: List[Node] = []
-        self.all_ancestors: List[Node] = []
+        self.parent_node: Optional[Node] = None
+
+    @property
+    def all_descendants(self) -> List["Node"]:
+        """All descendants, pre-order DFS (parent before children, insertion order)."""
+        result: List["Node"] = []
+        stack = list(reversed(self.children_nodes))
+        while stack:
+            n = stack.pop()
+            result.append(n)
+            stack.extend(reversed(n.children_nodes))
+        return result
+
+    @property
+    def all_ancestors(self) -> List["Node"]:
+        """Ancestors ordered [parent, grandparent, ..., root]."""
+        result: List["Node"] = []
+        n = self.parent_node
+        while n is not None:
+            result.append(n)
+            n = n.parent_node
+        return result
 
     @property
     def name(self):
@@ -99,17 +143,8 @@ class Node:
         self.__visibility_in_plotter_disabled = list(value)
 
     def add_child(self, *child_nodes: "Node"):
-        """
-        Add child node(s) to the current node.
-
-        Parameters:
-            child_node (Node): The child node(s) to add.
-        """
         for child_node in child_nodes:
-            if not all(
-                hasattr(child_node, attr)
-                for attr in ["_type", "all_descendants", "all_ancestors"]
-            ):
+            if not isinstance(child_node, Node):
                 raise TypeError(
                     "Only instances of nodes can be added as children to nodes!"
                 )
@@ -124,31 +159,36 @@ class Node:
             elif child_node._type == "scene":
                 if self._has_ancestor_of_type("scene"):
                     raise ValueError("Nested scenes are not allowed!")
-            elif self in child_node.all_descendants:
+            elif self in child_node.all_descendants:  # cycle check, O(subtree)
                 raise ValueError(
                     "This node cannot be added since it is a ancestor to the current node!"
                 )
 
-            child_node.parent_node.append(self)
+            child_node.parent_node = self
             self.children_nodes.append(child_node)
-            # Update descendants list of parent
 
-            self.all_descendants += [child_node] + child_node.all_descendants
+        return self
 
-            for child in [child_node] + child_node.all_descendants:
-                child.all_ancestors = (
-                    child._generate_all_ancestors()
-                )  # Update ancestors list (_generate_all_ancestors() inexpensive and easy!)
+    def remove_child(self, *child_nodes: "Node"):
+        """
+        Remove one or more child nodes from this node.
 
-            for (
-                ancestor
-            ) in (
-                self.all_ancestors
-            ):  # Update descendants for the parent's ancestors
-                ancestor.all_descendants += [
-                    child_node
-                ] + child_node.all_descendants
+        Only children whose ``parent_node`` is the current node are removed;
+        any argument that is not actually a child of this node is silently
+        ignored. For each removed child, its ``parent_node`` is reset to
+        ``None`` so it is fully detached from this subtree.
 
+        Parameters:
+            *child_nodes (Node): One or more child nodes to remove from this
+                node's ``children_nodes`` list.
+
+        Returns:
+            Node: The current node instance (allows method chaining).
+        """
+        for child_node in child_nodes:
+            if child_node.parent_node is self:
+                self.children_nodes.remove(child_node)
+                child_node.parent_node = None
         return self
 
     def _has_ancestor_of_type(self, node_type: str) -> bool:
@@ -165,8 +205,8 @@ class Node:
         while current_node:
             if current_node._type == node_type:
                 return True
-            current_node = getattr(
-                current_node, "parent", None
+            current_node = (
+                current_node.parent_node
             )  # Assumes a parent attribute is set for each node
         return False
 
@@ -210,24 +250,24 @@ class Node:
                 prefix=new_prefix,
             )
 
-    def deepcopy_node(self, copy_children: bool = True, name: Optional[str] = None) -> Self:
-        """
-        Create a deep copy of the node.
+    def __deepcopy__(self, memo):
+        cls = self.__class__
+        result = cls.__new__(cls)
+        memo[id(self)] = result
+        for key, value in self.__dict__.items():
+            if key == "parent_node":
+                setattr(result, key, None)  # don't drag the upstream tree
+            else:
+                setattr(result, key, copy.deepcopy(value, memo))
+        return result
 
-        Parameters:
-            copy_children (bool, optional): Whether to copy children nodes. Defaults to True.
-            name (str, optional): New name for the copied node. Defaults to None.
-
-        Returns:
-            Node: A deep copy of the current node.
-        """
-
+    def deepcopy_node(
+        self, copy_children: bool = True, name: Optional[str] = None
+    ) -> Self:
         copied_node = copy.deepcopy(self)
         copied_node.id = str(uuid.uuid4())
         copied_node.children_nodes = []
-        copied_node.all_descendants = []
-        copied_node.parent_node = []
-        copied_node.all_ancestors = []
+        copied_node.parent_node = None  # __deepcopy__ handles this I think but does not harm to keep it
 
         if copy_children:
             copied_children = [
@@ -274,36 +314,6 @@ class Node:
                     next_level_nodes.append(filtered_nodes[index])
             current_level_nodes = next_level_nodes
         return current_level_nodes[0]
-
-    def _generate_all_descendants(self) -> List["Node"]:
-        """
-        Generate a list of all descendant nodes.
-
-        Returns:
-            List[Node]: List of all descendant nodes.
-        """
-        descendants = []
-        nodes_to_check = [self]
-        while nodes_to_check:
-            current_node = nodes_to_check.pop()
-            descendants.extend(current_node.children_nodes)
-            nodes_to_check.extend(current_node.children_nodes)
-        return descendants
-
-    def _generate_all_ancestors(self) -> List["Node"]:
-        """
-        Generate a list of all ancestor nodes.
-
-        Returns:
-            List[Node]: List of all descendant nodes.
-        """
-        ancestors = []
-        nodes_to_check = [self]
-        while nodes_to_check:
-            current_node = nodes_to_check.pop()
-            ancestors.extend(current_node.parent_node)
-            nodes_to_check.extend(current_node.parent_node)
-        return ancestors
 
     def grab_all_nodes_bfs(self, node_type: str) -> List["Node"]:
         """
@@ -574,7 +584,7 @@ class Node:
                 and not hasattr(node, "font_size")
             ):
                 lens = node
-                geometry = lens.to_dict()["geometry"]
+                geometry = lens._to_dict()["geometry"]
                 del (
                     geometry["type"],
                     geometry["nr_radial_segments"],
@@ -751,7 +761,7 @@ class Node:
 
         return plotter
 
-    def to_dict(self) -> Dict[str, Any]:
+    def _to_dict(self) -> Dict[str, Any]:
         """
         Convert the node and its attributes to a dictionary format.
 
