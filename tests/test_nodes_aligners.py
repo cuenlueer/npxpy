@@ -75,27 +75,27 @@ class TestAligners(unittest.TestCase):
         )
         self.assertEqual(len(edge_aligner.alignment_anchors), 1)
 
-    def test_to_dict_methods(self):
-        # Ensure the to_dict method generates proper output
+    def test__to_dict_methods(self):
+        # Ensure the _to_dict method generates proper output
         coarse_aligner = CoarseAligner(residual_threshold=10.0)
-        self.assertIn("residual_threshold", coarse_aligner.to_dict())
+        self.assertIn("residual_threshold", coarse_aligner._to_dict())
 
         interface_aligner = InterfaceAligner()
         self.assertIn(
-            "detector_type", interface_aligner.to_dict()["properties"]
+            "detector_type", interface_aligner._to_dict()["properties"]
         )
 
         fiber_aligner = FiberAligner()
-        self.assertIn("fiber_radius", fiber_aligner.to_dict())
+        self.assertIn("fiber_radius", fiber_aligner._to_dict())
 
         marker_aligner = MarkerAligner(image=self.image)
-        self.assertIn("marker", marker_aligner.to_dict())
+        self.assertIn("marker", marker_aligner._to_dict())
 
         edge_aligner = EdgeAligner()
-        self.assertNotIn("edge_location", edge_aligner.to_dict())
+        self.assertNotIn("edge_location", edge_aligner._to_dict())
         self.assertEqual(
             edge_aligner.edge_location,
-            edge_aligner.to_dict()["xy_position_local_cos"],
+            edge_aligner._to_dict()["xy_position_local_cos"],
         )
 
 

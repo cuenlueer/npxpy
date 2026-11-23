@@ -17,7 +17,7 @@ class TestNode(unittest.TestCase):
         self.assertIn(self.child1, self.parent.children_nodes)
 
         # Test the child's parent relationship
-        self.assertIn(self.parent, self.child1.parent_node)
+        self.assertIn(self.parent, [self.child1.parent_node])
 
         # Adding structure node as a child (this is fine)
         self.parent.add_child(self.structure_node)
@@ -50,7 +50,7 @@ class TestNode(unittest.TestCase):
         self.parent.add_child(self.child1)
         self.child1.add_child(self.grandchild1)
 
-        descendants = self.parent._generate_all_descendants()
+        descendants = self.parent.all_descendants
         self.assertIn(self.child1, descendants)
         self.assertIn(self.grandchild1, descendants)
         self.assertEqual(len(descendants), 2)
@@ -60,7 +60,7 @@ class TestNode(unittest.TestCase):
         self.parent.add_child(self.child1)
         self.child1.add_child(self.grandchild1)
 
-        ancestors = self.grandchild1._generate_all_ancestors()
+        ancestors = self.grandchild1.all_ancestors
         self.assertIn(self.child1, ancestors)
         self.assertIn(self.parent, ancestors)
         self.assertEqual(len(ancestors), 2)
@@ -120,10 +120,10 @@ class TestNode(unittest.TestCase):
         # Check if the new node is added as the grandchild's child
         self.assertIn(new_node, self.grandchild1.children_nodes)
 
-    def test_to_dict(self):
+    def test__to_dict(self):
         # Test converting node to dictionary format
         self.parent.add_child(self.child1)
-        node_dict = self.parent.to_dict()
+        node_dict = self.parent._to_dict()
 
         # Check that the dictionary contains the correct keys
         self.assertIn("type", node_dict)

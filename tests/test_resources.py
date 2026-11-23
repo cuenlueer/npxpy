@@ -47,14 +47,14 @@ class TestResource(unittest.TestCase):
         with self.assertRaises(FileNotFoundError):
             self.resource.generate_safe_path("nonexistent_path.txt")
 
-    def test_to_dict(self):
+    def test__to_dict(self):
         expected_dict = {
             "type": self.resource_type,
             "id": self.resource.id,
             "name": self.name,
             "path": self.resource.safe_path,
         }
-        self.assertEqual(self.resource.to_dict(), expected_dict)
+        self.assertEqual(self.resource._to_dict(), expected_dict)
 
 
 class TestImage(unittest.TestCase):
@@ -129,8 +129,8 @@ class TestMesh(unittest.TestCase):
         with self.assertRaises(Exception):
             self.mesh._get_triangle_count(self.path)
 
-    def test_to_dict(self):
-        resource_dict = self.mesh.to_dict()
+    def test__to_dict(self):
+        resource_dict = self.mesh._to_dict()
         self.assertIn("properties", resource_dict)
         self.assertIn("original_triangle_count", resource_dict["properties"])
 

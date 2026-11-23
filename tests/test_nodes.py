@@ -75,10 +75,10 @@ class TestNodeMethods(unittest.TestCase):
         self.assertEqual(node.position, [20.0, 15.0, 5.0])
         self.assertEqual(node.rotation, [90.0, 45.0, 180.0])
 
-    def test_to_dict(self):
-        # Test the to_dict method for node serialization
+    def test__to_dict(self):
+        # Test the _to_dict method for node serialization
         node = MarkerAligner(name="Test MarkerAligner", image=self.test_image)
-        node_dict = node.to_dict()
+        node_dict = node._to_dict()
 
         # Check that required keys exist in the dictionary
         self.assertIn("name", node_dict)

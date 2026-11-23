@@ -8,7 +8,13 @@ Created on Wed Jul 17 11:50:44 2024
 import npxpy as n
 
 
-project = n.Project(objective="25x", resin="IP-n162", substrate="FuSi")
+project = n.Project(
+    objective="25x",
+    resin="IP-n162",
+    substrate="FuSi",
+    apply_curvature_compensation=True,
+    stage_velocity=50,
+)
 
 edit_presets = {
     "writing_speed": "220000.0",
@@ -39,7 +45,7 @@ resource_image = n.Image(
 
 
 project.load_resources(resource_image)
-
+project.start_from_fixed_stage_position(origin=(10, "30", 3.0))
 
 labels = ["anchor 0", "anchor 1", "anchor 2", "anchor 3"]
 
