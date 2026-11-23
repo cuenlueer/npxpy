@@ -1,6 +1,32 @@
 # CHANGELOG
 
 
+## v0.5.0 (2026-11-23)
+
+### Bug Fixes
+
+- Add error handling for `translate()/rotate()`
+  ([`0c1acf7`](https://github.com/cuenlueer/npxpy/commit/0c1acf728cadabb2293dd12614d3d95a4ae31e56))
+
+### Documentation
+
+- Add citation file
+  ([`a44819f`](https://github.com/cuenlueer/npxpy/commit/a44819fb3f20b1f42e975bbb1a431b6be09b5842))
+
+### Features
+
+- Add new method `from_directory()`
+  ([`5e74ecd`](https://github.com/cuenlueer/npxpy/commit/5e74ecd975cf15786e4a3d5e4956f55b1d3fda94))
+
+Meshes and Structures can be loaded now from multiple STL files at once by passing the path
+  containing them to `from_directory()` break: Make `to_dict()` private.
+
+- Enable adding new project parameters
+  ([`ed14dcd`](https://github.com/cuenlueer/npxpy/commit/ed14dcd88c94e07170fcac4904d4e5abfcae72b4))
+
+break: Make to_dict() private.
+
+
 ## v0.4.0 (2025-12-14)
 
 ### Features
