@@ -1,0 +1,28 @@
+cff-version: 1.2.0
+message: "If npxpy contributes to your research, software, or project, we kindly request that you cite it in your publications as below."
+title: "npxpy"
+type: software
+authors:
+  - given-names: Caghan
+    family-names: Ünlüer
+    orcid: "https://orcid.org/0009-0003-9033-2024"
+  - given-names: Simone
+    family-names: Ferrari
+    orcid: "https://orcid.org/0000-0001-9341-4509"
+  - given-names: Wolfram
+    family-names: Pernice
+    orcid: "https://orcid.org/0000-0003-4569-4213"
+abstract: >-
+  Python based open source text-only project preparation framework for
+  Nanoscribe's two-photon 3D lithography system Quantum X align.
+date-released: 2025-03-17
+license: MIT
+doi: "10.5281/zenodo.15038194"
+repository-code: "https://github.com/cuenlueer/npxpy"
+url: "https://cuenlueer.github.io/npxpy/"
+keywords:
+  - two-photon lithography
+  - 3D lithography
+  - Nanoscribe
+  - Quantum X align
+  - nanofabrication
